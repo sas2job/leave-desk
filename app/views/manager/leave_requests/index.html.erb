@@ -1,30 +1,65 @@
-<h1>Заявки сотрудников</h1>
+<main class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Команда</p>
+      <h1>Заявки сотрудников</h1>
+      <p class="lede">Рассмотрите планы команды и зафиксируйте решение.</p>
+    </div>
+  </header>
 
-<%= tag.div(flash[:notice], role: "status") if flash[:notice] %>
-<%= tag.div(flash[:alert], role: "alert") if flash[:alert] %>
+  <% if @leave_requests.any? %>
+    <div class="request-list">
+      <% @leave_requests.each do |leave_request| %>
+        <article class="card review-card">
+          <header class="review-card__header">
+            <div>
+              <h2><%= leave_request.employee.name %></h2>
+              <p class="request-card__comment"><%= leave_request.employee_comment.presence || "Без комментария" %></p>
+            </div>
+            <span class="status status--<%= leave_request.status %>">
+              <%= leave_request_status_label(leave_request) %>
+            </span>
+          </header>
 
-<% if @leave_requests.any? %>
-  <% @leave_requests.each do |leave_request| %>
-    <article>
-      <h2><%= leave_request.employee.name %></h2>
-      <p>
-        <%= leave_request.leave_type.name %>:
-        <%= leave_request.starts_on %> — <%= leave_request.ends_on %>
-      </p>
-      <p>Статус: <%= leave_request_status_label(leave_request) %></p>
+          <div class="review-card__details">
+            <div>
+              <div class="meta-label">Вид отпуска</div>
+              <div class="meta-value"><%= leave_request.leave_type.name %></div>
+            </div>
+            <div>
+              <div class="meta-label">Начало</div>
+              <div class="meta-value"><%= format_date(leave_request.starts_on) %></div>
+            </div>
+            <div>
+              <div class="meta-label">Окончание</div>
+              <div class="meta-value"><%= format_date(leave_request.ends_on) %></div>
+            </div>
+          </div>
 
-      <% if leave_request.pending? %>
-        <%= form_with url: approve_manager_leave_request_path(leave_request), method: :patch do |form| %>
-          <%= form.label :review_comment, "Комментарий руководителя" %>
-          <%= form.text_area :review_comment %>
-          <%= form.submit "Одобрить" %>
-        <% end %>
-
-        <%= button_to "Отклонить", reject_manager_leave_request_path(leave_request),
-          method: :patch %>
+          <% if leave_request.pending? %>
+            <%= form_with url: approve_manager_leave_request_path(leave_request),
+              method: :patch, class: "review-card__form" do |form| %>
+              <div class="field">
+                <%= form.label :review_comment, "Комментарий руководителя" %>
+                <%= form.text_area :review_comment,
+                  placeholder: "Необязательно: поясните решение" %>
+              </div>
+              <div class="review-card__actions">
+                <%= form.submit "Одобрить" %>
+                <%= form.submit "Отклонить",
+                  formaction: reject_manager_leave_request_path(leave_request),
+                  class: "button--danger" %>
+              </div>
+            <% end %>
+          <% end %>
+        </article>
       <% end %>
-    </article>
+    </div>
+  <% else %>
+    <section class="card empty-state">
+      <div class="empty-state__icon" aria-hidden="true">✓</div>
+      <h2>Нет заявок для рассмотрения</h2>
+      <p>Новые заявки сотрудников появятся здесь.</p>
+    </section>
   <% end %>
-<% else %>
-  <p>Заявок сотрудников пока нет.</p>
-<% end %>
+</main>

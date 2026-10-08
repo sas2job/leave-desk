@@ -15,8 +15,8 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     get leave_requests_path
 
     assert_response :success
-    assert_select "body", text: /#{own_request.starts_on}/
-    assert_select "body", text: /#{Regexp.escape(other_request.starts_on.to_s)}/, count: 0
+    assert_select "body", text: /01\.11\.2026/
+    assert_select "body", text: /#{Regexp.escape(other_request.starts_on.strftime("%d.%m.%Y"))}/, count: 0
   end
 
   test "creates request for current user" do

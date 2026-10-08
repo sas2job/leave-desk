@@ -1,19 +1,31 @@
-<h1>Вход</h1>
-
-<%= tag.div(flash[:alert], role: "alert") if flash[:alert] %>
-
-<%= form_with url: session_path do |form| %>
-  <div>
-    <%= form.label :email_address, "Электронная почта" %>
-    <%= form.email_field :email_address, required: true, autofocus: true,
-      autocomplete: "username", value: params[:email_address] %>
+<main class="auth-page">
+  <div class="brand auth-brand">
+    <span class="brand__mark" aria-hidden="true">LD</span>
+    <span>Leave Desk</span>
   </div>
 
-  <div>
-    <%= form.label :password, "Пароль" %>
-    <%= form.password_field :password, required: true,
-      autocomplete: "current-password", maxlength: 72 %>
-  </div>
+  <section class="card auth-card">
+    <h1>Добро пожаловать</h1>
+    <p class="auth-card__intro">Войдите, чтобы продолжить работу.</p>
 
-  <%= form.submit "Войти" %>
-<% end %>
+    <%= tag.div(flash[:alert], class: "flash flash--alert", role: "alert") if flash[:alert] %>
+
+    <%= form_with url: session_path do |form| %>
+      <div class="field">
+        <%= form.label :email_address, "Электронная почта" %>
+        <%= form.email_field :email_address, required: true, autofocus: true,
+          autocomplete: "username", placeholder: "name@company.ru",
+          value: params[:email_address] %>
+      </div>
+
+      <div class="field">
+        <%= form.label :password, "Пароль" %>
+        <%= form.password_field :password, required: true,
+          autocomplete: "current-password", placeholder: "Введите пароль",
+          maxlength: 72 %>
+      </div>
+
+      <%= form.submit "Войти" %>
+    <% end %>
+  </section>
+</main>

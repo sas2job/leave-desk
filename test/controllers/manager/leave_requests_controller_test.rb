@@ -18,8 +18,8 @@ module Manager
       get manager_leave_requests_path
 
       assert_response :success
-      assert_select "body", text: /#{managed_request.starts_on}/
-      assert_select "body", text: /#{Regexp.escape(other_request.starts_on.to_s)}/, count: 0
+      assert_select "body", text: /01\.11\.2026/
+      assert_select "body", text: /#{Regexp.escape(other_request.starts_on.strftime("%d.%m.%Y"))}/, count: 0
     end
 
     test "manager approves direct report request" do

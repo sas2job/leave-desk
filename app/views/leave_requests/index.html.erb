@@ -1,38 +1,46 @@
-<h1>Мои заявки</h1>
+<main class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Отпуска</p>
+      <h1>Мои заявки</h1>
+      <p class="lede">История отпусков и текущие решения.</p>
+    </div>
+    <%= link_to "Создать заявку", new_leave_request_path, class: "button" %>
+  </header>
 
-<%= tag.div(flash[:notice], role: "status") if flash[:notice] %>
-<%= tag.div(flash[:alert], role: "alert") if flash[:alert] %>
-
-<p><%= link_to "Создать заявку", new_leave_request_path %></p>
-
-<% if @leave_requests.any? %>
-  <table>
-    <thead>
-      <tr>
-        <th>Вид отпуска</th>
-        <th>Начало</th>
-        <th>Окончание</th>
-        <th>Статус</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
+  <% if @leave_requests.any? %>
+    <div class="request-list">
       <% @leave_requests.each do |leave_request| %>
-        <tr>
-          <td><%= leave_request.leave_type.name %></td>
-          <td><%= leave_request.starts_on %></td>
-          <td><%= leave_request.ends_on %></td>
-          <td><%= leave_request_status_label(leave_request) %></td>
-          <td>
+        <article class="request-card">
+          <div class="request-card__summary">
+            <div class="request-card__title"><%= leave_request.leave_type.name %></div>
+            <span class="status status--<%= leave_request.status %>">
+              <%= leave_request_status_label(leave_request) %>
+            </span>
+          </div>
+          <div>
+            <div class="meta-label">Начало</div>
+            <div class="meta-value"><%= format_date(leave_request.starts_on) %></div>
+          </div>
+          <div>
+            <div class="meta-label">Окончание</div>
+            <div class="meta-value"><%= format_date(leave_request.ends_on) %></div>
+          </div>
+          <div class="request-card__actions">
             <% if leave_request.pending? || leave_request.approved? %>
               <%= button_to "Отменить", leave_request_path(leave_request),
-                method: :delete %>
+                method: :delete, class: "button--danger" %>
             <% end %>
-          </td>
-        </tr>
+          </div>
+        </article>
       <% end %>
-    </tbody>
-  </table>
-<% else %>
-  <p>Заявок пока нет.</p>
-<% end %>
+    </div>
+  <% else %>
+    <section class="card empty-state">
+      <div class="empty-state__icon" aria-hidden="true">＋</div>
+      <h2>Заявок пока нет</h2>
+      <p>Создайте первую заявку на отпуск.</p>
+      <%= link_to "Создать заявку", new_leave_request_path, class: "button" %>
+    </section>
+  <% end %>
+</main>

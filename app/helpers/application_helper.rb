@@ -9,4 +9,8 @@ module ApplicationHelper
   def leave_request_status_label(leave_request)
     LEAVE_REQUEST_STATUS_LABELS.fetch(leave_request.status)
   end
+
+  def format_date(date)
+    date.strftime("%d.%m.%Y")
+  end
 end

@@ -1,28 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
   <head>
-    <title><%= content_for(:title) || "Leave Desk Bootstrap" %></title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title><%= content_for(:title) || "Leave Desk" %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#196244">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Leave Desk Bootstrap">
+    <meta name="application-name" content="Leave Desk">
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
-
     <%= yield :head %>
-
-    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
-    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
-
-    <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
   </head>
 
-  <body>
+  <body class="<%= authenticated? ? "app-shell" : "auth-shell" %>">
+    <% if authenticated? %>
+      <header class="site-header">
+        <div class="site-header__inner">
+          <%= link_to root_path, class: "brand", aria: { label: "Leave Desk — главная" } do %>
+            <span class="brand__mark" aria-hidden="true">LD</span>
+            <span>Leave Desk</span>
+          <% end %>
+
+          <nav class="site-nav" aria-label="Основная навигация">
+            <%= link_to "Мои заявки", leave_requests_path %>
+            <% if Current.user.manager? %>
+              <%= link_to "Заявки сотрудников", manager_leave_requests_path %>
+            <% end %>
+          </nav>
+
+          <div class="user-menu">
+            <span class="user-menu__name"><%= Current.user.name %></span>
+            <%= button_to "Выйти", session_path, method: :delete %>
+          </div>
+        </div>
+      </header>
+
+      <%= tag.div(flash[:notice], class: "flash flash--notice", role: "status") if flash[:notice] %>
+      <%= tag.div(flash[:alert], class: "flash flash--alert", role: "alert") if flash[:alert] %>
+    <% end %>
+
     <%= yield %>
   </body>
 </html>

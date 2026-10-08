@@ -1,11 +1,25 @@
-<h1>Leave Desk</h1>
+<main class="page">
+  <section class="page-header">
+    <div>
+      <p class="eyebrow">Рабочее пространство</p>
+      <h1>Здравствуйте, <%= Current.user.name %></h1>
+      <p class="lede">Управляйте отпусками и следите за статусом заявок в одном месте.</p>
+    </div>
+  </section>
 
-<p>Вы вошли как <%= Current.user.name %>.</p>
+  <div class="dashboard-grid">
+    <%= link_to leave_requests_path, class: "card action-card" do %>
+      <span class="action-card__icon" aria-hidden="true">М</span>
+      <h2>Мои заявки</h2>
+      <p>Создавайте заявки и отслеживайте принятые решения.</p>
+    <% end %>
 
-<p><%= link_to "Мои заявки", leave_requests_path %></p>
-
-<% if Current.user.manager? %>
-  <p><%= link_to "Заявки сотрудников", manager_leave_requests_path %></p>
-<% end %>
-
-<%= button_to "Выйти", session_path, method: :delete %>
+    <% if Current.user.manager? %>
+      <%= link_to manager_leave_requests_path, class: "card action-card" do %>
+        <span class="action-card__icon" aria-hidden="true">К</span>
+        <h2>Заявки команды</h2>
+        <p>Рассматривайте отпуска непосредственных подчинённых.</p>
+      <% end %>
+    <% end %>
+  </div>
+</main>
