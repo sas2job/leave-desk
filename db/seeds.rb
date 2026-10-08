@@ -10,12 +10,16 @@ ActiveRecord::Base.transaction do
 
   next unless Rails.env.development?
 
+  password = ENV.fetch("DEV_SEED_PASSWORD", "development-password")
+
   administrator = User.find_or_initialize_by(email_address: "admin@leave-desk.test")
-  administrator.update!(name: "Администратор", role: :administrator, active: true)
+  administrator.update!(name: "Администратор", role: :administrator, active: true,
+    password:)
 
   manager = User.find_or_initialize_by(email_address: "manager@leave-desk.test")
-  manager.update!(name: "Руководитель", role: :manager, active: true)
+  manager.update!(name: "Руководитель", role: :manager, active: true, password:)
 
   employee = User.find_or_initialize_by(email_address: "employee@leave-desk.test")
-  employee.update!(name: "Сотрудник", role: :employee, manager:, active: true)
+  employee.update!(name: "Сотрудник", role: :employee, manager:, active: true,
+    password:)
 end

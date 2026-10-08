@@ -2,8 +2,10 @@ require "test_helper"
 
 class LeaveRequestTest < ActiveSupport::TestCase
   setup do
-    @manager = User.create!(name: "Review Manager", email_address: "manager@example.test", role: :manager)
-    @employee = User.create!(name: "Example Employee", email_address: "employee@example.test", manager: @manager)
+    @manager = User.create!(name: "Review Manager", email_address: "manager@example.test",
+      password: "test-password", role: :manager)
+    @employee = User.create!(name: "Example Employee", email_address: "employee@example.test",
+      password: "test-password", manager: @manager)
     @leave_type = LeaveType.create!(name: "Annual leave", code: "annual")
   end
 

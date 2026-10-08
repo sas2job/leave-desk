@@ -1,0 +1,19 @@
+<h1>Вход</h1>
+
+<%= tag.div(flash[:alert], role: "alert") if flash[:alert] %>
+
+<%= form_with url: session_path do |form| %>
+  <div>
+    <%= form.label :email_address, "Электронная почта" %>
+    <%= form.email_field :email_address, required: true, autofocus: true,
+      autocomplete: "username", value: params[:email_address] %>
+  </div>
+
+  <div>
+    <%= form.label :password, "Пароль" %>
+    <%= form.password_field :password, required: true,
+      autocomplete: "current-password", maxlength: 72 %>
+  </div>
+
+  <%= form.submit "Войти" %>
+<% end %>

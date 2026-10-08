@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  has_secure_password
+
   enum :role, { employee: 0, manager: 1, administrator: 2 }
 
   belongs_to :manager, class_name: "User", optional: true
@@ -9,6 +11,7 @@ class User < ApplicationRecord
   has_many :reviewed_leave_requests, class_name: "LeaveRequest",
     foreign_key: :reviewer_id, inverse_of: :reviewer,
     dependent: :restrict_with_exception
+  has_many :sessions, dependent: :destroy
 
   normalizes :email_address, with: ->(email) { email.strip.downcase }
 
