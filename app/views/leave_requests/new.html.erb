@@ -1,0 +1,36 @@
+<h1>Новая заявка</h1>
+
+<% if @leave_request.errors.any? %>
+  <div role="alert">
+    <ul>
+      <% @leave_request.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<%= form_with model: @leave_request do |form| %>
+  <div>
+    <%= form.label :leave_type_id, "Вид отпуска" %>
+    <%= form.collection_select :leave_type_id, @leave_types, :id, :name,
+      { prompt: "Выберите вид отпуска" }, required: true %>
+  </div>
+
+  <div>
+    <%= form.label :starts_on, "Дата начала" %>
+    <%= form.date_field :starts_on, required: true %>
+  </div>
+
+  <div>
+    <%= form.label :ends_on, "Дата окончания" %>
+    <%= form.date_field :ends_on, required: true %>
+  </div>
+
+  <div>
+    <%= form.label :employee_comment, "Комментарий" %>
+    <%= form.text_area :employee_comment %>
+  </div>
+
+  <%= form.submit "Отправить заявку" %>
+<% end %>

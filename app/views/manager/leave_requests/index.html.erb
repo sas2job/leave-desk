@@ -1,0 +1,30 @@
+<h1>Заявки сотрудников</h1>
+
+<%= tag.div(flash[:notice], role: "status") if flash[:notice] %>
+<%= tag.div(flash[:alert], role: "alert") if flash[:alert] %>
+
+<% if @leave_requests.any? %>
+  <% @leave_requests.each do |leave_request| %>
+    <article>
+      <h2><%= leave_request.employee.name %></h2>
+      <p>
+        <%= leave_request.leave_type.name %>:
+        <%= leave_request.starts_on %> — <%= leave_request.ends_on %>
+      </p>
+      <p>Статус: <%= leave_request_status_label(leave_request) %></p>
+
+      <% if leave_request.pending? %>
+        <%= form_with url: approve_manager_leave_request_path(leave_request), method: :patch do |form| %>
+          <%= form.label :review_comment, "Комментарий руководителя" %>
+          <%= form.text_area :review_comment %>
+          <%= form.submit "Одобрить" %>
+        <% end %>
+
+        <%= button_to "Отклонить", reject_manager_leave_request_path(leave_request),
+          method: :patch %>
+      <% end %>
+    </article>
+  <% end %>
+<% else %>
+  <p>Заявок сотрудников пока нет.</p>
+<% end %>

@@ -1,0 +1,38 @@
+<h1>Мои заявки</h1>
+
+<%= tag.div(flash[:notice], role: "status") if flash[:notice] %>
+<%= tag.div(flash[:alert], role: "alert") if flash[:alert] %>
+
+<p><%= link_to "Создать заявку", new_leave_request_path %></p>
+
+<% if @leave_requests.any? %>
+  <table>
+    <thead>
+      <tr>
+        <th>Вид отпуска</th>
+        <th>Начало</th>
+        <th>Окончание</th>
+        <th>Статус</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @leave_requests.each do |leave_request| %>
+        <tr>
+          <td><%= leave_request.leave_type.name %></td>
+          <td><%= leave_request.starts_on %></td>
+          <td><%= leave_request.ends_on %></td>
+          <td><%= leave_request_status_label(leave_request) %></td>
+          <td>
+            <% if leave_request.pending? || leave_request.approved? %>
+              <%= button_to "Отменить", leave_request_path(leave_request),
+                method: :delete %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <p>Заявок пока нет.</p>
+<% end %>

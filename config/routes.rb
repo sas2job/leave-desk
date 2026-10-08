@@ -1,5 +1,15 @@
 Rails.application.routes.draw do
   resource :session, only: %i[new create destroy]
+  resources :leave_requests, only: %i[index new create destroy]
+
+  namespace :manager do
+    resources :leave_requests, only: :index do
+      member do
+        patch :approve
+        patch :reject
+      end
+    end
+  end
 
   root "home#show"
 

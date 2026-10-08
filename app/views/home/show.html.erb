@@ -2,4 +2,10 @@
 
 <p>Вы вошли как <%= Current.user.name %>.</p>
 
+<p><%= link_to "Мои заявки", leave_requests_path %></p>
+
+<% if Current.user.manager? %>
+  <p><%= link_to "Заявки сотрудников", manager_leave_requests_path %></p>
+<% end %>
+
 <%= button_to "Выйти", session_path, method: :delete %>
