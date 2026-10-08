@@ -1,9 +1,21 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
-#
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+ActiveRecord::Base.transaction do
+  [
+    { code: "ANNUAL", name: "Ежегодный отпуск" },
+    { code: "SICK", name: "Больничный" },
+    { code: "UNPAID", name: "Отпуск без сохранения заработной платы" }
+  ].each do |attributes|
+    leave_type = LeaveType.find_or_initialize_by(code: attributes.fetch(:code))
+    leave_type.update!(attributes.merge(active: true))
+  end
+
+  next unless Rails.env.development?
+
+  administrator = User.find_or_initialize_by(email_address: "admin@leave-desk.test")
+  administrator.update!(name: "Администратор", role: :administrator, active: true)
+
+  manager = User.find_or_initialize_by(email_address: "manager@leave-desk.test")
+  manager.update!(name: "Руководитель", role: :manager, active: true)
+
+  employee = User.find_or_initialize_by(email_address: "employee@leave-desk.test")
+  employee.update!(name: "Сотрудник", role: :employee, manager:, active: true)
+end
