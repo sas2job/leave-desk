@@ -21,5 +21,13 @@
         <p>Рассматривайте отпуска непосредственных подчинённых.</p>
       <% end %>
     <% end %>
+
+    <% if Current.user.administrator? %>
+      <%= link_to admin_leave_types_path, class: "card action-card" do %>
+        <span class="action-card__icon" aria-hidden="true">А</span>
+        <h2>Виды отпусков</h2>
+        <p>Настраивайте доступные сотрудникам варианты отпусков.</p>
+      <% end %>
+    <% end %>
   </div>
 </main>

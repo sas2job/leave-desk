@@ -481,6 +481,7 @@ label {
 
 input[type="email"],
 input[type="password"],
+input[type="text"],
 input[type="date"],
 select,
 textarea {
@@ -492,6 +493,18 @@ textarea {
   color: var(--text);
   background: #ffffff;
   transition: border 150ms ease, box-shadow 150ms ease;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.checkbox-field input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
 }
 
 textarea {

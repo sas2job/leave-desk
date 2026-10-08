@@ -1,0 +1,40 @@
+<main class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Администрирование</p>
+      <h1>Виды отпусков</h1>
+      <p class="lede">Настройте варианты, доступные при создании заявки.</p>
+    </div>
+    <%= link_to "Добавить вид", new_admin_leave_type_path, class: "button" %>
+  </header>
+
+  <% if @leave_types.any? %>
+    <div class="request-list">
+      <% @leave_types.each do |leave_type| %>
+        <article class="request-card">
+          <div class="request-card__summary">
+            <div class="request-card__title"><%= leave_type.name %></div>
+            <span class="status <%= "status--approved" if leave_type.active? %>">
+              <%= leave_type.active? ? "Доступен" : "Отключён" %>
+            </span>
+          </div>
+          <div>
+            <div class="meta-label">Код</div>
+            <div class="meta-value"><%= leave_type.code %></div>
+          </div>
+          <div></div>
+          <div class="request-card__actions">
+            <%= link_to "Изменить", edit_admin_leave_type_path(leave_type),
+              class: "button button--secondary" %>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <section class="card empty-state">
+      <div class="empty-state__icon" aria-hidden="true">＋</div>
+      <h2>Виды отпусков не настроены</h2>
+      <p>Добавьте первый вариант для сотрудников.</p>
+    </section>
+  <% end %>
+</main>

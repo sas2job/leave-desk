@@ -1,0 +1,36 @@
+<% if leave_type.errors.any? %>
+  <div class="error-summary" role="alert">
+    <strong>Проверьте заполнение формы</strong>
+    <ul>
+      <% leave_type.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<section class="card form-card">
+  <%= form_with model: [:admin, leave_type] do |form| %>
+    <div class="form-grid">
+      <div class="field">
+        <%= form.label :name, "Название" %>
+        <%= form.text_field :name, required: true, placeholder: "Например, Учебный отпуск" %>
+      </div>
+
+      <div class="field">
+        <%= form.label :code, "Код" %>
+        <%= form.text_field :code, required: true, placeholder: "STUDY" %>
+      </div>
+
+      <div class="field field--full checkbox-field">
+        <%= form.check_box :active %>
+        <%= form.label :active, "Доступен для новых заявок" %>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <%= form.submit leave_type.persisted? ? "Сохранить" : "Добавить" %>
+      <%= link_to "Отмена", admin_leave_types_path, class: "button button--secondary" %>
+    </div>
+  <% end %>
+</section>

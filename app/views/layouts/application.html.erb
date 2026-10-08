@@ -30,6 +30,9 @@
             <% if Current.user.manager? %>
               <%= link_to "Заявки сотрудников", manager_leave_requests_path %>
             <% end %>
+            <% if Current.user.administrator? %>
+              <%= link_to "Виды отпусков", admin_leave_types_path %>
+            <% end %>
           </nav>
 
           <div class="user-menu">
