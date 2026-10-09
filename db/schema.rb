@@ -10,10 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_162541) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_163107) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "leave_request_events", force: :cascade do |t|
+    t.bigint "leave_request_id", null: false
+    t.bigint "actor_id", null: false
+    t.integer "event_type", null: false
+    t.integer "from_status"
+    t.integer "to_status", null: false
+    t.text "comment"
+    t.datetime "occurred_at", null: false
+    t.index ["actor_id"], name: "index_leave_request_events_on_actor_id"
+    t.index ["leave_request_id"], name: "index_leave_request_events_on_leave_request_id"
+    t.check_constraint "event_type = ANY (ARRAY[0, 1, 2, 3])", name: "leave_request_events_valid_type"
+    t.check_constraint "to_status = ANY (ARRAY[0, 1, 2, 3])", name: "leave_request_events_valid_to_status"
+  end
 
   create_table "leave_requests", force: :cascade do |t|
     t.bigint "employee_id", null: false
@@ -76,6 +90,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_162541) do
     t.check_constraint "role = ANY (ARRAY[0, 1, 2])", name: "users_valid_role"
   end
 
+  add_foreign_key "leave_request_events", "leave_requests"
+  add_foreign_key "leave_request_events", "users", column: "actor_id"
   add_foreign_key "leave_requests", "leave_types"
   add_foreign_key "leave_requests", "users", column: "employee_id"
   add_foreign_key "leave_requests", "users", column: "reviewer_id"

@@ -26,7 +26,7 @@ class LeaveRequestsController < ApplicationController
   end
 
   def destroy
-    @leave_request.cancel!
+    @leave_request.cancel!(by: Current.user)
     redirect_to leave_requests_path, notice: "Заявка отменена.", status: :see_other
   rescue LeaveRequest::InvalidTransition => error
     redirect_to leave_requests_path, alert: error.message, status: :see_other

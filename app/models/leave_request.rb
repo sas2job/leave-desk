@@ -9,6 +9,7 @@ class LeaveRequest < ApplicationRecord
   belongs_to :leave_type
   belongs_to :reviewer, class_name: "User", inverse_of: :reviewed_leave_requests,
     optional: true
+  has_many :events, class_name: "LeaveRequestEvent", dependent: :restrict_with_exception
 
   validates :starts_on, :ends_on, presence: true
   validate :ends_on_is_not_before_starts_on
@@ -16,6 +17,7 @@ class LeaveRequest < ApplicationRecord
   validate :leave_type_is_active, on: :create
   validate :period_does_not_overlap_active_request
   validate :period_boundaries_are_in_order
+  after_create :record_created_event
 
   def approve!(by:, comment: nil)
     review!(new_status: :approved, by:, comment:)
@@ -25,11 +27,13 @@ class LeaveRequest < ApplicationRecord
     review!(new_status: :rejected, by:, comment:)
   end
 
-  def cancel!
+  def cancel!(by: employee)
     with_lock do
       raise InvalidTransition, "only pending or approved requests can be cancelled" unless pending? || approved?
 
+      previous_status = status
       update!(status: :cancelled)
+      record_event!(:cancelled, by:, from_status: previous_status)
     end
   end
 
@@ -51,8 +55,10 @@ class LeaveRequest < ApplicationRecord
       raise InvalidTransition, "only pending requests can be reviewed" unless pending?
       raise InvalidTransition, "employees cannot review their own requests" if by == employee
 
+      previous_status = status
       update!(status: new_status, reviewer: by, reviewed_at: Time.current,
         review_comment: comment)
+      record_event!(new_status, by:, from_status: previous_status, comment:)
     end
   end
 
@@ -102,5 +108,15 @@ class LeaveRequest < ApplicationRecord
 
   def counted_calendar_date?(date)
     leave_type.include_public_holidays? || !RussianFederalHoliday.on?(date)
+  end
+
+  def record_created_event
+    record_event!(:created, by: employee, from_status: nil, comment: employee_comment)
+  end
+
+  def record_event!(event_type, by:, from_status:, comment: nil)
+    events.create!(event_type:, actor: by,
+      from_status: from_status && self.class.statuses.fetch(from_status),
+      to_status: self.class.statuses.fetch(status), comment:, occurred_at: Time.current)
   end
 end

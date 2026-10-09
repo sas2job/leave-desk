@@ -13,6 +13,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
     request = create_request
 
     assert_predicate request, :pending?
+    assert_predicate request.events.first, :created?
   end
 
   test "end date cannot precede start date" do
@@ -42,6 +43,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_equal @manager, request.reviewer
     assert_equal "Coverage arranged", request.review_comment
     assert_not_nil request.reviewed_at
+    assert_predicate request.events.order(:id).last, :approved?
   end
 
   test "employee cannot approve their own request" do

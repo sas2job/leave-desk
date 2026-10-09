@@ -51,6 +51,7 @@
 Эксплуатационная документация:
 
 - [непрерывная интеграция](operations/continuous-integration.md).
+- [аудит заявки](specifications/007-leave-request-audit.md).
 
 ## Отложено до появления требований
 
