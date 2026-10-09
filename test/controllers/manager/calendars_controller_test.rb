@@ -15,12 +15,26 @@ module Manager
       request.approve!(by: @manager)
       sign_in_as(@manager)
 
-      get manager_calendar_path(year: 2026)
+  get manager_calendar_path(year: 2026, month: "all")
 
       assert_response :success
       assert_select "body", text: /Example User/
       assert_select "td.leave", minimum: 3
       assert_select "td.birthday", text: "ДР"
+    end
+
+    test "defaults to the current month" do
+      sign_in_as(@manager)
+
+      travel_to Date.new(2026, 10, 9) do
+        get manager_calendar_path
+      end
+
+      assert_response :success
+      assert_select "h1", text: "Календарь октябрь 2026"
+      assert_select ".team-calendar-wrap.team-calendar-wrap--month"
+      assert_select "table.team-calendar.team-calendar--month"
+      assert_select "tbody td", count: 31
     end
 
     test "employee cannot open manager calendar" do
@@ -29,10 +43,24 @@ module Manager
       assert_response :forbidden
     end
 
+    test "administrator sees all active employees in calendar" do
+      administrator = create_user("admin@example.test", role: :administrator)
+      create_user("other@example.test", name: "Other Employee", birthday_on: Date.new(1992, 10, 4))
+      sign_in_as(administrator)
+
+      get manager_calendar_path(year: 2026, month: 10)
+
+      assert_response :success
+      assert_select "tbody th", text: "Example User"
+      assert_select "tbody th", text: "Other Employee"
+      assert_select "a[href='#{manager_calendar_path}']", text: "Календарь"
+      assert_select "td.birthday", text: "ДР", count: 1
+    end
+
     private
 
-    def create_user(email_address, role: :employee, manager: nil, birthday_on: nil)
-      User.create!(name: "Example User", email_address:, password: "test-password",
+    def create_user(email_address, role: :employee, manager: nil, birthday_on: nil, name: "Example User")
+      User.create!(name:, email_address:, password: "test-password",
         role:, manager:, birthday_on:)
     end
   end

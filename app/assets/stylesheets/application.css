@@ -223,6 +223,11 @@ button.button--danger:hover {
   padding: 3rem 0 5rem;
 }
 
+.page.calendar-page {
+  width: calc(100% - 2rem);
+  max-width: none;
+}
+
 .page--narrow {
   max-width: 680px;
 }
@@ -688,6 +693,10 @@ textarea:focus {
     width: min(calc(100% - 1.25rem), var(--content-width));
   }
 
+  .page.calendar-page {
+    width: calc(100% - 1.25rem);
+  }
+
   h1 {
     font-size: 2rem;
   }
@@ -723,6 +732,10 @@ textarea:focus {
 .team-calendar-wrap { overflow: auto; max-height: 72vh; border: 1px solid var(--border); background: white; }
 .team-calendar { border-collapse: collapse; table-layout: fixed; font-size: .75rem; }
 .team-calendar th, .team-calendar td { min-width: 32px; height: 34px; border: 1px solid var(--border); text-align: center; }
+.team-calendar-wrap--month { overflow-x: hidden; }
+.team-calendar--month { width: 100%; }
+.team-calendar--month th, .team-calendar--month td { min-width: 0; padding: 0 1px; }
+.team-calendar--month th:first-child { width: 180px; }
 .team-calendar thead th { position: sticky; top: 0; z-index: 2; background: white; }
 .team-calendar thead tr:nth-child(2) th { top: 34px; }
 .team-calendar thead tr:first-child th:first-child,
