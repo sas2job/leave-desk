@@ -16,6 +16,12 @@ bin/rails db:prepare
 bin/rails test
 ```
 
+Полный набор проверок, используемый в CI:
+
+```sh
+bin/ci
+```
+
 ## Границы продукта
 
 MVP охватывает создание заявок на отпуск и их согласование руководителем.
@@ -27,3 +33,4 @@ MVP охватывает создание заявок на отпуск и их
 - [План развития](docs/roadmap.md)
 - [Жизненный цикл заявки](docs/specifications/001-leave-request-lifecycle.md)
 - [Архитектурные решения](docs/architecture/adr/)
+- [Непрерывная интеграция](docs/operations/continuous-integration.md)
