@@ -23,6 +23,12 @@
     <% end %>
 
     <% if Current.user.administrator? %>
+      <%= link_to admin_users_path, class: "card action-card" do %>
+        <span class="action-card__icon" aria-hidden="true">С</span>
+        <h2>Сотрудники</h2>
+        <p>Управляйте учётными записями, ролями и руководителями.</p>
+      <% end %>
+
       <%= link_to admin_leave_types_path, class: "card action-card" do %>
         <span class="action-card__icon" aria-hidden="true">А</span>
         <h2>Виды отпусков</h2>

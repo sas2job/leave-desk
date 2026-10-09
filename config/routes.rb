@@ -13,6 +13,7 @@ Rails.application.routes.draw do
 
   namespace :admin do
     resources :leave_types, except: %i[show destroy]
+    resources :users, except: %i[show destroy]
   end
 
   root "home#show"

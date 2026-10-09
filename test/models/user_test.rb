@@ -17,4 +17,28 @@ class UserTest < ActiveSupport::TestCase
     assert_not duplicate.valid?
     assert_includes duplicate.errors[:email_address], "has already been taken"
   end
+
+  test "manager must be active and have manager role" do
+    employee = User.create!(name: "Employee", email_address: "employee@example.test",
+      password: "test-password")
+    inactive_manager = User.create!(name: "Manager", email_address: "manager@example.test",
+      password: "test-password", role: :manager, active: false)
+
+    employee.manager = inactive_manager
+
+    assert_not employee.valid?
+    assert_includes employee.errors[:manager], "должен быть активным руководителем"
+  end
+
+  test "manager with direct reports cannot be demoted" do
+    manager = User.create!(name: "Manager", email_address: "manager@example.test",
+      password: "test-password", role: :manager)
+    User.create!(name: "Employee", email_address: "employee@example.test",
+      password: "test-password", manager:)
+
+    manager.role = :employee
+
+    assert_not manager.valid?
+    assert_includes manager.errors[:role], "нельзя изменить, пока у пользователя есть подчинённые"
+  end
 end

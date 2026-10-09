@@ -1,0 +1,49 @@
+<% if user.errors.any? %>
+  <div class="error-summary" role="alert">
+    <strong>Проверьте заполнение формы</strong>
+    <ul>
+      <% user.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<section class="card form-card">
+  <%= form_with model: [:admin, user] do |form| %>
+    <div class="form-grid">
+      <div class="field">
+        <%= form.label :name, "Имя" %>
+        <%= form.text_field :name, required: true, autocomplete: "name" %>
+      </div>
+      <div class="field">
+        <%= form.label :email_address, "Email" %>
+        <%= form.email_field :email_address, required: true, autocomplete: "email" %>
+      </div>
+      <div class="field">
+        <%= form.label :role, "Роль" %>
+        <%= form.select :role, [["Сотрудник", "employee"], ["Руководитель", "manager"], ["Администратор", "administrator"]] %>
+      </div>
+      <div class="field">
+        <%= form.label :manager_id, "Непосредственный руководитель" %>
+        <%= form.collection_select :manager_id, @manager_options, :id, :name, { include_blank: "Не назначен" } %>
+      </div>
+      <div class="field">
+        <%= form.label :password, user.persisted? ? "Новый пароль" : "Пароль" %>
+        <%= form.password_field :password, required: !user.persisted?, autocomplete: "new-password" %>
+      </div>
+      <div class="field">
+        <%= form.label :password_confirmation, "Подтверждение пароля" %>
+        <%= form.password_field :password_confirmation, required: !user.persisted?, autocomplete: "new-password" %>
+      </div>
+      <div class="field field--full checkbox-field">
+        <%= form.check_box :active %>
+        <%= form.label :active, "Учётная запись активна" %>
+      </div>
+    </div>
+    <div class="form-actions">
+      <%= form.submit user.persisted? ? "Сохранить" : "Добавить" %>
+      <%= link_to "Отмена", admin_users_path, class: "button button--secondary" %>
+    </div>
+  <% end %>
+</section>

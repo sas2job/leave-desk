@@ -18,4 +18,25 @@ class User < ApplicationRecord
   validates :name, presence: true
   validates :email_address, presence: true, uniqueness: { case_sensitive: false },
     format: { with: URI::MailTo::EMAIL_REGEXP }
+  validate :manager_is_active_manager
+  validate :role_and_activity_support_direct_reports
+
+  private
+
+  def manager_is_active_manager
+    return if manager.nil?
+
+    errors.add(:manager, "не может совпадать с сотрудником") if manager == self
+    unless manager.active? && manager.manager?
+      errors.add(:manager, "должен быть активным руководителем")
+    end
+  end
+
+  def role_and_activity_support_direct_reports
+    return unless persisted? && direct_reports.exists?
+    return if manager? && active?
+
+    errors.add(:role, "нельзя изменить, пока у пользователя есть подчинённые") unless manager?
+    errors.add(:active, "нельзя отключить, пока у пользователя есть подчинённые") unless active?
+  end
 end
