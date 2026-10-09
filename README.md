@@ -81,6 +81,7 @@ MVP охватывает создание заявок на отпуск и их
 - [Описание продукта](docs/product-brief.md)
 - [План развития](docs/roadmap.md)
 - [Жизненный цикл заявки](docs/specifications/001-leave-request-lifecycle.md)
+- [Личный календарь сотрудника](docs/specifications/010-personal-calendar.md)
 - [Архитектурные решения](docs/architecture/adr/)
 - [Непрерывная интеграция](docs/operations/continuous-integration.md)
 - [Подготовка production-развёртывания](docs/operations/production-deployment.md)

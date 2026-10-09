@@ -54,6 +54,7 @@ module Manager
       assert_select "tbody th", text: "Example User"
       assert_select "tbody th", text: "Other Employee"
       assert_select "a[href='#{manager_calendar_path}']", text: "Календарь"
+      assert_select "a[href='#{calendar_path}']", text: "Мой календарь"
       assert_select "td.birthday", text: "ДР", count: 1
     end
 

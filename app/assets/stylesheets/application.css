@@ -728,6 +728,7 @@ textarea:focus {
 .calendar-legend { margin-bottom: 1rem; }
 .calendar-key { width: 1rem; height: 1rem; display: inline-block; border-radius: 3px; }
 .calendar-key--leave, .team-calendar td.leave { background: #4b8e4b; color: white; }
+.calendar-key--pending, .team-calendar td.leave-pending { background: var(--warning-soft); color: var(--warning); }
 .calendar-key--birthday, .team-calendar td.birthday { background: #5b8def; color: white; }
 .team-calendar-wrap { overflow: auto; max-height: 72vh; border: 1px solid var(--border); background: white; }
 .team-calendar { border-collapse: collapse; table-layout: fixed; font-size: .75rem; }

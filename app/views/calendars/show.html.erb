@@ -1,0 +1,74 @@
+<main class="page calendar-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Личный календарь</p>
+      <h1>Мой календарь — <%= @month ? I18n.l(Date.new(@year, @month, 1), format: "%B %Y") : @year %></h1>
+    </div>
+    <div class="calendar-year-nav">
+      <% if @month %>
+        <% previous_month = Date.new(@year, @month, 1).prev_month %>
+        <% next_month = Date.new(@year, @month, 1).next_month %>
+        <%= link_to "← #{I18n.l(previous_month, format: "%B")}",
+          calendar_path(year: previous_month.year, month: previous_month.month),
+          class: "button button--secondary" %>
+        <%= link_to "#{I18n.l(next_month, format: "%B")} →",
+          calendar_path(year: next_month.year, month: next_month.month),
+          class: "button button--secondary" %>
+        <%= link_to "Весь год", calendar_path(year: @year, month: "all"),
+          class: "button button--secondary" %>
+      <% else %>
+        <%= link_to "← #{@year - 1}", calendar_path(year: @year - 1, month: "all"),
+          class: "button button--secondary" %>
+        <%= link_to "#{@year + 1} →", calendar_path(year: @year + 1, month: "all"),
+          class: "button button--secondary" %>
+        <%= link_to "По месяцам", calendar_path(year: @year),
+          class: "button button--secondary" %>
+      <% end %>
+    </div>
+  </header>
+
+  <div class="calendar-legend">
+    <span class="calendar-key calendar-key--leave"></span> Согласовано
+    <span class="calendar-key calendar-key--pending"></span> На рассмотрении
+    <span class="calendar-key calendar-key--birthday"></span> День рождения
+  </div>
+
+  <div class="team-calendar-wrap <%= "team-calendar-wrap--month" if @month %>">
+    <table class="team-calendar <%= "team-calendar--month" if @month %>">
+      <thead>
+        <tr>
+          <th rowspan="2">Мои отсутствия</th>
+          <% @dates.group_by(&:month).each_value do |dates| %>
+            <th colspan="<%= dates.size %>"><%= I18n.l(dates.first, format: "%B") %></th>
+          <% end %>
+        </tr>
+        <tr>
+          <% @dates.each do |date| %>
+            <th class="<%= "weekend" if date.saturday? || date.sunday? %>">
+              <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
+            </th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Мои заявки</th>
+          <% @dates.each do |date| %>
+            <% request = @leave_request_by_date[date] %>
+            <% classes = [] %>
+            <% classes << "weekend" if date.saturday? || date.sunday? %>
+            <% classes << (request.approved? ? "leave" : "leave-pending") if request %>
+            <% classes << "birthday" if @birthday == date %>
+            <% labels = [format_date(date)] %>
+            <% labels << request.leave_type.name if request %>
+            <% labels << (request.approved? ? "Согласовано" : "На рассмотрении") if request %>
+            <% labels << "День рождения" if @birthday == date %>
+            <td class="<%= classes.join(" ") %>" title="<%= labels.join(" — ") %>">
+              <%= @birthday == date ? "ДР" : (request ? "О" : "") %>
+            </td>
+          <% end %>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
