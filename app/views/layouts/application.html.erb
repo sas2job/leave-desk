@@ -27,11 +27,18 @@
 
           <nav class="site-nav" aria-label="Основная навигация">
             <%= link_to "Мои заявки", leave_requests_path %>
-            <%= link_to "Мой календарь", calendar_path %>
-            <%= link_to "Уведомления (#{unread_notifications_count})", notifications_path %>
             <% if Current.user.manager? || Current.user.administrator? %>
-              <%= link_to "Календарь", manager_calendar_path %>
+              <details class="site-nav__dropdown">
+                <summary>Календари</summary>
+                <div class="site-nav__menu">
+                  <%= link_to "Общий календарь", manager_calendar_path %>
+                  <%= link_to "Мой календарь", calendar_path %>
+                </div>
+              </details>
+            <% else %>
+              <%= link_to "Мой календарь", calendar_path %>
             <% end %>
+            <%= link_to "Уведомления (#{unread_notifications_count})", notifications_path %>
             <% if Current.user.manager? %>
               <%= link_to "Заявки сотрудников", manager_leave_requests_path %>
             <% end %>
