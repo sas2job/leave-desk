@@ -82,7 +82,7 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".error-summary", text: /Ends on/, count: 0
   end
 
-test "cannot cancel another user request" do
+  test "cannot cancel another user request" do
     leave_request = create_request(@other_employee)
 
     delete leave_request_path(leave_request)
@@ -102,4 +102,3 @@ test "cannot cancel another user request" do
       starts_on: Date.new(2026, 11, 1), ends_on: Date.new(2026, 11, 2))
   end
 end
-

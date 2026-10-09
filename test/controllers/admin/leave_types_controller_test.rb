@@ -53,6 +53,19 @@ module Admin
       assert_not @leave_type.reload.active?
     end
 
+    test "shows required field errors in Russian" do
+      sign_in_as(@administrator)
+
+      post admin_leave_types_path, params: {
+        leave_type: { name: "", code: "", active: true }
+      }
+
+      assert_response :unprocessable_entity
+      assert_select ".error-summary", text: /Название не может быть пустым/
+      assert_select ".error-summary", text: /Код не может быть пустым/
+      assert_select ".error-summary", text: /can't be blank/, count: 0
+    end
+
     private
 
     def create_user(email_address, role: :employee)

@@ -60,6 +60,20 @@ module Admin
       assert_nil @employee.reload.manager
     end
 
+    test "shows validation errors in Russian" do
+      sign_in_as(@administrator)
+
+      post admin_users_path, params: { user: {
+        name: "Duplicate email", email_address: @employee.email_address,
+        password: "new-password", password_confirmation: "new-password",
+        role: "employee", active: true
+      } }
+
+      assert_response :unprocessable_entity
+      assert_select ".error-summary", text: /Электронная почта уже используется/
+      assert_select ".error-summary", text: /has already been taken/, count: 0
+    end
+
     private
 
     def create_user(email_address, role: :employee)

@@ -1,0 +1,60 @@
+ru:
+  date:
+    formats:
+      default: "%d.%m.%Y"
+      short: "%d %b"
+  time:
+    formats:
+      short: "%d.%m.%Y, %H:%M"
+  datetime:
+    distance_in_words:
+      about_x_hours:
+        one: "около %{count} часа"
+        few: "около %{count} часов"
+        many: "около %{count} часов"
+        other: "около %{count} часа"
+  errors:
+    format: "%{attribute} %{message}"
+    messages:
+      accepted: "нужно подтвердить"
+      blank: "не может быть пустым"
+      confirmation: "не совпадает с подтверждением"
+      empty: "не может быть пустым"
+      inclusion: "не входит в список допустимых значений"
+      invalid: "имеет неверное значение"
+      taken: "уже используется"
+      too_long:
+        one: "слишком длинное (максимум %{count} символ)"
+        few: "слишком длинное (максимум %{count} символа)"
+        many: "слишком длинное (максимум %{count} символов)"
+        other: "слишком длинное (максимум %{count} символа)"
+      too_short:
+        one: "слишком короткое (минимум %{count} символ)"
+        few: "слишком короткое (минимум %{count} символа)"
+        many: "слишком короткое (минимум %{count} символов)"
+        other: "слишком короткое (минимум %{count} символа)"
+      wrong_length:
+        one: "неверная длина (должен быть %{count} символ)"
+        few: "неверная длина (должно быть %{count} символа)"
+        many: "неверная длина (должно быть %{count} символов)"
+        other: "неверная длина (должно быть %{count} символа)"
+  activerecord:
+    attributes:
+      user:
+        name: "Имя"
+        email_address: "Электронная почта"
+        password: "Пароль"
+        password_confirmation: "Подтверждение пароля"
+        manager: "Руководитель"
+        role: "Роль"
+        active: "Активность"
+      leave_type:
+        name: "Название"
+        code: "Код"
+        active: "Активность"
+        holiday_handling: "Учёт праздничных дней"
+      leave_request:
+        starts_on: "Дата начала"
+        ends_on: "Дата окончания"
+        leave_type: "Вид отсутствия"
+        employee_comment: "Комментарий"

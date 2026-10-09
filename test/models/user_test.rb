@@ -15,7 +15,7 @@ class UserTest < ActiveSupport::TestCase
       password: "test-password")
 
     assert_not duplicate.valid?
-    assert_includes duplicate.errors[:email_address], "has already been taken"
+    assert_includes duplicate.errors[:email_address], "уже используется"
   end
 
   test "manager must be active and have manager role" do
