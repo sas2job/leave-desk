@@ -10,8 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_142642) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_154429) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
 
   create_table "leave_requests", force: :cascade do |t|
@@ -32,6 +33,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_142642) do
     t.check_constraint "ends_on >= starts_on", name: "leave_requests_dates_in_order"
     t.check_constraint "reviewer_id IS NULL OR reviewer_id <> employee_id", name: "leave_requests_reviewer_is_not_employee"
     t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3])", name: "leave_requests_valid_status"
+    t.exclusion_constraint "employee_id WITH =, daterange(starts_on, ends_on, '[]'::text) WITH &&", where: "status = ANY (ARRAY[0, 1])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
   end
 
   create_table "leave_types", force: :cascade do |t|

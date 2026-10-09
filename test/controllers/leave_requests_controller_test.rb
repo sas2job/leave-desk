@@ -36,6 +36,23 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @employee, LeaveRequest.order(:id).last.employee
   end
 
+  test "does not create overlapping request" do
+    create_request(@employee)
+
+    assert_no_difference("@employee.leave_requests.count") do
+      post leave_requests_path, params: {
+        leave_request: {
+          leave_type_id: @leave_type.id,
+          starts_on: "2026-11-02",
+          ends_on: "2026-11-04"
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".error-summary", text: /Период пересекается/
+  end
+
   test "cancels own request" do
     leave_request = create_request(@employee)
 

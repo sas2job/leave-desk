@@ -16,9 +16,13 @@ class LeaveRequestsController < ApplicationController
     if @leave_request.save
       redirect_to leave_requests_path, notice: "Заявка создана."
     else
-      @leave_types = LeaveType.where(active: true).order(:name)
-      render :new, status: :unprocessable_entity
+      render_new_with_errors
     end
+  rescue ActiveRecord::StatementInvalid => error
+    raise unless error.cause.is_a?(PG::ExclusionViolation)
+
+    @leave_request.errors.add(:base, "Период пересекается с другой активной заявкой")
+    render_new_with_errors
   end
 
   def destroy
@@ -36,5 +40,10 @@ class LeaveRequestsController < ApplicationController
 
   def leave_request_params
     params.expect(leave_request: %i[leave_type_id starts_on ends_on employee_comment])
+  end
+
+  def render_new_with_errors
+    @leave_types = LeaveType.where(active: true).order(:name)
+    render :new, status: :unprocessable_entity
   end
 end

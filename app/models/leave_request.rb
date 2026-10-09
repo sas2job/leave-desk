@@ -12,6 +12,7 @@ class LeaveRequest < ApplicationRecord
   validate :ends_on_is_not_before_starts_on
   validate :reviewer_is_not_employee
   validate :leave_type_is_active, on: :create
+  validate :period_does_not_overlap_active_request
 
   def approve!(by:, comment: nil)
     review!(new_status: :approved, by:, comment:)
@@ -53,5 +54,15 @@ class LeaveRequest < ApplicationRecord
 
   def leave_type_is_active
     errors.add(:leave_type, "must be active") if leave_type && !leave_type.active?
+  end
+
+  def period_does_not_overlap_active_request
+    return if employee_id.blank? || starts_on.blank? || ends_on.blank?
+    return unless pending? || approved?
+
+    overlapping_request = self.class.where(employee_id:, status: %i[pending approved])
+      .where.not(id:).where("starts_on <= ? AND ends_on >= ?", ends_on, starts_on)
+      .exists?
+    errors.add(:base, "Период пересекается с другой активной заявкой") if overlapping_request
   end
 end

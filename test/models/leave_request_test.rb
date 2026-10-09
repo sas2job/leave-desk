@@ -74,6 +74,48 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_predicate request, :cancelled?
   end
 
+  test "active requests cannot overlap including period boundaries" do
+    create_request
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 14), ends_on: Date.new(2026, 10, 16))
+
+    assert_not request.valid?
+    assert_includes request.errors[:base], "Период пересекается с другой активной заявкой"
+  end
+
+  test "cancelled request does not block same period" do
+    existing_request = create_request
+    existing_request.cancel!
+
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: existing_request.starts_on, ends_on: existing_request.ends_on)
+
+    assert request.valid?
+  end
+
+  test "rejected request does not block same period" do
+    existing_request = create_request
+    existing_request.reject!(by: @manager)
+
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: existing_request.starts_on, ends_on: existing_request.ends_on)
+
+    assert request.valid?
+  end
+
+  test "database prevents overlapping active requests" do
+    existing_request = create_request
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      LeaveRequest.insert_all!([ {
+        employee_id: @employee.id, leave_type_id: @leave_type.id,
+        starts_on: existing_request.ends_on, ends_on: existing_request.ends_on + 2.days,
+        status: LeaveRequest.statuses.fetch(:pending), created_at: Time.current,
+        updated_at: Time.current
+      } ])
+    end
+  end
+
   private
 
   def create_request
