@@ -187,6 +187,17 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_equal 13, request.duration_in_days
   end
 
+  test "end boundary cannot precede start boundary on the same date" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1),
+      start_part: :afternoon, end_part: :morning)
+
+    assert_not request.valid?
+    assert_includes request.errors[:base],
+      "Если отпуск начинается после полудня, он не может закончиться до полудня " \
+      "того же дня. Выберите окончание «До конца дня» или укажите следующую дату"
+  end
+
   private
 
   def create_request

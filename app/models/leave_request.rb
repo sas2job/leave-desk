@@ -90,7 +90,8 @@ class LeaveRequest < ApplicationRecord
     return if starts_on.blank? || ends_on.blank? || starts_on < ends_on
     return unless starts_on == ends_on && starts_afternoon? && ends_morning?
 
-    errors.add(:end_part, "не может предшествовать началу периода")
+    errors.add(:base, "Если отпуск начинается после полудня, он не может закончиться " \
+      "до полудня того же дня. Выберите окончание «До конца дня» или укажите следующую дату")
   end
 
   def time_slots_overlap?(other)
