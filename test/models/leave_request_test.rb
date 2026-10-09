@@ -133,6 +133,27 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_equal 2, request.duration_in_days
   end
 
+  test "request with zero duration is invalid" do
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 1, 1), ends_on: Date.new(2026, 1, 8))
+
+    assert_not request.valid?
+    assert_includes request.errors[:base],
+      "На эти даты оформить «Annual leave» не получится: весь выбранный период " \
+      "приходится на праздничные дни, которые не засчитываются в отпуск. Если вы " \
+      "отсутствуете из-за болезни, выберите «Больничный». В остальных случаях " \
+      "укажите другие даты"
+  end
+
+  test "holidays produce positive duration when leave type includes them" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 1, 1), ends_on: Date.new(2026, 1, 8))
+
+    assert request.valid?
+    assert_equal 8, request.duration_in_days
+  end
+
   test "duration includes federal holidays when leave type requires it" do
     request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
       starts_on: Date.new(2026, 1, 1), ends_on: Date.new(2026, 1, 10))
@@ -194,8 +215,9 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
     assert_not request.valid?
     assert_includes request.errors[:base],
-      "Если отпуск начинается после полудня, он не может закончиться до полудня " \
+      "Период отсутствия не может начаться после полудня и закончиться до полудня " \
       "того же дня. Выберите окончание «До конца дня» или укажите следующую дату"
+    assert_equal 1, request.errors[:base].size
   end
 
   private

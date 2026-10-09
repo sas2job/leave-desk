@@ -17,6 +17,7 @@ class LeaveRequest < ApplicationRecord
   validate :leave_type_is_active, on: :create
   validate :period_does_not_overlap_active_request
   validate :period_boundaries_are_in_order
+  validate :duration_is_positive
   after_create :record_created_event
 
   def approve!(by:, comment: nil)
@@ -90,8 +91,23 @@ class LeaveRequest < ApplicationRecord
     return if starts_on.blank? || ends_on.blank? || starts_on < ends_on
     return unless starts_on == ends_on && starts_afternoon? && ends_morning?
 
-    errors.add(:base, "Если отпуск начинается после полудня, он не может закончиться " \
+    errors.add(:base, "Период отсутствия не может начаться после полудня и закончиться " \
       "до полудня того же дня. Выберите окончание «До конца дня» или укажите следующую дату")
+  end
+
+  def duration_is_positive
+    return if leave_type.blank? || starts_on.blank? || ends_on.blank?
+    return if ends_on < starts_on
+    return if starts_on == ends_on && starts_afternoon? && ends_morning?
+    return unless leave_type.exclude_public_holidays?
+
+    duration = duration_in_days
+    return if duration.nil? || duration.positive?
+
+    errors.add(:base, "На эти даты оформить «#{leave_type.name}» не получится: " \
+      "весь выбранный период приходится на праздничные дни, которые не засчитываются " \
+      "в отпуск. Если вы отсутствуете из-за болезни, выберите «Больничный». " \
+      "В остальных случаях укажите другие даты")
   end
 
   def time_slots_overlap?(other)
