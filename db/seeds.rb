@@ -1,6 +1,8 @@
 ActiveRecord::Base.transaction do
   [
     { code: "ANNUAL", name: "Ежегодный отпуск", holiday_handling: :exclude_public_holidays },
+    { code: "BIRTHDAY", name: "Выходной в день рождения",
+      holiday_handling: :include_public_holidays },
     { code: "SICK", name: "Больничный", holiday_handling: :include_public_holidays },
     { code: "UNPAID", name: "Отпуск без сохранения заработной платы",
       holiday_handling: :include_public_holidays }
