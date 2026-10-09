@@ -51,6 +51,7 @@
 Эксплуатационная документация:
 
 - [непрерывная интеграция](operations/continuous-integration.md).
+- [подготовка production-развёртывания](operations/production-deployment.md).
 - [аудит заявки](specifications/007-leave-request-audit.md).
 - [встроенные уведомления](specifications/008-in-app-notifications.md).
 - [годовой календарь команды](specifications/009-manager-team-calendar.md).
