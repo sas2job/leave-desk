@@ -28,6 +28,10 @@ module ApplicationHelper
     LEAVE_REQUEST_EVENT_LABELS.fetch(event.event_type)
   end
 
+  def leave_request_notification_label(event)
+    leave_request_event_label(event).sub(/\AЗаявка /, "Заявка №#{event.leave_request.id} ")
+  end
+
   def notification_request_path(leave_request)
     if leave_request.employee_id == Current.user.id
       leave_requests_path(anchor: dom_id(leave_request))

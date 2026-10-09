@@ -11,7 +11,7 @@
         <article class="request-card">
           <div class="request-card__summary">
             <div class="request-card__title">
-              <%= link_to leave_request_event_label(event), notification_request_path(event.leave_request) %>
+              <%= link_to leave_request_notification_label(event), notification_request_path(event.leave_request) %>
             </div>
             <span class="status"><%= notification.read_at? ? "Прочитано" : "Новое" %></span>
           </div>
