@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+archive="${1:-}"
+if [[ -z "$archive" || ! -f "$archive" ]]; then
+  echo "Usage: RESTORE_DATABASE_URL=... ALLOW_DATABASE_RESTORE=yes bin/restore PATH_TO_DUMP" >&2
+  exit 1
+fi
+if [[ -z "${RESTORE_DATABASE_URL:-}" ]]; then
+  echo "RESTORE_DATABASE_URL is required" >&2
+  exit 1
+fi
+if [[ "${ALLOW_DATABASE_RESTORE:-}" != "yes" ]]; then
+  echo "Set ALLOW_DATABASE_RESTORE=yes to confirm restoration" >&2
+  exit 1
+fi
+
+checksum="$archive.sha256"
+if [[ ! -f "$checksum" ]]; then
+  echo "Checksum file is missing: $checksum" >&2
+  exit 1
+fi
+archive_directory="$(dirname "$archive")"
+archive_name="$(basename "$archive")"
+(cd "$archive_directory" && sha256sum --check "$archive_name.sha256")
+
+pg_restore --exit-on-error --single-transaction --no-owner --no-privileges \
+  --dbname="$RESTORE_DATABASE_URL" "$archive"
+
+echo "Restore completed. Run application checks against the restored database."
