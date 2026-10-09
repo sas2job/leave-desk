@@ -11,7 +11,7 @@
   <% if @leave_requests.any? %>
     <div class="request-list">
       <% @leave_requests.each do |leave_request| %>
-        <article class="request-card">
+        <article id="<%= dom_id(leave_request) %>" class="request-card">
           <div class="request-card__summary">
             <div class="request-card__title"><%= leave_request.leave_type.name %></div>
             <span class="status status--<%= leave_request.status %>">

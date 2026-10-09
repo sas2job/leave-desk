@@ -28,6 +28,14 @@ module ApplicationHelper
     LEAVE_REQUEST_EVENT_LABELS.fetch(event.event_type)
   end
 
+  def notification_request_path(leave_request)
+    if leave_request.employee_id == Current.user.id
+      leave_requests_path(anchor: dom_id(leave_request))
+    else
+      manager_leave_requests_path(anchor: dom_id(leave_request))
+    end
+  end
+
   def leave_request_event_transition(event)
     from = event.from_status && LEAVE_REQUEST_STATUS_LABELS.fetch(LeaveRequest.statuses.key(event.from_status))
     to = LEAVE_REQUEST_STATUS_LABELS.fetch(LeaveRequest.statuses.key(event.to_status))
