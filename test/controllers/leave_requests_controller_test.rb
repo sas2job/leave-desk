@@ -56,12 +56,16 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "cancels own request" do
+    manager = create_user("manager@example.test")
+    manager.update!(role: :manager)
+    @employee.update!(manager:)
     leave_request = create_request(@employee)
 
     delete leave_request_path(leave_request)
 
     assert_redirected_to leave_requests_path
     assert_predicate leave_request.reload, :cancelled?
+    assert_equal "cancelled", manager.notifications.last.leave_request_event.event_type
   end
 
   test "cannot cancel another user request" do

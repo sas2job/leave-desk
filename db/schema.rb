@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_163107) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_163840) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -66,6 +66,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_163107) do
     t.check_constraint "holiday_handling = ANY (ARRAY[0, 1])", name: "leave_types_valid_holiday_handling"
   end
 
+  create_table "notifications", force: :cascade do |t|
+    t.bigint "recipient_id", null: false
+    t.bigint "leave_request_event_id", null: false
+    t.datetime "read_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["leave_request_event_id"], name: "index_notifications_on_leave_request_event_id", unique: true
+    t.index ["recipient_id"], name: "index_notifications_on_recipient_id"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "ip_address"
@@ -95,6 +105,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_163107) do
   add_foreign_key "leave_requests", "leave_types"
   add_foreign_key "leave_requests", "users", column: "employee_id"
   add_foreign_key "leave_requests", "users", column: "reviewer_id"
+  add_foreign_key "notifications", "leave_request_events"
+  add_foreign_key "notifications", "users", column: "recipient_id"
   add_foreign_key "sessions", "users"
   add_foreign_key "users", "users", column: "manager_id"
 end

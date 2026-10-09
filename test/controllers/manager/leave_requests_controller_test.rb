@@ -33,6 +33,7 @@ module Manager
       assert_redirected_to manager_leave_requests_path
       assert_predicate leave_request.reload, :approved?
       assert_equal @manager, leave_request.reviewer
+      assert_equal "approved", @employee.notifications.last.leave_request_event.event_type
     end
 
     test "manager cannot review another manager direct report" do

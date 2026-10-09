@@ -33,4 +33,8 @@ module ApplicationHelper
     to = LEAVE_REQUEST_STATUS_LABELS.fetch(LeaveRequest.statuses.key(event.to_status))
     from ? "#{from} → #{to}" : to
   end
+
+  def unread_notifications_count
+    Current.user.notifications.unread.count
+  end
 end

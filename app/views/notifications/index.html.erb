@@ -1,0 +1,26 @@
+<main class="page">
+  <header class="page-header">
+    <div><p class="eyebrow">События</p><h1>Уведомления</h1></div>
+    <%= button_to "Отметить все прочитанными", mark_all_read_notifications_path,
+      method: :patch, class: "button button--secondary" if @notifications.unread.any? %>
+  </header>
+  <% if @notifications.any? %>
+    <div class="request-list">
+      <% @notifications.each do |notification| %>
+        <% event = notification.leave_request_event %>
+        <article class="request-card">
+          <div class="request-card__summary">
+            <div class="request-card__title"><%= leave_request_event_label(event) %></div>
+            <span class="status"><%= notification.read_at? ? "Прочитано" : "Новое" %></span>
+          </div>
+          <p><%= event.leave_request.employee.name %> — <%= event.leave_request.leave_type.name %></p>
+          <p><%= format_date(event.leave_request.starts_on) %>–<%= format_date(event.leave_request.ends_on) %></p>
+          <%= button_to "Отметить прочитанным", notification_path(notification), method: :patch,
+            class: "button button--secondary" unless notification.read_at? %>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <section class="card empty-state"><h2>Уведомлений пока нет</h2></section>
+  <% end %>
+</main>

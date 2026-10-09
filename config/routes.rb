@@ -1,6 +1,9 @@
 Rails.application.routes.draw do
   resource :session, only: %i[new create destroy]
   resources :leave_requests, only: %i[index new create destroy]
+  resources :notifications, only: %i[index update] do
+    collection { patch :mark_all_read }
+  end
 
   namespace :manager do
     resources :leave_requests, only: :index do

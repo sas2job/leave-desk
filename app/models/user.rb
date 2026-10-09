@@ -12,6 +12,7 @@ class User < ApplicationRecord
     foreign_key: :reviewer_id, inverse_of: :reviewer,
     dependent: :restrict_with_exception
   has_many :sessions, dependent: :destroy
+  has_many :notifications, foreign_key: :recipient_id, dependent: :destroy
 
   normalizes :email_address, with: ->(email) { email.strip.downcase }
 
