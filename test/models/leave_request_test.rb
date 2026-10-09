@@ -140,9 +140,11 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
   test "morning and afternoon on same date do not overlap" do
     LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
-      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1), day_part: :morning)
+      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1),
+      start_part: :morning, end_part: :morning)
     request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
-      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1), day_part: :afternoon)
+      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1),
+      start_part: :afternoon, end_part: :afternoon)
 
     assert request.valid?
     assert_equal 0.5, request.duration_in_days
@@ -150,9 +152,11 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
   test "same half day overlaps" do
     LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
-      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1), day_part: :morning)
+      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1),
+      start_part: :morning, end_part: :morning)
     request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
-      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1), day_part: :morning)
+      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1),
+      start_part: :morning, end_part: :morning)
 
     assert_not request.valid?
   end
@@ -164,20 +168,21 @@ class LeaveRequestTest < ActiveSupport::TestCase
       status: LeaveRequest.statuses.fetch(:pending), created_at: Time.current,
       updated_at: Time.current
     }
-    LeaveRequest.insert_all!([ attributes.merge(day_part: LeaveRequest.day_parts.fetch(:morning)) ])
-    LeaveRequest.insert_all!([ attributes.merge(day_part: LeaveRequest.day_parts.fetch(:afternoon)) ])
+    LeaveRequest.insert_all!([ attributes.merge(start_part: 0, end_part: 0) ])
+    LeaveRequest.insert_all!([ attributes.merge(start_part: 1, end_part: 1) ])
 
     assert_raises(ActiveRecord::StatementInvalid) do
-      LeaveRequest.insert_all!([ attributes.merge(day_part: LeaveRequest.day_parts.fetch(:morning)) ])
+      LeaveRequest.insert_all!([ attributes.merge(start_part: 0, end_part: 0) ])
     end
   end
 
-  test "partial multi-day request is invalid" do
+  test "multi-day request can have partial boundaries" do
     request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
-      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 2), day_part: :morning)
+      starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 14),
+      start_part: :afternoon, end_part: :morning)
 
-    assert_not request.valid?
-    assert request.errors[:day_part].any?
+    assert request.valid?
+    assert_equal 13, request.duration_in_days
   end
 
   private

@@ -2,7 +2,8 @@ class LeaveRequest < ApplicationRecord
   class InvalidTransition < StandardError; end
 
   enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3 }
-  enum :day_part, { full_day: 0, morning: 1, afternoon: 2 }, default: :full_day
+  enum :start_part, { morning: 0, afternoon: 1 }, prefix: :starts, default: :morning
+  enum :end_part, { morning: 0, afternoon: 1 }, prefix: :ends, default: :afternoon
 
   belongs_to :employee, class_name: "User", inverse_of: :leave_requests
   belongs_to :leave_type
@@ -14,7 +15,7 @@ class LeaveRequest < ApplicationRecord
   validate :reviewer_is_not_employee
   validate :leave_type_is_active, on: :create
   validate :period_does_not_overlap_active_request
-  validate :partial_day_is_single_day
+  validate :period_boundaries_are_in_order
 
   def approve!(by:, comment: nil)
     review!(new_status: :approved, by:, comment:)
@@ -38,7 +39,9 @@ class LeaveRequest < ApplicationRecord
     days = (starts_on..ends_on).count do |date|
       leave_type.include_public_holidays? || !RussianFederalHoliday.on?(date)
     end
-    full_day? ? days : days * 0.5
+    days -= 0.5 if starts_afternoon? && counted_calendar_date?(starts_on)
+    days -= 0.5 if ends_morning? && counted_calendar_date?(ends_on)
+    days
   end
 
   private
@@ -77,16 +80,27 @@ class LeaveRequest < ApplicationRecord
     errors.add(:base, "Период пересекается с другой активной заявкой") if overlapping_request
   end
 
-  def partial_day_is_single_day
-    return if full_day? || starts_on.blank? || ends_on.blank? || starts_on == ends_on
+  def period_boundaries_are_in_order
+    return if starts_on.blank? || ends_on.blank? || starts_on < ends_on
+    return unless starts_on == ends_on && starts_afternoon? && ends_morning?
 
-    errors.add(:day_part, "можно выбрать только для заявки на одну дату")
+    errors.add(:end_part, "не может предшествовать началу периода")
   end
 
   def time_slots_overlap?(other)
-    return true unless starts_on == ends_on && other.starts_on == other.ends_on
-    return true if full_day? || other.full_day?
+    period_start_slot(self) < period_end_slot(other) &&
+      period_start_slot(other) < period_end_slot(self)
+  end
 
-    day_part == other.day_part
+  def period_start_slot(request)
+    request.starts_on.jd * 2 + (request.starts_afternoon? ? 1 : 0)
+  end
+
+  def period_end_slot(request)
+    request.ends_on.jd * 2 + (request.ends_morning? ? 1 : 2)
+  end
+
+  def counted_calendar_date?(date)
+    leave_type.include_public_holidays? || !RussianFederalHoliday.on?(date)
   end
 end

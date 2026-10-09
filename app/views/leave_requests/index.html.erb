@@ -31,8 +31,8 @@
             <div class="meta-value"><%= format_duration(leave_request.duration_in_days) %> дн.</div>
           </div>
           <div>
-            <div class="meta-label">Часть дня</div>
-            <div class="meta-value"><%= leave_request_day_part_label(leave_request) %></div>
+            <div class="meta-label">Границы периода</div>
+            <div class="meta-value"><%= leave_request.starts_afternoon? ? "После полудня" : "С утра" %> — <%= leave_request.ends_morning? ? "до полудня" : "до конца дня" %></div>
           </div>
           <div class="request-card__actions">
             <% if leave_request.pending? || leave_request.approved? %>
