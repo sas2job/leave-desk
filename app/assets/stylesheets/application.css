@@ -714,3 +714,19 @@ textarea:focus {
     transition-duration: 0.01ms !important;
   }
 }
+
+.calendar-year-nav, .calendar-legend { display: flex; gap: .75rem; align-items: center; }
+.calendar-legend { margin-bottom: 1rem; }
+.calendar-key { width: 1rem; height: 1rem; display: inline-block; border-radius: 3px; }
+.calendar-key--leave, .team-calendar td.leave { background: #4b8e4b; color: white; }
+.calendar-key--birthday, .team-calendar td.birthday { background: #5b8def; color: white; }
+.team-calendar-wrap { overflow: auto; max-height: 72vh; border: 1px solid var(--border); background: white; }
+.team-calendar { border-collapse: collapse; table-layout: fixed; font-size: .75rem; }
+.team-calendar th, .team-calendar td { min-width: 32px; height: 34px; border: 1px solid var(--border); text-align: center; }
+.team-calendar thead th { position: sticky; top: 0; z-index: 2; background: white; }
+.team-calendar thead tr:nth-child(2) th { top: 34px; }
+.team-calendar th:first-child { position: sticky; left: 0; z-index: 3; min-width: 180px; padding: 0 .75rem; text-align: left; background: white; }
+.team-calendar .weekend { background-color: #202522; color: white; }
+.team-calendar td.leave { background: #4b8e4b; }
+.team-calendar td.birthday { background: #5b8def; }
+.team-calendar small { display: block; font-size: .62rem; }

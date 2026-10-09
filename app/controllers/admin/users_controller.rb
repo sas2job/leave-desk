@@ -51,7 +51,7 @@ module Admin
     end
 
     def user_params
-      params.expect(user: %i[name email_address password password_confirmation role manager_id active])
+      params.expect(user: %i[name email_address birthday_on password password_confirmation role manager_id active])
     end
   end
 end

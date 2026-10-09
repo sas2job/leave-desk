@@ -30,6 +30,7 @@
             <%= link_to "Уведомления (#{unread_notifications_count})", notifications_path %>
             <% if Current.user.manager? %>
               <%= link_to "Заявки сотрудников", manager_leave_requests_path %>
+              <%= link_to "Календарь", manager_calendar_path %>
             <% end %>
             <% if Current.user.administrator? %>
               <%= link_to "Виды отпусков", admin_leave_types_path %>

@@ -21,6 +21,10 @@
         <%= form.email_field :email_address, required: true, autocomplete: "email" %>
       </div>
       <div class="field">
+        <%= form.label :birthday_on, "День рождения" %>
+        <%= form.date_field :birthday_on %>
+      </div>
+      <div class="field">
         <%= form.label :role, "Роль" %>
         <%= form.select :role, [["Сотрудник", "employee"], ["Руководитель", "manager"], ["Администратор", "administrator"]] %>
       </div>

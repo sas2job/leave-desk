@@ -25,4 +25,30 @@ ActiveRecord::Base.transaction do
   employee = User.find_or_initialize_by(email_address: "employee@leave-desk.test")
   employee.update!(name: "Сотрудник", role: :employee, manager:, active: true,
     password:)
+
+  demo_names = [
+    "Алексей Воронцов", "Анна Белова", "Борис Орлов", "Вера Соколова",
+    "Глеб Морозов", "Дарья Волкова", "Евгений Лебедев", "Жанна Павлова",
+    "Илья Козлов", "Кира Новикова", "Лев Фёдоров", "Мария Алексеева",
+    "Никита Попов", "Ольга Семёнова", "Павел Егоров", "Раиса Макарова",
+    "Сергей Захаров", "Тамара Виноградова", "Фёдор Николаев", "Юлия Громова"
+  ]
+  annual_leave = LeaveType.find_by!(code: "ANNUAL")
+  calendar_year = Date.current.year
+
+  demo_names.each_with_index do |name, index|
+    demo_employee = User.find_or_initialize_by(email_address: "employee#{index + 1}@leave-desk.test")
+    demo_employee.update!(name:, role: :employee, manager:, active: true, password:,
+      birthday_on: Date.new(1990, (index % 12) + 1, ((index * 3) % 27) + 1))
+
+    starts_on = Date.new(calendar_year, (index % 12) + 1, 10) + (index % 4).days
+    ends_on = starts_on + 6.days
+    request = LeaveRequest.find_or_initialize_by(employee: demo_employee,
+      leave_type: annual_leave, starts_on:, ends_on:)
+    next if request.persisted?
+
+    request.employee_comment = "Демонстрационный календарь"
+    request.save!
+    request.approve!(by: manager, comment: "Демонстрационные данные")
+  end
 end

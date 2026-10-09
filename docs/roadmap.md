@@ -53,6 +53,7 @@
 - [непрерывная интеграция](operations/continuous-integration.md).
 - [аудит заявки](specifications/007-leave-request-audit.md).
 - [встроенные уведомления](specifications/008-in-app-notifications.md).
+- [годовой календарь команды](specifications/009-manager-team-calendar.md).
 - [резервное копирование и восстановление](operations/database-backup-and-restore.md).
 
 ## Отложено до появления требований

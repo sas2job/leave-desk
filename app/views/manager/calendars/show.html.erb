@@ -1,0 +1,26 @@
+<main class="page calendar-page">
+  <header class="page-header">
+    <div><p class="eyebrow">Команда</p><h1>Календарь <%= @year %></h1></div>
+    <div class="calendar-year-nav">
+      <%= link_to "← #{@year - 1}", manager_calendar_path(year: @year - 1), class: "button button--secondary" %>
+      <%= link_to "#{@year + 1} →", manager_calendar_path(year: @year + 1), class: "button button--secondary" %>
+    </div>
+  </header>
+  <div class="calendar-legend"><span class="calendar-key calendar-key--leave"></span> Отпуск <span class="calendar-key calendar-key--birthday"></span> День рождения</div>
+  <div class="team-calendar-wrap">
+    <table class="team-calendar">
+      <thead>
+        <tr><th rowspan="2">Сотрудник</th><% @dates.group_by(&:month).each_value do |dates| %><th colspan="<%= dates.size %>"><%= I18n.l(dates.first, format: "%B") %></th><% end %></tr>
+        <tr><% @dates.each do |date| %><th class="<%= "weekend" if date.saturday? || date.sunday? %>"><%= date.day %><small><%= I18n.l(date, format: "%a") %></small></th><% end %></tr>
+      </thead>
+      <tbody>
+        <% @rows.each do |row| %>
+          <tr><th><%= row[:employee].name %></th><% @dates.each do |date| %>
+            <% classes = []; classes << "weekend" if date.saturday? || date.sunday?; classes << "leave" if row[:leave_days].include?(date); classes << "birthday" if row[:birthday] == date %>
+            <td class="<%= classes.join(" ") %>" title="<%= format_date(date) %>"><%= row[:birthday] == date ? "ДР" : (row[:leave_days].include?(date) ? "О" : "") %></td>
+          <% end %></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</main>

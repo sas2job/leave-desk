@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   end
 
   namespace :manager do
+    resource :calendar, only: :show
     resources :leave_requests, only: :index do
       member do
         patch :approve
