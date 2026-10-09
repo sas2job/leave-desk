@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_154429) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_155337) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -42,7 +42,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_154429) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "holiday_handling", default: 0, null: false
     t.index ["code"], name: "index_leave_types_on_code", unique: true
+    t.check_constraint "holiday_handling = ANY (ARRAY[0, 1])", name: "leave_types_valid_holiday_handling"
   end
 
   create_table "sessions", force: :cascade do |t|

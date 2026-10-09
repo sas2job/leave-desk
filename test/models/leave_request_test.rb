@@ -116,6 +116,28 @@ class LeaveRequestTest < ActiveSupport::TestCase
     end
   end
 
+  test "duration includes ordinary weekends" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 5), ends_on: Date.new(2026, 10, 11))
+
+    assert_equal 7, request.duration_in_days
+  end
+
+  test "duration excludes federal holidays when leave type requires it" do
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 1, 1), ends_on: Date.new(2026, 1, 10))
+
+    assert_equal 2, request.duration_in_days
+  end
+
+  test "duration includes federal holidays when leave type requires it" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 1, 1), ends_on: Date.new(2026, 1, 10))
+
+    assert_equal 10, request.duration_in_days
+  end
+
   private
 
   def create_request

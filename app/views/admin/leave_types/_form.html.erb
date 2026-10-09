@@ -22,6 +22,14 @@
         <%= form.text_field :code, required: true, placeholder: "STUDY" %>
       </div>
 
+      <div class="field field--full">
+        <%= form.label :holiday_handling, "Учёт официальных праздников" %>
+        <%= form.select :holiday_handling, [
+          ["Включать в продолжительность", "include_public_holidays"],
+          ["Исключать из продолжительности", "exclude_public_holidays"]
+        ] %>
+      </div>
+
       <div class="field field--full checkbox-field">
         <%= form.check_box :active %>
         <%= form.label :active, "Доступен для новых заявок" %>

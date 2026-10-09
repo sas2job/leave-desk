@@ -26,6 +26,10 @@
             <div class="meta-label">Окончание</div>
             <div class="meta-value"><%= format_date(leave_request.ends_on) %></div>
           </div>
+          <div>
+            <div class="meta-label">Продолжительность</div>
+            <div class="meta-value"><%= leave_request.duration_in_days %> дн.</div>
+          </div>
           <div class="request-card__actions">
             <% if leave_request.pending? || leave_request.approved? %>
               <%= button_to "Отменить", leave_request_path(leave_request),

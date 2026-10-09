@@ -30,6 +30,14 @@ class LeaveRequest < ApplicationRecord
     end
   end
 
+  def duration_in_days
+    return if leave_type.blank? || starts_on.blank? || ends_on.blank? || ends_on < starts_on
+
+    (starts_on..ends_on).count do |date|
+      leave_type.include_public_holidays? || !RussianFederalHoliday.on?(date)
+    end
+  end
+
   private
 
   def review!(new_status:, by:, comment:)

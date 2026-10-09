@@ -22,7 +22,12 @@
             <div class="meta-label">Код</div>
             <div class="meta-value"><%= leave_type.code %></div>
           </div>
-          <div></div>
+          <div>
+            <div class="meta-label">Официальные праздники</div>
+            <div class="meta-value">
+              <%= leave_type.exclude_public_holidays? ? "Не входят" : "Входят" %>
+            </div>
+          </div>
           <div class="request-card__actions">
             <%= link_to "Изменить", edit_admin_leave_type_path(leave_type),
               class: "button button--secondary" %>

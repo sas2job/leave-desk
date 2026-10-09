@@ -43,7 +43,7 @@ module Admin
     end
 
     def leave_type_params
-      params.expect(leave_type: %i[name code active])
+      params.expect(leave_type: %i[name code holiday_handling active])
     end
   end
 end

@@ -37,7 +37,8 @@
 Связанные спецификации:
 
 - [управление видами отпусков](specifications/004-leave-type-administration.md);
-- [управление сотрудниками](specifications/005-employee-administration.md).
+- [управление сотрудниками](specifications/005-employee-administration.md);
+- [продолжительность отсутствия](specifications/006-leave-duration.md).
 
 ## Этап 4. Эксплуатационная готовность
 

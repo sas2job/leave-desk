@@ -1,8 +1,9 @@
 ActiveRecord::Base.transaction do
   [
-    { code: "ANNUAL", name: "Ежегодный отпуск" },
-    { code: "SICK", name: "Больничный" },
-    { code: "UNPAID", name: "Отпуск без сохранения заработной платы" }
+    { code: "ANNUAL", name: "Ежегодный отпуск", holiday_handling: :exclude_public_holidays },
+    { code: "SICK", name: "Больничный", holiday_handling: :include_public_holidays },
+    { code: "UNPAID", name: "Отпуск без сохранения заработной платы",
+      holiday_handling: :include_public_holidays }
   ].each do |attributes|
     leave_type = LeaveType.find_or_initialize_by(code: attributes.fetch(:code))
     leave_type.update!(attributes.merge(active: true))
