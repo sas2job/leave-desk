@@ -725,7 +725,8 @@ textarea:focus {
 .team-calendar th, .team-calendar td { min-width: 32px; height: 34px; border: 1px solid var(--border); text-align: center; }
 .team-calendar thead th { position: sticky; top: 0; z-index: 2; background: white; }
 .team-calendar thead tr:nth-child(2) th { top: 34px; }
-.team-calendar th:first-child { position: sticky; left: 0; z-index: 3; min-width: 180px; padding: 0 .75rem; text-align: left; background: white; }
+.team-calendar thead tr:first-child th:first-child,
+.team-calendar tbody th:first-child { position: sticky; left: 0; z-index: 3; min-width: 180px; padding: 0 .75rem; text-align: left; background: white; }
 .team-calendar .weekend { background-color: #202522; color: white; }
 .team-calendar td.leave { background: #4b8e4b; }
 .team-calendar td.birthday { background: #5b8def; }
