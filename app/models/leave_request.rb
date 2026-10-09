@@ -2,6 +2,7 @@ class LeaveRequest < ApplicationRecord
   class InvalidTransition < StandardError; end
 
   enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3 }
+  enum :day_part, { full_day: 0, morning: 1, afternoon: 2 }, default: :full_day
 
   belongs_to :employee, class_name: "User", inverse_of: :leave_requests
   belongs_to :leave_type
@@ -13,6 +14,7 @@ class LeaveRequest < ApplicationRecord
   validate :reviewer_is_not_employee
   validate :leave_type_is_active, on: :create
   validate :period_does_not_overlap_active_request
+  validate :partial_day_is_single_day
 
   def approve!(by:, comment: nil)
     review!(new_status: :approved, by:, comment:)
@@ -33,9 +35,10 @@ class LeaveRequest < ApplicationRecord
   def duration_in_days
     return if leave_type.blank? || starts_on.blank? || ends_on.blank? || ends_on < starts_on
 
-    (starts_on..ends_on).count do |date|
+    days = (starts_on..ends_on).count do |date|
       leave_type.include_public_holidays? || !RussianFederalHoliday.on?(date)
     end
+    full_day? ? days : days * 0.5
   end
 
   private
@@ -70,7 +73,20 @@ class LeaveRequest < ApplicationRecord
 
     overlapping_request = self.class.where(employee_id:, status: %i[pending approved])
       .where.not(id:).where("starts_on <= ? AND ends_on >= ?", ends_on, starts_on)
-      .exists?
+      .any? { |request| time_slots_overlap?(request) }
     errors.add(:base, "Период пересекается с другой активной заявкой") if overlapping_request
+  end
+
+  def partial_day_is_single_day
+    return if full_day? || starts_on.blank? || ends_on.blank? || starts_on == ends_on
+
+    errors.add(:day_part, "можно выбрать только для заявки на одну дату")
+  end
+
+  def time_slots_overlap?(other)
+    return true unless starts_on == ends_on && other.starts_on == other.ends_on
+    return true if full_day? || other.full_day?
+
+    day_part == other.day_part
   end
 end

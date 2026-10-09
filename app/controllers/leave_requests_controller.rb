@@ -39,7 +39,7 @@ class LeaveRequestsController < ApplicationController
   end
 
   def leave_request_params
-    params.expect(leave_request: %i[leave_type_id starts_on ends_on employee_comment])
+    params.expect(leave_request: %i[leave_type_id starts_on ends_on day_part employee_comment])
   end
 
   def render_new_with_errors

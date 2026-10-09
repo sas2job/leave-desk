@@ -34,6 +34,14 @@
               <div class="meta-label">Окончание</div>
               <div class="meta-value"><%= format_date(leave_request.ends_on) %></div>
             </div>
+            <div>
+              <div class="meta-label">Часть дня</div>
+              <div class="meta-value"><%= leave_request_day_part_label(leave_request) %></div>
+            </div>
+            <div>
+              <div class="meta-label">Продолжительность</div>
+              <div class="meta-value"><%= format_duration(leave_request.duration_in_days) %> дн.</div>
+            </div>
           </div>
 
           <% if leave_request.pending? %>

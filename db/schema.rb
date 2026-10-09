@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_155337) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_161915) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -27,13 +27,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_155337) do
     t.datetime "reviewed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "day_part", default: 0, null: false
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
     t.index ["leave_type_id"], name: "index_leave_requests_on_leave_type_id"
     t.index ["reviewer_id"], name: "index_leave_requests_on_reviewer_id"
+    t.check_constraint "day_part = 0 OR starts_on = ends_on", name: "leave_requests_partial_day_is_single_day"
+    t.check_constraint "day_part = ANY (ARRAY[0, 1, 2])", name: "leave_requests_valid_day_part"
     t.check_constraint "ends_on >= starts_on", name: "leave_requests_dates_in_order"
     t.check_constraint "reviewer_id IS NULL OR reviewer_id <> employee_id", name: "leave_requests_reviewer_is_not_employee"
     t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3])", name: "leave_requests_valid_status"
-    t.exclusion_constraint "employee_id WITH =, daterange(starts_on, ends_on, '[]'::text) WITH &&", where: "status = ANY (ARRAY[0, 1])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
+    t.exclusion_constraint "employee_id WITH =, tsrange((starts_on +\nCASE\n    WHEN (day_part = 2) THEN 'PT12H'::interval\n    ELSE 'PT0S'::interval\nEND), (ends_on +\nCASE\n    WHEN (day_part = 1) THEN 'PT12H'::interval\n    ELSE 'P1D'::interval\nEND), '[)'::text) WITH &&", where: "status = ANY (ARRAY[0, 1])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
   end
 
   create_table "leave_types", force: :cascade do |t|

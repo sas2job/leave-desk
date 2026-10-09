@@ -36,6 +36,12 @@
           <%= form.label :ends_on, "Дата окончания" %>
           <%= form.date_field :ends_on, required: true %>
         </div>
+      <div class="field field--full">
+        <%= form.label :day_part, "Часть дня" %>
+        <%= form.select :day_part, [["Полный день", "full_day"],
+          ["С утра", "morning"], ["После полудня", "afternoon"]] %>
+        <small>«С утра» и «После полудня» доступны только для одной даты.</small>
+      </div>
 
         <div class="field field--full">
           <%= form.label :employee_comment, "Комментарий" %>
