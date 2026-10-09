@@ -2,7 +2,8 @@ class LeaveRequestsController < ApplicationController
   before_action :set_leave_request, only: :destroy
 
   def index
-    @leave_requests = Current.user.leave_requests.includes(:leave_type).order(created_at: :desc)
+    @leave_requests = Current.user.leave_requests.includes(:leave_type, events: :actor)
+      .order(created_at: :desc)
   end
 
   def new

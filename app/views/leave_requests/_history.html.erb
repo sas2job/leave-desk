@@ -1,0 +1,15 @@
+<details class="request-history">
+  <summary>История заявки</summary>
+  <ol>
+    <% leave_request.events.sort_by { |event| [event.occurred_at, event.id] }.each do |event| %>
+      <li>
+        <strong><%= leave_request_event_label(event) %></strong>
+        <span><%= leave_request_event_transition(event) %></span>
+        <span><%= event.actor.name %>, <%= l(event.occurred_at, format: :short) %></span>
+        <% if event.comment.present? %>
+          <p><%= event.comment %></p>
+        <% end %>
+      </li>
+    <% end %>
+  </ol>
+</details>

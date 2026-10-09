@@ -16,6 +16,8 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "body", text: /01\.11\.2026/
+    assert_select "summary", text: "История заявки"
+    assert_select "strong", text: "Заявка создана"
     assert_select "body", text: /#{Regexp.escape(other_request.starts_on.strftime("%d.%m.%Y"))}/, count: 0
   end
 

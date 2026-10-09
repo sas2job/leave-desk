@@ -4,7 +4,7 @@ module Manager
     before_action :set_leave_request, only: %i[approve reject]
 
     def index
-      @leave_requests = managed_leave_requests.includes(:employee, :leave_type)
+      @leave_requests = managed_leave_requests.includes(:employee, :leave_type, events: :actor)
         .order(created_at: :desc)
     end
 
