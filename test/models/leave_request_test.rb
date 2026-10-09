@@ -21,7 +21,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
       starts_on: Date.new(2026, 10, 10), ends_on: Date.new(2026, 10, 9))
 
     assert_not request.valid?
-    assert_includes request.errors[:ends_on], "must be on or after the start date"
+    assert_includes request.errors[:base], "Дата окончания не может быть раньше даты начала"
   end
 
   test "inactive leave type cannot be requested" do
@@ -31,7 +31,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
       starts_on: Date.new(2026, 10, 10), ends_on: Date.new(2026, 10, 10))
 
     assert_not request.valid?
-    assert_includes request.errors[:leave_type], "must be active"
+    assert_includes request.errors[:leave_type], "недоступен для оформления"
   end
 
   test "manager can approve a pending request" do

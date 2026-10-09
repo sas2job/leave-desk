@@ -66,15 +66,15 @@ class LeaveRequest < ApplicationRecord
   def ends_on_is_not_before_starts_on
     return if starts_on.blank? || ends_on.blank? || ends_on >= starts_on
 
-    errors.add(:ends_on, "must be on or after the start date")
+    errors.add(:base, "Дата окончания не может быть раньше даты начала")
   end
 
   def reviewer_is_not_employee
-    errors.add(:reviewer, "cannot review their own request") if reviewer == employee
+    errors.add(:reviewer, "не может согласовать собственную заявку") if reviewer == employee
   end
 
   def leave_type_is_active
-    errors.add(:leave_type, "must be active") if leave_type && !leave_type.active?
+    errors.add(:leave_type, "недоступен для оформления") if leave_type && !leave_type.active?
   end
 
   def period_does_not_overlap_active_request

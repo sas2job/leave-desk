@@ -68,7 +68,21 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "cancelled", manager.notifications.last.leave_request_event.event_type
   end
 
-  test "cannot cancel another user request" do
+  test "shows date order validation in Russian without English field name" do
+    post leave_requests_path, params: {
+      leave_request: {
+        leave_type_id: @leave_type.id,
+        starts_on: "2026-11-14",
+        ends_on: "2026-11-13"
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select ".error-summary", text: /Дата окончания не может быть раньше даты начала/
+    assert_select ".error-summary", text: /Ends on/, count: 0
+  end
+
+test "cannot cancel another user request" do
     leave_request = create_request(@other_employee)
 
     delete leave_request_path(leave_request)
@@ -88,3 +102,4 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
       starts_on: Date.new(2026, 11, 1), ends_on: Date.new(2026, 11, 2))
   end
 end
+
