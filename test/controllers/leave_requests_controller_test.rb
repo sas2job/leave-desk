@@ -18,6 +18,8 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", text: /01\.11\.2026/
     assert_select "summary", text: "История заявки"
     assert_select "strong", text: "Заявка создана"
+    assert_select "body", text: /\d{2} [а-яё.]+ \d{2}:\d{2}/i
+    assert_select "body", text: /\d{2} [A-Z][a-z]{2} \d{2}:\d{2}/, count: 0
     assert_select "body", text: /#{Regexp.escape(other_request.starts_on.strftime("%d.%m.%Y"))}/, count: 0
   end
 
