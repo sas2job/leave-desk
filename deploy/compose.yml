@@ -1,0 +1,59 @@
+services:
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+    environment:
+      LEAVE_DESK_PUBLIC_HOST: ${LEAVE_DESK_PUBLIC_HOST}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: leave_desk
+      POSTGRES_PASSWORD: ${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD}
+      POSTGRES_DB: leave_desk_production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leave_desk -d leave_desk_production"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    image: ${LEAVE_DESK_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      RAILS_ALLOWED_HOST: ${LEAVE_DESK_PUBLIC_HOST}
+      RAILS_MAX_THREADS: 3
+      WEB_CONCURRENCY: 1
+      PGHOST: db
+      PGUSER: leave_desk
+      PGPASSWORD: ${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD}
+      LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD: ${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+    ports:
+      - "127.0.0.1:3000:80"
+    volumes:
+      - storage_data:/rails/storage
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  storage_data:

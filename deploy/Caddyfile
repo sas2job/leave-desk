@@ -1,0 +1,15 @@
+{
+	default_sni {$LEAVE_DESK_PUBLIC_HOST}
+}
+
+{$LEAVE_DESK_PUBLIC_HOST} {
+	tls {
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+			profile shortlived
+			disable_tlsalpn_challenge
+		}
+	}
+
+	reverse_proxy web:80
+}
