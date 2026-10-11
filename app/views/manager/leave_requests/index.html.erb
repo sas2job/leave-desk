@@ -54,8 +54,16 @@
               </div>
               <div class="review-card__actions">
                 <%= form.submit "Одобрить" %>
-                <%= form.submit "Отклонить",
+                <%= button_tag "Отклонить",
+                  type: "submit",
                   formaction: reject_manager_leave_request_path(leave_request),
+                  name: "authenticity_token",
+                  value: form_authenticity_token(
+                    form_options: {
+                      action: reject_manager_leave_request_path(leave_request),
+                      method: :patch
+                    }
+                  ),
                   class: "button--danger" %>
               </div>
             <% end %>

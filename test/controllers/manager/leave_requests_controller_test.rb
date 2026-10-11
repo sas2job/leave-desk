@@ -36,6 +36,43 @@ module Manager
       assert_equal "approved", @employee.notifications.last.leave_request_event.event_type
     end
 
+    test "manager queue renders an action-specific CSRF token for rejection" do
+      leave_request = create_request(@employee)
+      sign_in_as(@manager)
+
+      previous_forgery_protection = ActionController::Base.allow_forgery_protection
+      begin
+        ActionController::Base.allow_forgery_protection = true
+        get manager_leave_requests_path
+      ensure
+        ActionController::Base.allow_forgery_protection = previous_forgery_protection
+      end
+
+      approve_form = css_select(
+        "form[action='#{approve_manager_leave_request_path(leave_request)}']"
+      ).sole
+      approve_token = approve_form.at_css("input[name='authenticity_token']")["value"]
+      reject_button = approve_form.at_css(
+        "button[formaction='#{reject_manager_leave_request_path(leave_request)}']"
+      )
+
+      assert_equal "authenticity_token", reject_button["name"]
+      refute_equal approve_token, reject_button["value"]
+    end
+
+    test "manager rejects direct report request" do
+      leave_request = create_request(@employee)
+      sign_in_as(@manager)
+
+      patch reject_manager_leave_request_path(leave_request),
+        params: { review_comment: "Rejected" }
+
+      assert_redirected_to manager_leave_requests_path
+      assert_predicate leave_request.reload, :rejected?
+      assert_equal @manager, leave_request.reviewer
+      assert_equal "rejected", @employee.notifications.last.leave_request_event.event_type
+    end
+
     test "manager cannot review another manager direct report" do
       leave_request = create_request(@other_employee)
       sign_in_as(@manager)
