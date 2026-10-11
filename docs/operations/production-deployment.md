@@ -78,7 +78,8 @@ Compose всегда получает SHA-тег, поэтому работаю�
 ```sh
 docker compose pull web
 docker compose up -d --no-deps web
-curl --fail http://127.0.0.1:3000/up
+set -a; . ./.env; set +a
+curl --fail --header "Host: $LEAVE_DESK_PUBLIC_HOST" http://127.0.0.1:3000/up
 ```
 
 ## Чек-лист первого выпуска

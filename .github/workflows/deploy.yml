@@ -100,8 +100,11 @@ jobs:
             sed -i 's|^LEAVE_DESK_IMAGE=.*|LEAVE_DESK_IMAGE=$IMAGE_NAME:$REVISION|' .env; \
             docker compose pull web; \
             docker compose up -d --no-deps web; \
+            health_host=\$(sed -n 's/^LEAVE_DESK_PUBLIC_HOST=//p' .env); \
+            test -n \"\$health_host\"; \
             for attempt in \$(seq 1 30); do \
-              curl --fail --silent --show-error http://127.0.0.1:3000/up && exit 0; \
+              curl --fail --silent --show-error --header \"Host: \$health_host\" \
+                http://127.0.0.1:3000/up && exit 0; \
               sleep 2; \
             done; \
             docker compose logs --tail=100 web; \
