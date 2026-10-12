@@ -6,7 +6,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
       password: "test-password", role: :manager)
     @employee = User.create!(name: "Example Employee", email_address: "employee@example.test",
       password: "test-password", manager: @manager)
-    @leave_type = LeaveType.create!(name: "Annual leave", code: "annual")
+    @leave_type = LeaveType.create!(name: "Annual leave", code: "test_annual")
   end
 
   test "new requests are pending" do
@@ -22,6 +22,17 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
     assert_not request.valid?
     assert_includes request.errors[:base], "Дата окончания не может быть раньше даты начала"
+  end
+
+  test "rejects unknown half-day values and malformed leave type id" do
+    request = LeaveRequest.new(employee: @employee, leave_type_id: "#{@leave_type.id}junk",
+      starts_on: Date.new(2026, 10, 10), ends_on: Date.new(2026, 10, 11),
+      start_part: "unknown", end_part: "")
+
+    assert_not request.valid?
+    assert_includes request.errors[:leave_type], "должен быть выбран из списка"
+    assert_predicate request.errors[:start_part], :present?
+    assert_predicate request.errors[:end_part], :present?
   end
 
   test "non-finite dates are rejected without raising" do

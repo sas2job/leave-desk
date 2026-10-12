@@ -7,12 +7,16 @@ class SessionsController < ApplicationController
   end
 
   def create
-    user = User.authenticate_by(params.permit(:email_address, :password))
+    @email_address = params[:email_address] if params[:email_address].is_a?(String)
+    password = params[:password]
+    user = User.authenticate_by(email_address: @email_address, password:) if
+      @email_address.present? && password.is_a?(String)
 
     if user&.active? && start_new_session_for(user)
       redirect_to after_authentication_url
     else
-      redirect_to new_session_path, alert: "Неверный адрес электронной почты или пароль."
+      flash.now[:alert] = "Неверный адрес электронной почты или пароль."
+      render :new, status: :unprocessable_entity
     end
   end
 

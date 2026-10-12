@@ -1,7 +1,7 @@
 class User < ApplicationRecord
   has_secure_password
 
-  enum :role, { employee: 0, manager: 1, administrator: 2 }
+  enum :role, { employee: 0, manager: 1, administrator: 2 }, validate: true
 
   belongs_to :manager, class_name: "User", optional: true
   has_many :direct_reports, class_name: "User", foreign_key: :manager_id,
@@ -21,6 +21,9 @@ class User < ApplicationRecord
     format: { with: URI::MailTo::EMAIL_REGEXP }
   validate :manager_is_active_manager
   validate :role_and_activity_support_direct_reports
+  validate :active_has_boolean_input
+  validate :birthday_is_valid_if_supplied
+  validate :manager_id_has_valid_syntax
   after_update :revoke_sessions_after_authentication_change,
     if: -> { saved_change_to_active? || saved_change_to_password_digest? }
 
@@ -31,12 +34,39 @@ class User < ApplicationRecord
   end
 
   def manager_is_active_manager
+    if manager_id.present? && manager.nil?
+      errors.add(:manager, "не найден")
+      return
+    end
     return if manager.nil?
 
     errors.add(:manager, "не может совпадать с сотрудником") if manager == self
     unless manager.active? && manager.manager?
       errors.add(:manager, "должен быть активным руководителем")
     end
+  end
+
+  def active_has_boolean_input
+    raw_active = attribute_before_type_cast("active")
+    return if [ true, false, 1, 0, "1", "0", "true", "false" ].include?(raw_active)
+
+    errors.add(:active, "должна быть указана как да или нет")
+  end
+
+  def birthday_is_valid_if_supplied
+    raw_birthday = attribute_before_type_cast("birthday_on")
+    return if raw_birthday.blank? || birthday_on.is_a?(Date)
+
+    errors.add(:birthday_on, "содержит неверную дату")
+  end
+
+  def manager_id_has_valid_syntax
+    raw_id = attribute_before_type_cast("manager_id")
+    return if raw_id.blank?
+    return if raw_id.is_a?(Integer) && raw_id.positive?
+    return if raw_id.is_a?(String) && raw_id.match?(/\A[1-9]\d*\z/)
+
+    errors.add(:manager, "должен быть выбран из списка")
   end
 
   def role_and_activity_support_direct_reports

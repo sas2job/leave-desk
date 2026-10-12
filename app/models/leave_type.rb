@@ -2,7 +2,7 @@ class LeaveType < ApplicationRecord
   enum :holiday_handling, {
     include_public_holidays: 0,
     exclude_public_holidays: 1
-  }, default: :include_public_holidays
+  }, default: :include_public_holidays, validate: true
 
   has_many :leave_requests, dependent: :restrict_with_exception
 

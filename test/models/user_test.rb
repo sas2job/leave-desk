@@ -30,6 +30,17 @@ class UserTest < ActiveSupport::TestCase
     assert_includes employee.errors[:manager], "должен быть активным руководителем"
   end
 
+  test "rejects invalid activity, birthday and manager identifiers" do
+    user = User.new(name: "Employee", email_address: "employee@example.test",
+      password: "test-password", active: "inactive", birthday_on: "not-a-date",
+      manager_id: "123abc")
+
+    assert_not user.valid?
+    assert_includes user.errors[:active], "должна быть указана как да или нет"
+    assert_includes user.errors[:birthday_on], "содержит неверную дату"
+    assert_includes user.errors[:manager], "должен быть выбран из списка"
+  end
+
   test "manager with direct reports cannot be demoted" do
     manager = User.create!(name: "Manager", email_address: "manager@example.test",
       password: "test-password", role: :manager)

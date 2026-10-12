@@ -35,7 +35,8 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_redirected_to new_session_path
+    assert_response :unprocessable_entity
+    assert_select "input[name='email_address'][value='employee@example.test']"
   end
 
   test "rejects inactive user" do
@@ -47,7 +48,19 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_redirected_to new_session_path
+    assert_response :unprocessable_entity
+  end
+
+  test "malformed login fields do not raise or create a session" do
+    [ { email_address: [ @user.email_address ], password: "test-password" },
+      { email_address: @user.email_address, password: { nested: "test-password" } },
+      { password: "test-password" } ].each do |credentials|
+      assert_no_difference("Session.count") do
+        post session_path, params: credentials
+      end
+      assert_response :unprocessable_entity
+      assert_select ".flash--alert", text: /Неверный адрес электронной почты или пароль/
+    end
   end
 
   test "deactivation revokes an existing session" do

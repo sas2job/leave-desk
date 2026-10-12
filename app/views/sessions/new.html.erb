@@ -15,7 +15,7 @@
         <%= form.label :email_address, "Электронная почта" %>
         <%= form.email_field :email_address, required: true, autofocus: true,
           autocomplete: "username", placeholder: "name@company.ru",
-          value: params[:email_address] %>
+          value: @email_address %>
       </div>
 
       <div class="field">

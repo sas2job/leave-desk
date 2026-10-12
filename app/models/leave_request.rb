@@ -4,8 +4,10 @@ class LeaveRequest < ApplicationRecord
   SUPPORTED_DATES = Date.new(2000, 1, 1)..Date.new(2100, 12, 31)
 
   enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3 }
-  enum :start_part, { morning: 0, afternoon: 1 }, prefix: :starts, default: :morning
-  enum :end_part, { morning: 0, afternoon: 1 }, prefix: :ends, default: :afternoon
+  enum :start_part, { morning: 0, afternoon: 1 }, prefix: :starts,
+    default: :morning, validate: true
+  enum :end_part, { morning: 0, afternoon: 1 }, prefix: :ends,
+    default: :afternoon, validate: true
 
   belongs_to :employee, class_name: "User", inverse_of: :leave_requests
   belongs_to :leave_type
@@ -21,6 +23,7 @@ class LeaveRequest < ApplicationRecord
   validate :period_does_not_overlap_active_request
   validate :period_boundaries_are_in_order
   validate :duration_is_positive
+  validate :leave_type_id_has_valid_syntax
   after_create :record_created_event
 
   def approve!(by:, comment: nil)
@@ -52,6 +55,14 @@ class LeaveRequest < ApplicationRecord
   end
 
   private
+
+  def leave_type_id_has_valid_syntax
+    raw_id = attribute_before_type_cast("leave_type_id")
+    return if raw_id.is_a?(Integer) && raw_id.positive?
+    return if raw_id.is_a?(String) && raw_id.match?(/\A[1-9]\d*\z/)
+
+    errors.add(:leave_type, "должен быть выбран из списка")
+  end
 
   def dates_are_supported
     errors.add(:starts_on, "должна быть между 01.01.2000 и 31.12.2100") if starts_on && !supported_date?(starts_on)
