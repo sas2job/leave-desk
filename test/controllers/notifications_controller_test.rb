@@ -6,7 +6,7 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
       password: "test-password", role: :manager)
     @employee = User.create!(name: "Employee", email_address: "employee@example.test",
       password: "test-password", manager: @manager)
-    leave_type = LeaveType.create!(name: "Annual", code: "ANNUAL")
+    leave_type = LeaveType.create!(name: "Annual", code: "TEST_ANNUAL")
     @leave_request = LeaveRequest.create!(employee: @employee, leave_type:,
       starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 2))
   end

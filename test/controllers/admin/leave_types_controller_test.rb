@@ -5,7 +5,7 @@ module Admin
     setup do
       @administrator = create_user("admin@example.test", role: :administrator)
       @employee = create_user("employee@example.test")
-      @leave_type = LeaveType.create!(name: "Annual leave", code: "ANNUAL")
+      @leave_type = LeaveType.create!(name: "Annual leave", code: "TEST_ANNUAL")
     end
 
     test "administrator lists leave types" do
