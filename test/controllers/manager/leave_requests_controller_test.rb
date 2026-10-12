@@ -60,6 +60,39 @@ module Manager
       refute_equal approve_token, reject_button["value"]
     end
 
+    test "manager submits the rendered rejection form with CSRF protection" do
+      leave_request = create_request(@employee)
+      sign_in_as(@manager)
+
+      previous_forgery_protection = ActionController::Base.allow_forgery_protection
+      begin
+        ActionController::Base.allow_forgery_protection = true
+        get manager_leave_requests_path
+
+        form = css_select(
+          "form[action='#{approve_manager_leave_request_path(leave_request)}']"
+        ).sole
+        reject_button = form.at_css(
+          "button[formaction='#{reject_manager_leave_request_path(leave_request)}']"
+        )
+        submitted_fields = form.css("input[type='hidden'][name]").map do |input|
+          [ input["name"], input["value"] ]
+        end
+        submitted_fields << [ "review_comment", "Rejected" ]
+        submitted_fields << [ reject_button["name"], reject_button["value"] ]
+
+        post reject_manager_leave_request_path(leave_request),
+          params: URI.encode_www_form(submitted_fields),
+          headers: { "CONTENT_TYPE" => "application/x-www-form-urlencoded" }
+
+        assert_redirected_to manager_leave_requests_path
+        assert_predicate leave_request.reload, :rejected?
+        assert_equal @manager, leave_request.reviewer
+      ensure
+        ActionController::Base.allow_forgery_protection = previous_forgery_protection
+      end
+    end
+
     test "manager rejects direct report request" do
       leave_request = create_request(@employee)
       sign_in_as(@manager)
