@@ -8,7 +8,12 @@
 /.bundle
 
 # Ignore all environment files.
-/.env*
+**/.env*
+!**/.env.example
+**/backups/
+**/*.dump
+**/*.dump.sha256
+**/*.sql.gz
 
 # Ignore all default key files.
 /config/master.key

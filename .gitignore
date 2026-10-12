@@ -1,6 +1,10 @@
 /.bundle
-/.env*
-!/.env.example
+**/.env*
+!**/.env.example
+**/backups/
+**/*.dump
+**/*.dump.sha256
+**/*.sql.gz
 /config/master.key
 /config/credentials/*.key
 /log/*

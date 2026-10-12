@@ -6,8 +6,19 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
   exit 1
 fi
 
-backup_directory="${BACKUP_DIRECTORY:-backups}"
+if [[ -z "${BACKUP_DIRECTORY:-}" || "${BACKUP_DIRECTORY}" != /* ]]; then
+  echo "BACKUP_DIRECTORY must be an absolute path outside the source tree" >&2
+  exit 1
+fi
+
+source_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+backup_directory="${BACKUP_DIRECTORY}"
 mkdir -p "$backup_directory"
+backup_directory="$(cd "$backup_directory" && pwd -P)"
+if [[ "$backup_directory" == "$source_directory" || "$backup_directory" == "$source_directory/"* ]]; then
+  echo "BACKUP_DIRECTORY must be outside the source tree" >&2
+  exit 1
+fi
 chmod 700 "$backup_directory"
 umask 077
 
