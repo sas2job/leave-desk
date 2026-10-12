@@ -21,8 +21,14 @@ class User < ApplicationRecord
     format: { with: URI::MailTo::EMAIL_REGEXP }
   validate :manager_is_active_manager
   validate :role_and_activity_support_direct_reports
+  after_update :revoke_sessions_after_authentication_change,
+    if: -> { saved_change_to_active? || saved_change_to_password_digest? }
 
   private
+
+  def revoke_sessions_after_authentication_change
+    sessions.delete_all
+  end
 
   def manager_is_active_manager
     return if manager.nil?

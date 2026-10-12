@@ -9,8 +9,7 @@ class SessionsController < ApplicationController
   def create
     user = User.authenticate_by(params.permit(:email_address, :password))
 
-    if user&.active?
-      start_new_session_for(user)
+    if user&.active? && start_new_session_for(user)
       redirect_to after_authentication_url
     else
       redirect_to new_session_path, alert: "Неверный адрес электронной почты или пароль."

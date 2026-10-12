@@ -41,4 +41,24 @@ class UserTest < ActiveSupport::TestCase
     assert_not manager.valid?
     assert_includes manager.errors[:role], "нельзя изменить, пока у пользователя есть подчинённые"
   end
+
+  test "unrelated user changes preserve sessions" do
+    user = User.create!(name: "Employee", email_address: "employee@example.test",
+      password: "test-password")
+    session = user.sessions.create!
+
+    user.update!(name: "Updated Employee")
+
+    assert Session.exists?(session.id)
+  end
+
+  test "password replacement revokes every session for the user" do
+    user = User.create!(name: "Employee", email_address: "employee@example.test",
+      password: "test-password")
+    2.times { user.sessions.create! }
+
+    user.update!(password: "replacement-password")
+
+    assert_empty user.sessions.reload
+  end
 end

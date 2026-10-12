@@ -23,7 +23,18 @@ module Authentication
   end
 
   def resume_session
-    Current.session ||= Session.find_by(id: cookies.signed[:session_id])
+    return Current.session if Current.session
+
+    session_id = cookies.signed[:session_id]
+    return unless session_id
+
+    existing_session = Session.includes(:user).find_by(id: session_id)
+    if existing_session&.user&.active? && !existing_session.expired?
+      Current.session = existing_session
+    else
+      cookies.delete(:session_id)
+      nil
+    end
   end
 
   def request_authentication
@@ -36,14 +47,22 @@ module Authentication
   end
 
   def start_new_session_for(user)
-    user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip).tap do |new_session|
-      Current.session = new_session
-      cookies.signed.permanent[:session_id] = {
-        value: new_session.id,
-        httponly: true,
-        same_site: :lax
-      }
+    authenticated_password_digest = user.password_digest
+    new_session = user.with_lock do
+      if user.active? && user.password_digest == authenticated_password_digest
+        user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip)
+      end
     end
+    return false unless new_session
+
+    Current.session = new_session
+    cookies.signed[:session_id] = {
+      value: new_session.id,
+      expires: Session::LIFETIME.from_now,
+      httponly: true,
+      same_site: :lax
+    }
+    true
   end
 
   def terminate_session
