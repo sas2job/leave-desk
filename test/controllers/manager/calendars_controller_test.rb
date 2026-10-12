@@ -6,7 +6,7 @@ module Manager
       @manager = create_user("manager@example.test", role: :manager)
       @employee = create_user("employee@example.test", manager: @manager,
         birthday_on: Date.new(1990, 5, 12))
-      @leave_type = LeaveType.create!(name: "Annual", code: "ANNUAL")
+      @leave_type = LeaveType.create!(name: "Annual", code: "TEST_ANNUAL")
     end
 
     test "manager sees direct report annual calendar" do
@@ -47,6 +47,22 @@ module Manager
       assert_select ".team-calendar-wrap.team-calendar-wrap--month"
       assert_select "table.team-calendar.team-calendar--month"
       assert_select "tbody td", count: 31
+    end
+
+    test "parses zero-padded months as decimal and falls back for invalid input" do
+      sign_in_as(@manager)
+
+      (1..12).each do |month|
+        get manager_calendar_path(year: 2026, month: format("%02d", month))
+        assert_response :success
+        assert_select "h1", text: "Календарь #{I18n.l(Date.new(2026, month, 1), format: "%B %Y")}"
+      end
+
+      travel_to Date.new(2026, 10, 9) do
+        get manager_calendar_path(year: 2026, month: "13")
+        assert_response :success
+        assert_select "h1", text: "Календарь октябрь 2026"
+      end
     end
 
     test "employee cannot open manager calendar" do

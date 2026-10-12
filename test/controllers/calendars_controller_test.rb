@@ -6,7 +6,7 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     @employee = create_user("employee@example.test", manager: @manager,
       birthday_on: Date.new(1990, 10, 9))
     @other_employee = create_user("other@example.test", manager: @manager)
-    @leave_type = LeaveType.create!(name: "Ежегодный отпуск", code: "ANNUAL")
+    @leave_type = LeaveType.create!(name: "Ежегодный отпуск", code: "TEST_ANNUAL")
   end
 
   test "shows only the current user's pending and approved requests" do
@@ -29,7 +29,8 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody th", count: 1
     assert_select "a[href='#{calendar_path}']", text: "Мой календарь"
     assert_select "summary", text: "Календари", count: 0
-    assert_select "body", text: /other@example\.test/, count: 0
+    assert_no_match(/other@example\.test/, response.body)
+    assert_select ".team-calendar td.leave[title*='20.10.2026']", count: 0
   end
 
   test "shows only visible dates for a request spanning the supported range" do
@@ -42,6 +43,62 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select ".team-calendar td.leave", count: 31
+  end
+
+  test "shows approved morning and pending afternoon on the same date" do
+    morning = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 20), ends_on: Date.new(2026, 10, 20),
+      end_part: :morning)
+    morning.approve!(by: @manager)
+    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 20), ends_on: Date.new(2026, 10, 20),
+      start_part: :afternoon)
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: 10)
+
+    assert_response :success
+    assert_select ".team-calendar td.leave-split[title*='20.10.2026']" do
+      assert_select ".calendar-half--morning.calendar-half--approved", text: "С"
+      assert_select ".calendar-half--afternoon.calendar-half--pending", text: "Р"
+    end
+  end
+
+  test "shows adjacent requests that share a boundary date" do
+    first = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 19), ends_on: Date.new(2026, 10, 20),
+      end_part: :morning)
+    first.approve!(by: @manager)
+    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 20), ends_on: Date.new(2026, 10, 21),
+      start_part: :afternoon)
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: 10)
+
+    assert_response :success
+    assert_select ".team-calendar td.leave-split[title*='20.10.2026']" do
+      assert_select ".calendar-half--morning.calendar-half--approved"
+      assert_select ".calendar-half--afternoon.calendar-half--pending"
+    end
+  end
+
+  test "parses zero-padded months as decimal and falls back for invalid input" do
+    sign_in_as(@employee)
+
+    (1..12).each do |month|
+      get calendar_path(year: 2026, month: format("%02d", month))
+      assert_response :success
+      assert_select "h1", text: "Мой календарь — #{I18n.l(Date.new(2026, month, 1), format: "%B %Y")}"
+    end
+
+    travel_to Date.new(2026, 10, 9) do
+      %w[00 13 abc].each do |month|
+        get calendar_path(year: 2026, month:)
+        assert_response :success
+        assert_select "h1", text: "Мой календарь — октябрь 2026"
+      end
+    end
   end
 
   private

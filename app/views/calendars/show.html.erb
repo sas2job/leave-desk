@@ -54,17 +54,27 @@
         <tr>
           <th scope="row">Мои заявки</th>
           <% @dates.each do |date| %>
-            <% request = @leave_request_by_date[date] %>
+            <% slots = @leave_requests_by_date[date] || {} %>
+            <% requests = slots.values.uniq %>
             <% classes = [] %>
             <% classes << "weekend" if date.saturday? || date.sunday? %>
-            <% classes << (request.approved? ? "leave" : "leave-pending") if request %>
-            <% classes << "birthday" if @birthday == date %>
+            <% classes << (requests.first.approved? ? "leave" : "leave-pending") if requests.one? %>
+            <% classes << "leave-split" if requests.size == 2 %>
+            <% classes << "birthday" if @birthday == date && requests.empty? %>
             <% labels = [format_date(date)] %>
-            <% labels << request.leave_type.name if request %>
-            <% labels << (request.approved? ? "Согласовано" : "На рассмотрении") if request %>
+            <% slots.each do |part, request| %>
+              <% labels << "#{part == :morning ? "Утро" : "После полудня"}: #{request.leave_type.name}, #{request.approved? ? "Согласовано" : "На рассмотрении"}" %>
+            <% end %>
             <% labels << "День рождения" if @birthday == date %>
-            <td class="<%= classes.join(" ") %>" title="<%= labels.join(" — ") %>">
-              <%= @birthday == date ? "ДР" : (request ? "О" : "") %>
+            <td class="<%= classes.join(" ") %>" title="<%= labels.join(" — ") %>" aria-label="<%= labels.join(" — ") %>">
+              <% if requests.size == 2 %>
+                <% slots.each do |part, request| %>
+                  <span class="calendar-half calendar-half--<%= part %> <%= request.approved? ? "calendar-half--approved" : "calendar-half--pending" %>"><%= request.approved? ? "С" : "Р" %></span>
+                <% end %>
+              <% elsif requests.one? %>
+                <%= requests.first.approved? ? "С" : "Р" %>
+              <% end %>
+              <span class="calendar-birthday"><%= "ДР" if @birthday == date %></span>
             </td>
           <% end %>
         </tr>
