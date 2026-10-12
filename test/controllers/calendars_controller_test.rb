@@ -32,6 +32,18 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", text: /other@example\.test/, count: 0
   end
 
+  test "shows only visible dates for a request spanning the supported range" do
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2000, 1, 1), ends_on: Date.new(2100, 12, 31))
+    request.approve!(by: @manager)
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: 10)
+
+    assert_response :success
+    assert_select ".team-calendar td.leave", count: 31
+  end
+
   private
 
   def create_user(email_address, role: :employee, manager: nil, birthday_on: nil)

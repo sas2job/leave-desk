@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_165143) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_12_095959) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -48,6 +48,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_165143) do
     t.index ["reviewer_id"], name: "index_leave_requests_on_reviewer_id"
     t.check_constraint "end_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_end_part"
     t.check_constraint "ends_on >= starts_on", name: "leave_requests_dates_in_order"
+    t.check_constraint "isfinite(ends_on) AND ends_on >= '2000-01-01'::date AND ends_on <= '2100-12-31'::date", name: "leave_requests_supported_end_date"
+    t.check_constraint "isfinite(starts_on) AND starts_on >= '2000-01-01'::date AND starts_on <= '2100-12-31'::date", name: "leave_requests_supported_start_date"
     t.check_constraint "reviewer_id IS NULL OR reviewer_id <> employee_id", name: "leave_requests_reviewer_is_not_employee"
     t.check_constraint "start_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_start_part"
     t.check_constraint "starts_on < ends_on OR start_part <= end_part", name: "leave_requests_period_boundaries_in_order"

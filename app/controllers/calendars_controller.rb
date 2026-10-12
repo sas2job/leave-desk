@@ -17,8 +17,10 @@ class CalendarsController < ApplicationController
       .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)
       .order(:starts_on)
     @leave_request_by_date = @leave_requests.each_with_object({}) do |request, requests_by_date|
-      (request.starts_on..request.ends_on).each do |date|
-        requests_by_date[date] = request if @dates.include?(date)
+      first_visible_date = [ request.starts_on, @dates.first ].max
+      last_visible_date = [ request.ends_on, @dates.last ].min
+      (first_visible_date..last_visible_date).each do |date|
+        requests_by_date[date] = request
       end
     end
     @birthday = birthday_in_year

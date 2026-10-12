@@ -1,6 +1,8 @@
 class LeaveRequest < ApplicationRecord
   class InvalidTransition < StandardError; end
 
+  SUPPORTED_DATES = Date.new(2000, 1, 1)..Date.new(2100, 12, 31)
+
   enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3 }
   enum :start_part, { morning: 0, afternoon: 1 }, prefix: :starts, default: :morning
   enum :end_part, { morning: 0, afternoon: 1 }, prefix: :ends, default: :afternoon
@@ -12,6 +14,7 @@ class LeaveRequest < ApplicationRecord
   has_many :events, class_name: "LeaveRequestEvent", dependent: :restrict_with_exception
 
   validates :starts_on, :ends_on, presence: true
+  validate :dates_are_supported
   validate :ends_on_is_not_before_starts_on
   validate :reviewer_is_not_employee
   validate :leave_type_is_active, on: :create
@@ -39,17 +42,29 @@ class LeaveRequest < ApplicationRecord
   end
 
   def duration_in_days
-    return if leave_type.blank? || starts_on.blank? || ends_on.blank? || ends_on < starts_on
+    return if leave_type.blank? || !dates_supported? || ends_on < starts_on
 
-    days = (starts_on..ends_on).count do |date|
-      leave_type.include_public_holidays? || !RussianFederalHoliday.on?(date)
-    end
+    days = ends_on.jd - starts_on.jd + 1
+    days -= RussianFederalHoliday.count_between(starts_on, ends_on) if leave_type.exclude_public_holidays?
     days -= 0.5 if starts_afternoon? && counted_calendar_date?(starts_on)
     days -= 0.5 if ends_morning? && counted_calendar_date?(ends_on)
     days
   end
 
   private
+
+  def dates_are_supported
+    errors.add(:starts_on, "должна быть между 01.01.2000 и 31.12.2100") if starts_on && !supported_date?(starts_on)
+    errors.add(:ends_on, "должна быть между 01.01.2000 и 31.12.2100") if ends_on && !supported_date?(ends_on)
+  end
+
+  def dates_supported?
+    supported_date?(starts_on) && supported_date?(ends_on)
+  end
+
+  def supported_date?(date)
+    date.is_a?(Date) && SUPPORTED_DATES.cover?(date)
+  end
 
   def review!(new_status:, by:, comment:)
     with_lock do
@@ -64,7 +79,8 @@ class LeaveRequest < ApplicationRecord
   end
 
   def ends_on_is_not_before_starts_on
-    return if starts_on.blank? || ends_on.blank? || ends_on >= starts_on
+    return unless dates_supported?
+    return if ends_on >= starts_on
 
     errors.add(:base, "Дата окончания не может быть раньше даты начала")
   end
@@ -78,7 +94,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def period_does_not_overlap_active_request
-    return if employee_id.blank? || starts_on.blank? || ends_on.blank?
+    return if employee_id.blank? || !dates_supported?
     return unless pending? || approved?
 
     overlapping_request = self.class.where(employee_id:, status: %i[pending approved])
@@ -88,7 +104,8 @@ class LeaveRequest < ApplicationRecord
   end
 
   def period_boundaries_are_in_order
-    return if starts_on.blank? || ends_on.blank? || starts_on < ends_on
+    return unless dates_supported?
+    return if starts_on < ends_on
     return unless starts_on == ends_on && starts_afternoon? && ends_morning?
 
     errors.add(:base, "Период отсутствия не может начаться после полудня и закончиться " \
@@ -96,7 +113,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def duration_is_positive
-    return if leave_type.blank? || starts_on.blank? || ends_on.blank?
+    return if leave_type.blank? || !dates_supported?
     return if ends_on < starts_on
     return if starts_on == ends_on && starts_afternoon? && ends_morning?
     return unless leave_type.exclude_public_holidays?

@@ -23,6 +23,18 @@ module Manager
       assert_select "td.birthday", text: "ДР"
     end
 
+    test "shows only visible dates for a long approved request" do
+      request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2000, 1, 1), ends_on: Date.new(2100, 12, 31))
+      request.approve!(by: @manager)
+      sign_in_as(@manager)
+
+      get manager_calendar_path(year: 2026, month: 10)
+
+      assert_response :success
+      assert_select ".team-calendar td.leave", count: 31
+    end
+
     test "defaults to the current month" do
       sign_in_as(@manager)
 

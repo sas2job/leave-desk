@@ -33,7 +33,9 @@ module Manager
     def calendar_row(employee)
       approved = employee.leave_requests.select(&:approved?)
       leave_days = approved.each_with_object(Set.new) do |request, days|
-        ((request.starts_on..request.ends_on).to_a & @dates).each { |date| days << date }
+        first_visible_date = [ request.starts_on, @dates.first ].max
+        last_visible_date = [ request.ends_on, @dates.last ].min
+        (first_visible_date..last_visible_date).each { |date| days << date }
       end
       { employee:, leave_days:, birthday: birthday_in_year(employee) }
     end

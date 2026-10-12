@@ -40,6 +40,17 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @employee, LeaveRequest.order(:id).last.employee
   end
 
+  test "rejects non-finite dates without a server error" do
+    assert_no_difference("@employee.leave_requests.count") do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "infinity", ends_on: "infinity"
+      } }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".error-summary", text: /01\.01\.2000/
+  end
+
   test "does not create overlapping request" do
     create_request(@employee)
 

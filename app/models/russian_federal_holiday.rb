@@ -7,4 +7,13 @@ class RussianFederalHoliday
   def self.on?(date)
     FIXED_DATES.include?([ date.month, date.day ])
   end
+
+  def self.count_between(starts_on, ends_on)
+    (starts_on.year..ends_on.year).sum do |year|
+      FIXED_DATES.count do |month, day|
+        date = Date.new(year, month, day)
+        date >= starts_on && date <= ends_on
+      end
+    end
+  end
 end

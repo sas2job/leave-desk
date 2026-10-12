@@ -24,6 +24,45 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_includes request.errors[:base], "Дата окончания не может быть раньше даты начала"
   end
 
+  test "non-finite dates are rejected without raising" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: "infinity", ends_on: "infinity")
+
+    assert_not request.valid?
+    assert_includes request.errors[:starts_on], "должна быть между 01.01.2000 и 31.12.2100"
+    assert_includes request.errors[:ends_on], "должна быть между 01.01.2000 и 31.12.2100"
+    assert_nil request.duration_in_days
+  end
+
+  test "dates outside the supported calendar years are rejected" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(1999, 12, 31), ends_on: Date.new(2101, 1, 1))
+
+    assert_not request.valid?
+    assert_includes request.errors[:starts_on], "должна быть между 01.01.2000 и 31.12.2100"
+    assert_includes request.errors[:ends_on], "должна быть между 01.01.2000 и 31.12.2100"
+  end
+
+  test "database rejects non-finite dates without model validation" do
+    request = create_request
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      LeaveRequest.transaction(requires_new: true) do
+        LeaveRequest.where(id: request.id).update_all(starts_on: Arel.sql("'infinity'::date"))
+      end
+    end
+  end
+
+  test "database rejects unsupported years without model validation" do
+    request = create_request
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      LeaveRequest.transaction(requires_new: true) do
+        LeaveRequest.where(id: request.id).update_all(ends_on: Date.new(2101, 1, 1))
+      end
+    end
+  end
+
   test "inactive leave type cannot be requested" do
     @leave_type.update!(active: false)
 
@@ -123,6 +162,17 @@ class LeaveRequestTest < ActiveSupport::TestCase
       starts_on: Date.new(2026, 10, 5), ends_on: Date.new(2026, 10, 11))
 
     assert_equal 7, request.duration_in_days
+  end
+
+  test "duration handles the full supported range and counts holidays across years" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2000, 1, 1), ends_on: Date.new(2100, 12, 31))
+
+    assert_predicate request, :valid?
+    assert_equal 36_890, request.duration_in_days
+
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    assert_equal 35_476, request.duration_in_days
   end
 
   test "duration excludes federal holidays when leave type requires it" do
