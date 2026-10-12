@@ -1,6 +1,17 @@
 require "test_helper"
 
 class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
+  test "rejects leave type identifier outside database range" do
+    assert_no_difference("@employee.leave_requests.count") do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: "9223372036854775808",
+        starts_on: "2026-11-10", ends_on: "2026-11-12"
+      } }
+    end
+
+    assert_response :unprocessable_entity
+  end
+
   setup do
     @employee = create_user("employee@example.test")
     @other_employee = create_user("other@example.test")

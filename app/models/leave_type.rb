@@ -10,9 +10,17 @@ class LeaveType < ApplicationRecord
 
   validates :name, :code, presence: true
   validates :code, uniqueness: true
+  validate :active_has_boolean_input
   validate :holiday_handling_is_unchanged_when_used
 
   private
+
+  def active_has_boolean_input
+    raw_active = attribute_before_type_cast("active")
+    return if [ true, false, 1, 0, "1", "0", "true", "false" ].include?(raw_active)
+
+    errors.add(:active, "должна быть указана как да или нет")
+  end
 
   def holiday_handling_is_unchanged_when_used
     return unless persisted? && will_save_change_to_holiday_handling?

@@ -2,6 +2,18 @@ require "test_helper"
 
 module Admin
   class LeaveTypesControllerTest < ActionDispatch::IntegrationTest
+  test "rejects malformed activation flag without changing leave type" do
+    sign_in_as(@administrator)
+
+    patch admin_leave_type_path(@leave_type), params: { leave_type: {
+      name: "Changed", code: @leave_type.code, active: "disabled"
+    } }
+
+    assert_response :unprocessable_entity
+    assert_equal "Annual leave", @leave_type.reload.name
+    assert_predicate @leave_type, :active?
+  end
+
     setup do
       @administrator = create_user("admin@example.test", role: :administrator)
       @employee = create_user("employee@example.test")

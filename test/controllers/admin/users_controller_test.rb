@@ -2,6 +2,18 @@ require "test_helper"
 
 module Admin
   class UsersControllerTest < ActionDispatch::IntegrationTest
+  test "rejects manager identifier outside database range" do
+    sign_in_as(@administrator)
+
+    patch admin_user_path(@employee), params: { user: {
+      name: @employee.name, email_address: @employee.email_address,
+      role: "employee", manager_id: "9223372036854775808", active: true
+    } }
+
+    assert_response :unprocessable_entity
+    assert_nil @employee.reload.manager_id
+  end
+
     setup do
       @administrator = create_user("admin@example.test", role: :administrator)
       @employee = create_user("employee@example.test")
