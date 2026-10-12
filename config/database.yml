@@ -88,8 +88,8 @@ production:
   primary: &primary_production
     <<: *default
     database: leave_desk_production
-    username: leave_desk
-    password: <%= ENV["LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD"] %>
+    username: <%= ENV.fetch("LEAVE_DESK_DATABASE_USER", "leave_desk_app") %>
+    password: <%= ENV["LEAVE_DESK_DATABASE_PASSWORD"] %>
   cache:
     <<: *primary_production
     database: leave_desk_production_cache

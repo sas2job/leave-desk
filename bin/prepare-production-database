@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${RAILS_ENV:-}" != "production" ]]; then
+  echo "This command is only for production" >&2
+  exit 1
+fi
+
+: "${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD:?}"
+: "${LEAVE_DESK_RUNTIME_DATABASE_PASSWORD:?}"
+
+if [[ "$LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD" == "$LEAVE_DESK_RUNTIME_DATABASE_PASSWORD" ]]; then
+  echo "Runtime and bootstrap database passwords must differ" >&2
+  exit 1
+fi
+
+./bin/rails db:prepare
+
+export PGPASSWORD="$LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD"
+for database in leave_desk_production leave_desk_production_cache \
+  leave_desk_production_queue leave_desk_production_cable; do
+  psql -X -v ON_ERROR_STOP=1 -v database_name="$database" \
+    -h "${PGHOST:-db}" -U leave_desk \
+    -d "$database" -f /rails/deploy/grant-runtime-access.sql
+done

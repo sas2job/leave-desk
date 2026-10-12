@@ -1,0 +1,20 @@
+\getenv runtime_password LEAVE_DESK_RUNTIME_DATABASE_PASSWORD
+
+SELECT format('CREATE ROLE leave_desk_app LOGIN PASSWORD %L', :'runtime_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'leave_desk_app') \gexec
+
+ALTER ROLE leave_desk_app LOGIN PASSWORD :'runtime_password'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+
+GRANT CONNECT ON DATABASE :"database_name" TO leave_desk_app;
+REVOKE CREATE ON DATABASE :"database_name" FROM leave_desk_app;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE CREATE ON SCHEMA public FROM leave_desk_app;
+GRANT USAGE ON SCHEMA public TO leave_desk_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO leave_desk_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO leave_desk_app;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE leave_desk IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO leave_desk_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE leave_desk IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO leave_desk_app;

@@ -43,14 +43,29 @@ services:
       RAILS_MAX_THREADS: 3
       WEB_CONCURRENCY: 1
       PGHOST: db
-      PGUSER: leave_desk
-      PGPASSWORD: ${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD}
-      LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD: ${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD}
+      LEAVE_DESK_DATABASE_USER: leave_desk_app
+      LEAVE_DESK_DATABASE_PASSWORD: ${LEAVE_DESK_RUNTIME_DATABASE_PASSWORD:?Set a separate runtime database password}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Set a unique SECRET_KEY_BASE before deployment}
     ports:
       - "127.0.0.1:3000:80"
     volumes:
       - storage_data:/rails/storage
+
+  migrate:
+    image: ${LEAVE_DESK_IMAGE}
+    profiles: [maintenance]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      PGHOST: db
+      LEAVE_DESK_DATABASE_USER: leave_desk
+      LEAVE_DESK_DATABASE_PASSWORD: ${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD:?Set the bootstrap database password}
+      LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD: ${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD:?Set the bootstrap database password}
+      LEAVE_DESK_RUNTIME_DATABASE_PASSWORD: ${LEAVE_DESK_RUNTIME_DATABASE_PASSWORD:?Set a separate runtime database password}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Set a unique SECRET_KEY_BASE before deployment}
+    entrypoint: ["/rails/bin/prepare-production-database"]
 
 volumes:
   caddy_data:
