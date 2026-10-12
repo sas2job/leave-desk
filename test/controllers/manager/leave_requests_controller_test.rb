@@ -7,7 +7,7 @@ module Manager
       @other_manager = create_user("other-manager@example.test", role: :manager)
       @employee = create_user("employee@example.test", manager: @manager)
       @other_employee = create_user("other@example.test", manager: @other_manager)
-      @leave_type = LeaveType.create!(name: "Annual leave", code: "ANNUAL")
+      @leave_type = LeaveType.create!(name: "Annual leave", code: "TEST_ANNUAL")
     end
 
     test "manager lists only direct report requests" do
@@ -19,8 +19,10 @@ module Manager
 
       assert_response :success
       assert_select "body", text: /01\.11\.2026/
-    assert_select "summary", text: "История заявки"
-      assert_select "body", text: /#{Regexp.escape(other_request.starts_on.strftime("%d.%m.%Y"))}/, count: 0
+      assert_select "summary", text: "История заявки"
+      assert_select "##{dom_id(managed_request)}"
+      assert_select "##{dom_id(other_request)}", count: 0
+      assert_no_match(/01\.12\.2026/, response.body)
     end
 
     test "manager approves direct report request" do
@@ -58,6 +60,22 @@ module Manager
 
       assert_equal "authenticity_token", reject_button["name"]
       refute_equal approve_token, reject_button["value"]
+    end
+
+    test "manager queue has unique review fields and a danger rejection action" do
+      first_request = create_request(@employee)
+      second_request = create_request(@other_employee)
+      @other_employee.update!(manager: @manager)
+      sign_in_as(@manager)
+
+      get manager_leave_requests_path
+
+      assert_response :success
+      assert_select "textarea#review_comment_#{first_request.id}", count: 1
+      assert_select "textarea#review_comment_#{second_request.id}", count: 1
+      assert_select "label[for='review_comment_#{first_request.id}']", count: 1
+      assert_select "label[for='review_comment_#{second_request.id}']", count: 1
+      assert_select "button.button--danger[formaction='#{reject_manager_leave_request_path(first_request)}']", count: 1
     end
 
     test "manager submits the rendered rejection form with CSRF protection" do
@@ -104,6 +122,17 @@ module Manager
       assert_predicate leave_request.reload, :rejected?
       assert_equal @manager, leave_request.reviewer
       assert_equal "rejected", @employee.notifications.last.leave_request_event.event_type
+    end
+
+    test "manager cannot submit a structured review comment" do
+      leave_request = create_request(@employee)
+      sign_in_as(@manager)
+
+      patch reject_manager_leave_request_path(leave_request),
+        params: { review_comment: { nested: "not a comment" } }
+
+      assert_response :bad_request
+      assert_predicate leave_request.reload, :pending?
     end
 
     test "manager cannot review another manager direct report" do

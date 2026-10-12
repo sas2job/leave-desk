@@ -2,6 +2,7 @@ module Manager
   class LeaveRequestsController < ApplicationController
     before_action :require_manager
     before_action :set_leave_request, only: %i[approve reject]
+    before_action :validate_review_comment, only: %i[approve reject]
 
     def index
       @leave_requests = managed_leave_requests.includes(:employee, :leave_type, events: :actor)
@@ -34,6 +35,10 @@ module Manager
 
     def set_leave_request
       @leave_request = managed_leave_requests.find(params[:id])
+    end
+
+    def validate_review_comment
+      head :bad_request unless params[:review_comment].nil? || params[:review_comment].is_a?(String)
     end
   end
 end

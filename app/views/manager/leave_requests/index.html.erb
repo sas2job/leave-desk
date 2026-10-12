@@ -48,8 +48,10 @@
             <%= form_with url: approve_manager_leave_request_path(leave_request),
               method: :patch, class: "review-card__form" do |form| %>
               <div class="field">
-                <%= form.label :review_comment, "Комментарий руководителя" %>
+                <%= form.label :review_comment, "Комментарий руководителя",
+                  for: "review_comment_#{leave_request.id}" %>
                 <%= form.text_area :review_comment,
+                  id: "review_comment_#{leave_request.id}",
                   placeholder: "Необязательно: поясните решение" %>
               </div>
               <div class="review-card__actions">
