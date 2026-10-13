@@ -36,7 +36,7 @@ class LeaveRequest < ApplicationRecord
 
   def cancel!(by: employee)
     with_lock do
-      raise InvalidTransition, "only pending or approved requests can be cancelled" unless pending? || approved?
+      raise InvalidTransition, "Отменить можно только заявку на рассмотрении или одобренную заявку" unless pending? || approved?
 
       previous_status = status
       update!(status: :cancelled)
@@ -79,8 +79,8 @@ class LeaveRequest < ApplicationRecord
 
   def review!(new_status:, by:, comment:)
     with_lock do
-      raise InvalidTransition, "only pending requests can be reviewed" unless pending?
-      raise InvalidTransition, "employees cannot review their own requests" if by == employee
+      raise InvalidTransition, "Рассмотреть можно только заявку на рассмотрении" unless pending?
+      raise InvalidTransition, "Сотрудник не может согласовать собственную заявку" if by == employee
 
       previous_status = status
       update!(status: new_status, reviewer: by, reviewed_at: Time.current,
@@ -97,7 +97,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def reviewer_is_not_employee
-    errors.add(:reviewer, "не может согласовать собственную заявку") if reviewer == employee
+    errors.add(:reviewer, "не может согласовать собственную заявку") if reviewer && reviewer == employee
   end
 
   def leave_type_is_active

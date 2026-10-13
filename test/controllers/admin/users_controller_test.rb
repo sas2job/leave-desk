@@ -82,8 +82,22 @@ module Admin
       } }
 
       assert_response :unprocessable_entity
-      assert_select ".error-summary", text: /Электронная почта уже используется/
+      assert_select ".error-summary li", text: "Электронная почта: уже используется"
       assert_select ".error-summary", text: /has already been taken/, count: 0
+    end
+
+    test "shows invalid employee fields and password confirmation in Russian" do
+      sign_in_as(@administrator)
+
+      post admin_users_path, params: { user: {
+        name: "Example User", email_address: "new@example.test", birthday_on: "invalid",
+        password: "new-password", password_confirmation: "different", role: "unknown", active: true
+      } }
+
+      assert_response :unprocessable_entity
+      assert_select ".error-summary li", text: "День рождения: содержит неверную дату"
+      assert_select ".error-summary li", text: "Роль: недопустимое значение"
+      assert_select ".error-summary li", text: "Подтверждение пароля: не совпадает с паролем"
     end
 
     private

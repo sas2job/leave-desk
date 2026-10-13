@@ -109,6 +109,30 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".error-summary", text: /Ends on/, count: 0
   end
 
+  test "shows required leave type and invalid day parts in Russian" do
+    post leave_requests_path, params: { leave_request: {
+      leave_type_id: "", starts_on: "2026-11-10", ends_on: "2026-11-12",
+      start_part: "unknown", end_part: "unknown"
+    } }
+
+    assert_response :unprocessable_entity
+    assert_select ".error-summary li", text: "Вид отсутствия: обязательное поле"
+    assert_select ".error-summary li", text: "Начало периода: недопустимое значение"
+    assert_select ".error-summary li", text: "Окончание периода: недопустимое значение"
+    assert_select ".error-summary", text: /Translation missing/, count: 0
+  end
+
+  test "shows an invalid cancellation in Russian" do
+    leave_request = create_request(@employee)
+    delete leave_request_path(leave_request)
+
+    delete leave_request_path(leave_request)
+
+    assert_redirected_to leave_requests_path
+    follow_redirect!
+    assert_select ".flash--alert", text: "Отменить можно только заявку на рассмотрении или одобренную заявку"
+  end
+
   test "cannot cancel another user request" do
     leave_request = create_request(@other_employee)
 

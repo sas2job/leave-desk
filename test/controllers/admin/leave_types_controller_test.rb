@@ -73,9 +73,21 @@ module Admin
       }
 
       assert_response :unprocessable_entity
-      assert_select ".error-summary", text: /Название не может быть пустым/
-      assert_select ".error-summary", text: /Код не может быть пустым/
+      assert_select ".error-summary li", text: "Название: обязательное поле"
+      assert_select ".error-summary li", text: "Код: обязательное поле"
       assert_select ".error-summary", text: /can't be blank/, count: 0
+    end
+
+    test "shows invalid options with Russian field names" do
+      sign_in_as(@administrator)
+
+      post admin_leave_types_path, params: { leave_type: {
+        name: "Study leave", code: "STUDY", holiday_handling: "unknown", active: "unknown"
+      } }
+
+      assert_response :unprocessable_entity
+      assert_select ".error-summary li", text: "Учёт праздничных дней: недопустимое значение"
+      assert_select ".error-summary li", text: "Активность: должна быть указана как да или нет"
     end
 
     private

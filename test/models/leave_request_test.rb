@@ -103,8 +103,17 @@ class LeaveRequestTest < ActiveSupport::TestCase
       request.approve!(by: @employee)
     end
 
-    assert_equal "employees cannot review their own requests", error.message
+    assert_equal "Сотрудник не может согласовать собственную заявку", error.message
     assert_predicate request.reload, :pending?
+  end
+
+  test "missing employee does not report a reviewer conflict" do
+    request = LeaveRequest.new(leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 10), ends_on: Date.new(2026, 10, 11))
+
+    assert_not request.valid?
+    assert_equal [ "Сотрудник: обязательное поле" ], request.errors.full_messages.grep(/Сотрудник/)
+    assert_empty request.errors[:reviewer]
   end
 
   test "reviewed request cannot be reviewed again" do

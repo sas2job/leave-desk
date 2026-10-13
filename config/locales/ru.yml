@@ -58,35 +58,43 @@ ru:
         many: "около %{count} часов"
         other: "около %{count} часа"
   errors:
-    format: "%{attribute} %{message}"
+    format: "%{attribute}: %{message}"
     messages:
-      accepted: "нужно подтвердить"
-      blank: "не может быть пустым"
+      accepted: "требуется подтверждение"
+      blank: "обязательное поле"
       confirmation: "не совпадает с подтверждением"
-      empty: "не может быть пустым"
-      inclusion: "не входит в список допустимых значений"
-      invalid: "имеет неверное значение"
+      empty: "обязательное поле"
+      inclusion: "недопустимое значение"
+      invalid: "некорректное значение"
+      required: "обязательное поле"
       taken: "уже используется"
       too_long:
-        one: "слишком длинное (максимум %{count} символ)"
-        few: "слишком длинное (максимум %{count} символа)"
-        many: "слишком длинное (максимум %{count} символов)"
-        other: "слишком длинное (максимум %{count} символа)"
+        one: "длина превышает %{count} символ"
+        few: "длина превышает %{count} символа"
+        many: "длина превышает %{count} символов"
+        other: "длина превышает %{count} символа"
       too_short:
-        one: "слишком короткое (минимум %{count} символ)"
-        few: "слишком короткое (минимум %{count} символа)"
-        many: "слишком короткое (минимум %{count} символов)"
-        other: "слишком короткое (минимум %{count} символа)"
+        one: "длина меньше %{count} символа"
+        few: "длина меньше %{count} символов"
+        many: "длина меньше %{count} символов"
+        other: "длина меньше %{count} символов"
       wrong_length:
-        one: "неверная длина (должен быть %{count} символ)"
-        few: "неверная длина (должно быть %{count} символа)"
-        many: "неверная длина (должно быть %{count} символов)"
-        other: "неверная длина (должно быть %{count} символа)"
+        one: "длина должна составлять %{count} символ"
+        few: "длина должна составлять %{count} символа"
+        many: "длина должна составлять %{count} символов"
+        other: "длина должна составлять %{count} символа"
   activerecord:
+    errors:
+      models:
+        user:
+          attributes:
+            password_confirmation:
+              confirmation: "не совпадает с паролем"
     attributes:
       user:
         name: "Имя"
         email_address: "Электронная почта"
+        birthday_on: "День рождения"
         password: "Пароль"
         password_confirmation: "Подтверждение пароля"
         manager: "Руководитель"
@@ -98,7 +106,11 @@ ru:
         active: "Активность"
         holiday_handling: "Учёт праздничных дней"
       leave_request:
+        employee: "Сотрудник"
         starts_on: "Дата начала"
+        start_part: "Начало периода"
         ends_on: "Дата окончания"
+        end_part: "Окончание периода"
         leave_type: "Вид отсутствия"
+        reviewer: "Проверяющий"
         employee_comment: "Комментарий"

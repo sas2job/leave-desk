@@ -38,6 +38,18 @@ module Manager
       assert_equal "approved", @employee.notifications.last.leave_request_event.event_type
     end
 
+    test "shows a repeated review error in Russian" do
+      leave_request = create_request(@employee)
+      sign_in_as(@manager)
+      patch approve_manager_leave_request_path(leave_request)
+
+      patch approve_manager_leave_request_path(leave_request)
+
+      assert_redirected_to manager_leave_requests_path
+      follow_redirect!
+      assert_select ".flash--alert", text: "Рассмотреть можно только заявку на рассмотрении"
+    end
+
     test "manager queue renders an action-specific CSRF token for rejection" do
       leave_request = create_request(@employee)
       sign_in_as(@manager)
