@@ -26,7 +26,10 @@
       <% end %>
     </div>
   </header>
-  <div class="calendar-legend"><span class="calendar-key calendar-key--leave"></span> Согласованный отпуск <span class="calendar-key calendar-key--birthday"></span> День рождения</div>
+  <div class="calendar-legend">
+    <span class="calendar-legend__item"><span class="calendar-key calendar-key--leave"></span> Согласованный отпуск</span>
+    <span class="calendar-legend__item"><span class="calendar-key calendar-key--birthday"></span> День рождения</span>
+  </div>
   <div class="team-calendar-wrap <%= "team-calendar-wrap--month" if @month %>">
     <table class="team-calendar <%= "team-calendar--month" if @month %>">
       <thead>

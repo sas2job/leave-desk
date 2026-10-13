@@ -657,7 +657,7 @@ textarea:focus {
   margin-top: 1.25rem;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .site-header {
     position: static;
   }
@@ -786,8 +786,9 @@ textarea:focus {
   }
 }
 
-.calendar-year-nav, .calendar-legend { display: flex; gap: .75rem; align-items: center; }
+.calendar-year-nav, .calendar-legend { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
 .calendar-legend { margin-bottom: 1rem; }
+.calendar-legend__item { display: inline-flex; gap: .35rem; align-items: center; }
 .calendar-key { width: 1rem; height: 1rem; display: inline-block; border-radius: 3px; }
 .calendar-key--leave, .team-calendar td.leave { background: #225c35; color: white; }
 .calendar-key--pending, .team-calendar td.leave-pending { background: var(--warning-soft); color: var(--warning); }
