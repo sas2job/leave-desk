@@ -51,7 +51,10 @@ module Admin
     end
 
     def user_params
-      params.expect(user: %i[name email_address birthday_on password password_confirmation role manager_id active])
+      require_string_fields!(
+        params.expect(user: %i[name email_address birthday_on password password_confirmation role manager_id active]),
+        :name, :email_address, :birthday_on, :password, :password_confirmation, :role
+      )
     end
   end
 end

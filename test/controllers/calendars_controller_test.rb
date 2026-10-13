@@ -101,6 +101,16 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "rejects structured calendar filters" do
+    sign_in_as(@employee)
+
+    get calendar_path, params: { year: [ "2026" ] }
+    assert_response :bad_request
+
+    get calendar_path, params: { month: { value: "10" } }
+    assert_response :bad_request
+  end
+
   private
 
   def create_user(email_address, role: :employee, manager: nil, birthday_on: nil)

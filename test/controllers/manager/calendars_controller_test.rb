@@ -80,6 +80,16 @@ module Manager
       end
     end
 
+    test "rejects structured calendar filters" do
+      sign_in_as(@manager)
+
+      get manager_calendar_path, params: { year: [ "2026" ] }
+      assert_response :bad_request
+
+      get manager_calendar_path, params: { month: { value: "10" } }
+      assert_response :bad_request
+    end
+
     test "employee cannot open manager calendar" do
       sign_in_as(@employee)
       get manager_calendar_path

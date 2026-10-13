@@ -19,6 +19,19 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(@employee)
   end
 
+  test "rejects numeric JSON request fields without creating a request" do
+    attributes = { leave_type_id: @leave_type.id, starts_on: "2026-11-10",
+      ends_on: "2026-11-12", start_part: "morning", end_part: "afternoon",
+      employee_comment: "Comment" }
+
+    %i[starts_on ends_on start_part end_part employee_comment].each do |field|
+      assert_no_difference("LeaveRequest.count") do
+        post leave_requests_path, params: { leave_request: attributes.merge(field => 123) }, as: :json
+      end
+      assert_response :bad_request
+    end
+  end
+
   test "lists only current user requests" do
     own_request = create_request(@employee)
     other_request = create_request(@other_employee,

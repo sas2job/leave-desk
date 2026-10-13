@@ -20,6 +20,28 @@ module Admin
       @leave_type = LeaveType.create!(name: "Annual leave", code: "TEST_ANNUAL")
     end
 
+    test "rejects numeric JSON leave type fields without creating a type" do
+      sign_in_as(@administrator)
+      attributes = { name: "Study leave", code: "TEST_STUDY",
+        holiday_handling: "include_public_holidays", active: true }
+
+      %i[name code holiday_handling].each do |field|
+        assert_no_difference("LeaveType.count") do
+          post admin_leave_types_path, params: { leave_type: attributes.merge(field => 123) }, as: :json
+        end
+        assert_response :bad_request
+      end
+    end
+
+    test "rejects numeric JSON leave type update without changing data" do
+      sign_in_as(@administrator)
+
+      patch admin_leave_type_path(@leave_type), params: { leave_type: { code: 123 } }, as: :json
+
+      assert_response :bad_request
+      assert_equal "TEST_ANNUAL", @leave_type.reload.code
+    end
+
     test "administrator lists leave types" do
       sign_in_as(@administrator)
 

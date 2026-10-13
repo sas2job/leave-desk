@@ -43,7 +43,8 @@ module Admin
     end
 
     def leave_type_params
-      params.expect(leave_type: %i[name code holiday_handling active])
+      require_string_fields!(params.expect(leave_type: %i[name code holiday_handling active]),
+        :name, :code, :holiday_handling)
     end
   end
 end

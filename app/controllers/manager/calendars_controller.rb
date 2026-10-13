@@ -3,6 +3,7 @@ module Manager
     before_action :require_calendar_access
 
     def show
+      require_string_fields!(params, :year, :month)
       @year = Integer(params.fetch(:year, Date.current.year), exception: false) || Date.current.year
       @year = Date.current.year unless @year.between?(2000, 2100)
       if params[:month] == "all"

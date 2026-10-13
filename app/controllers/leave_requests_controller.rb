@@ -40,7 +40,10 @@ class LeaveRequestsController < ApplicationController
   end
 
   def leave_request_params
-    params.expect(leave_request: %i[leave_type_id starts_on start_part ends_on end_part employee_comment])
+    require_string_fields!(
+      params.expect(leave_request: %i[leave_type_id starts_on start_part ends_on end_part employee_comment]),
+      :starts_on, :start_part, :ends_on, :end_part, :employee_comment
+    )
   end
 
   def render_new_with_errors

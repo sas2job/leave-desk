@@ -20,6 +20,29 @@ module Admin
       @manager = create_user("manager@example.test", role: :manager)
     end
 
+    test "rejects numeric JSON employee fields without creating a user" do
+      sign_in_as(@administrator)
+      attributes = { name: "New Employee", email_address: "new@example.test",
+        password: "new-password", password_confirmation: "new-password",
+        role: "employee", active: true }
+
+      %i[name email_address password password_confirmation role].each do |field|
+        assert_no_difference("User.count") do
+          post admin_users_path, params: { user: attributes.merge(field => 123) }, as: :json
+        end
+        assert_response :bad_request
+      end
+    end
+
+    test "rejects numeric JSON employee update without changing data" do
+      sign_in_as(@administrator)
+
+      patch admin_user_path(@employee), params: { user: { email_address: 123 } }, as: :json
+
+      assert_response :bad_request
+      assert_equal "employee@example.test", @employee.reload.email_address
+    end
+
     test "non administrator cannot access employee administration" do
       sign_in_as(@employee)
 
