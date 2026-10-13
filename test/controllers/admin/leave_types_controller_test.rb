@@ -42,13 +42,13 @@ module Admin
 
       assert_difference("LeaveType.count", 1) do
         post admin_leave_types_path, params: {
-          leave_type: { name: "Study leave", code: "study", active: true,
+          leave_type: { name: "Study leave", code: "test_study", active: true,
             holiday_handling: "exclude_public_holidays" }
         }
       end
 
       assert_redirected_to admin_leave_types_path
-      assert_equal "STUDY", LeaveType.order(:id).last.code
+      assert_equal "TEST_STUDY", LeaveType.order(:id).last.code
       assert_predicate LeaveType.order(:id).last, :exclude_public_holidays?
     end
 
