@@ -13,7 +13,24 @@ class LeaveType < ApplicationRecord
   validate :active_has_boolean_input
   validate :holiday_handling_is_unchanged_when_used
 
+  def save(**options)
+    with_holiday_handling_lock { super }
+  end
+
+  def save!(**options)
+    with_holiday_handling_lock { super }
+  end
+
   private
+
+  def with_holiday_handling_lock
+    return yield unless persisted? && will_save_change_to_holiday_handling?
+
+    self.class.transaction do
+      self.class.uncached { self.class.where(id:).lock("FOR UPDATE").first }
+      yield
+    end
+  end
 
   def active_has_boolean_input
     raw_active = attribute_before_type_cast("active")
@@ -24,7 +41,7 @@ class LeaveType < ApplicationRecord
 
   def holiday_handling_is_unchanged_when_used
     return unless persisted? && will_save_change_to_holiday_handling?
-    return unless leave_requests.exists?
+    return unless self.class.uncached { leave_requests.exists? }
 
     errors.add(:holiday_handling, "нельзя изменить для вида с существующими заявками")
   end

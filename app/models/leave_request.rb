@@ -26,6 +26,14 @@ class LeaveRequest < ApplicationRecord
   validate :leave_type_id_has_valid_syntax
   after_create :record_created_event
 
+  def save(**options)
+    with_leave_type_lock { super }
+  end
+
+  def save!(**options)
+    with_leave_type_lock { super }
+  end
+
   def approve!(by:, comment: nil)
     review!(new_status: :approved, by:, comment:)
   end
@@ -55,6 +63,18 @@ class LeaveRequest < ApplicationRecord
   end
 
   private
+
+  def with_leave_type_lock
+    return yield unless leave_type_id.present? && (new_record? || will_save_change_to_leave_type_id?)
+
+    self.class.transaction do
+      locked_type = LeaveType.uncached do
+        LeaveType.where(id: leave_type_id).lock("FOR UPDATE").first
+      end
+      association(:leave_type).target = locked_type
+      yield
+    end
+  end
 
   def leave_type_id_has_valid_syntax
     raw_id = attribute_before_type_cast("leave_type_id")

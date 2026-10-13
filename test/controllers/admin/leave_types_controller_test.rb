@@ -87,6 +87,21 @@ module Admin
       assert_not @leave_type.reload.active?
     end
 
+    test "cannot change holiday policy after the first request" do
+      LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 2))
+      sign_in_as(@administrator)
+
+      patch admin_leave_type_path(@leave_type), params: { leave_type: {
+        name: @leave_type.name, code: @leave_type.code,
+        holiday_handling: "exclude_public_holidays", active: true
+      } }
+
+      assert_response :unprocessable_entity
+      assert_predicate @leave_type.reload, :include_public_holidays?
+      assert_select ".error-summary", text: /нельзя изменить для вида с существующими заявками/
+    end
+
     test "shows required field errors in Russian" do
       sign_in_as(@administrator)
 
