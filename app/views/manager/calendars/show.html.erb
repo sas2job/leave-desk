@@ -26,19 +26,50 @@
       <% end %>
     </div>
   </header>
-  <div class="calendar-legend"><span class="calendar-key calendar-key--leave"></span> Отпуск <span class="calendar-key calendar-key--birthday"></span> День рождения</div>
+  <div class="calendar-legend"><span class="calendar-key calendar-key--leave"></span> Согласованный отпуск <span class="calendar-key calendar-key--birthday"></span> День рождения</div>
   <div class="team-calendar-wrap <%= "team-calendar-wrap--month" if @month %>">
     <table class="team-calendar <%= "team-calendar--month" if @month %>">
       <thead>
-        <tr><th rowspan="2">Сотрудник</th><% @dates.group_by(&:month).each_value do |dates| %><th colspan="<%= dates.size %>"><%= I18n.l(dates.first, format: "%B") %></th><% end %></tr>
-        <tr><% @dates.each do |date| %><th class="<%= "weekend" if date.saturday? || date.sunday? %>"><%= date.day %><small><%= I18n.l(date, format: "%a") %></small></th><% end %></tr>
+        <tr>
+          <th rowspan="2" scope="col">Сотрудник</th>
+          <% @dates.group_by(&:month).each_value do |dates| %>
+            <th colspan="<%= dates.size %>" scope="colgroup"><%= I18n.l(dates.first, format: "%B") %></th>
+          <% end %>
+        </tr>
+        <tr>
+          <% @dates.each do |date| %>
+            <th scope="col" class="<%= "weekend" if date.saturday? || date.sunday? %>">
+              <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
+            </th>
+          <% end %>
+        </tr>
       </thead>
       <tbody>
         <% @rows.each do |row| %>
-          <tr><th><%= row[:employee].name %></th><% @dates.each do |date| %>
-            <% classes = []; classes << "weekend" if date.saturday? || date.sunday?; classes << "leave" if row[:leave_days].include?(date); classes << "birthday" if row[:birthday] == date %>
-            <td class="<%= classes.join(" ") %>" title="<%= format_date(date) %>"><%= row[:birthday] == date ? "ДР" : (row[:leave_days].include?(date) ? "О" : "") %></td>
-          <% end %></tr>
+          <tr>
+            <th scope="row"><%= row[:employee].name %></th>
+            <% @dates.each do |date| %>
+              <% leave = row[:leave_days].include?(date) %>
+              <% birthday = row[:birthday] == date %>
+              <% classes = [] %>
+              <% classes << "weekend" if date.saturday? || date.sunday? %>
+              <% classes << "leave" if leave %>
+              <% classes << "birthday" if birthday %>
+              <% labels = [format_date(date)] %>
+              <% labels << "Отпуск согласован" if leave %>
+              <% labels << "День рождения" if birthday %>
+              <td class="<%= classes.join(" ") %>" title="<%= labels.join(" — ") %>" aria-label="<%= labels.join(" — ") %>">
+                <% if leave && birthday %>
+                  <span class="calendar-half calendar-half--approved">О</span>
+                  <span class="calendar-birthday">ДР</span>
+                <% elsif leave %>
+                  О
+                <% elsif birthday %>
+                  ДР
+                <% end %>
+              </td>
+            <% end %>
+          </tr>
         <% end %>
       </tbody>
     </table>

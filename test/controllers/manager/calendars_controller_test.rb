@@ -35,6 +35,21 @@ module Manager
       assert_select ".team-calendar td.leave", count: 31
     end
 
+    test "shows approved leave and birthday on the same day" do
+      request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2026, 5, 12), ends_on: Date.new(2026, 5, 12))
+      request.approve!(by: @manager)
+      sign_in_as(@manager)
+
+      get manager_calendar_path(year: 2026, month: 5)
+
+      assert_response :success
+      assert_select "td.leave.birthday[aria-label*='Отпуск согласован'][aria-label*='День рождения']" do
+        assert_select ".calendar-half--approved", text: "О"
+        assert_select ".calendar-birthday", text: "ДР"
+      end
+    end
+
     test "defaults to the current month" do
       sign_in_as(@manager)
 

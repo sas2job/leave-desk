@@ -37,14 +37,14 @@
     <table class="team-calendar <%= "team-calendar--month" if @month %>">
       <thead>
         <tr>
-          <th rowspan="2">Мои отсутствия</th>
+          <th rowspan="2" scope="col">Мои отсутствия</th>
           <% @dates.group_by(&:month).each_value do |dates| %>
-            <th colspan="<%= dates.size %>"><%= I18n.l(dates.first, format: "%B") %></th>
+            <th colspan="<%= dates.size %>" scope="colgroup"><%= I18n.l(dates.first, format: "%B") %></th>
           <% end %>
         </tr>
         <tr>
           <% @dates.each do |date| %>
-            <th class="<%= "weekend" if date.saturday? || date.sunday? %>">
+            <th scope="col" class="<%= "weekend" if date.saturday? || date.sunday? %>">
               <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
             </th>
           <% end %>
