@@ -149,6 +149,33 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     assert_response :bad_request
   end
 
+  test "orders half-days when afternoon request is created first across day boundary" do
+    afternoon_type = LeaveType.create!(name: "Больничный", code: "TEST_SICK")
+    LeaveRequest.create!(employee: @employee, leave_type: afternoon_type,
+      starts_on: Date.new(2026, 10, 20), ends_on: Date.new(2026, 10, 21),
+      start_part: :afternoon)
+    morning = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 19), ends_on: Date.new(2026, 10, 20),
+      end_part: :morning)
+    morning.approve!(by: @manager)
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: 10)
+
+    assert_response :success
+    assert_select ".team-calendar td.leave-split[title*='20.10.2026']" do |cells|
+      cell = cells.first
+      parts = cell.css(".calendar-half").map do |half|
+        half["class"][/calendar-half--(morning|afternoon)/, 1]
+      end
+      assert_equal %w[morning afternoon], parts
+      assert_equal "СР", cell.css(".calendar-half").map(&:text).join
+      assert_match(/Утро: Ежегодный отпуск, Согласовано.*После полудня: Больничный, На рассмотрении/,
+        cell["aria-label"])
+      assert_equal cell["aria-label"], cell["title"]
+    end
+  end
+
   private
 
   def create_user(email_address, role: :employee, manager: nil, birthday_on: nil)

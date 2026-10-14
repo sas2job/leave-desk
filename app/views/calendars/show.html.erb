@@ -54,7 +54,8 @@
         <tr>
           <th scope="row">Мои заявки</th>
           <% @dates.each do |date| %>
-            <% slots = @leave_requests_by_date[date] || {} %>
+            <% day_slots = @leave_requests_by_date[date] || {} %>
+            <% slots = { morning: day_slots[:morning], afternoon: day_slots[:afternoon] }.compact %>
             <% requests = slots.values.uniq %>
             <% classes = [] %>
             <% classes << "weekend" if @calendar_off_days.include?(date) %>
