@@ -120,6 +120,61 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "returns to a requested page with a bounded query after sign in" do
+    destination = calendar_path(year: 2026, month: 10, q: "a" * 800)
+
+    get destination
+    assert_redirected_to new_session_path
+    sign_in_as(@user)
+
+    assert_redirected_to destination
+  end
+
+  test "long ASCII return destination falls back to home" do
+    get root_path, params: { q: "a" * 5_000 }
+    assert_redirected_to new_session_path
+
+    sign_in_as(@user)
+
+    assert_redirected_to root_path
+  end
+
+  test "long encoded Unicode return destination falls back to home" do
+    get root_path, params: { q: "Ж" * 800 }
+    assert_redirected_to new_session_path
+
+    sign_in_as(@user)
+
+    assert_redirected_to root_path
+  end
+
+  test "expired session cancellation returns to home after sign in" do
+    previous_forgery_protection = ActionController::Base.allow_forgery_protection
+    leave_type = LeaveType.create!(name: "Отпуск", code: "TEST_ANNUAL")
+    leave_request = LeaveRequest.create!(employee: @user, leave_type:,
+      starts_on: Date.new(2026, 10, 20), ends_on: Date.new(2026, 10, 20))
+    sign_in_as(@user)
+    ActionController::Base.allow_forgery_protection = true
+
+    get leave_requests_path
+    cancellation_token = css_select("form[action='#{leave_request_path(leave_request)}'] " \
+      "input[name='authenticity_token']").first["value"]
+    Session.last.update_column(:created_at, 31.days.ago)
+    delete leave_request_path(leave_request), params: { authenticity_token: cancellation_token }
+    assert_redirected_to new_session_path
+
+    get new_session_path
+    login_token = css_select("form[action='#{session_path}'] " \
+      "input[name='authenticity_token']").first["value"]
+    post session_path, params: { email_address: @user.email_address,
+      password: "test-password", authenticity_token: login_token }
+
+    assert_redirected_to root_path
+    assert_predicate leave_request.reload, :pending?
+  ensure
+    ActionController::Base.allow_forgery_protection = previous_forgery_protection
+  end
+
   test "destroys current session" do
     post session_path, params: {
       email_address: @user.email_address, password: "test-password"
