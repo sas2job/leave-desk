@@ -4,13 +4,13 @@ module Manager
 
     def show
       require_string_fields!(params, :year, :month)
-      @year = Integer(params.fetch(:year, Date.current.year).to_s, 10, exception: false) || Date.current.year
+      @year = parse_decimal_filter(params.fetch(:year, Date.current.year)) || Date.current.year
       @year = Date.current.year unless @year.between?(2000, 2100)
       if params[:month] == "all"
         @month = nil
         @dates = (Date.new(@year, 1, 1)..Date.new(@year, 12, 31)).to_a
       else
-        @month = Integer(params.fetch(:month, Date.current.month).to_s, 10, exception: false)
+        @month = parse_decimal_filter(params.fetch(:month, Date.current.month))
         @month = Date.current.month unless @month&.between?(1, 12)
         @dates = Date.new(@year, @month, 1).all_month.to_a
       end

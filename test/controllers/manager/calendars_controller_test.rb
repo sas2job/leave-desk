@@ -94,6 +94,16 @@ module Manager
       end
     end
 
+    test "rejects decorated calendar numbers" do
+      sign_in_as(@manager)
+
+      travel_to Date.new(2026, 2, 9) do
+        get manager_calendar_path(year: "2_030", month: "1_0")
+        assert_response :success
+        assert_select "h1", text: "Календарь февраль 2026"
+      end
+    end
+
     test "rejects structured calendar filters" do
       sign_in_as(@manager)
 

@@ -31,4 +31,9 @@ class ApplicationController < ActionController::Base
     end
     values
   end
+
+  def parse_decimal_filter(value)
+    text = value.to_s
+    Integer(text, 10, exception: false) if /\A[0-9]+\z/.match?(text)
+  end
 end
