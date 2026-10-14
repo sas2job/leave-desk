@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  MINIMUM_PASSWORD_LENGTH = 12
+
   has_secure_password
 
   enum :role, { employee: 0, manager: 1, administrator: 2 }, validate: true
@@ -19,8 +21,10 @@ class User < ApplicationRecord
   validates :name, presence: true
   validates :email_address, presence: true, uniqueness: { case_sensitive: false },
     format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :password, length: { minimum: MINIMUM_PASSWORD_LENGTH }, allow_nil: true
   validate :manager_is_active_manager
   validate :role_and_activity_support_direct_reports
+  validate :retain_active_administrator
   validate :active_has_boolean_input
   validate :birthday_is_valid_if_supplied
   validate :manager_id_has_valid_syntax
@@ -42,9 +46,15 @@ class User < ApplicationRecord
     lock_ids << id if persisted? && (will_save_change_to_role? || will_save_change_to_active?)
     assigning_manager = manager_id.present? && (new_record? || will_save_change_to_manager_id?)
     lock_ids << manager_id if assigning_manager
-    return yield if lock_ids.empty?
+    removing_administrator = relinquishing_active_administrator?
+    return yield if lock_ids.empty? && !removing_administrator
 
     self.class.transaction do
+      if removing_administrator
+        self.class.uncached do
+          self.class.administrator.where(active: true).order(:id).lock("FOR UPDATE").load
+        end
+      end
       locked_users = self.class.uncached do
         self.class.where(id: lock_ids.uniq).order(:id).lock("FOR UPDATE").index_by(&:id)
       end
@@ -99,5 +109,17 @@ class User < ApplicationRecord
 
     errors.add(:role, "нельзя изменить, пока у пользователя есть подчинённые") unless manager?
     errors.add(:active, "нельзя отключить, пока у пользователя есть подчинённые") unless active?
+  end
+
+  def retain_active_administrator
+    return unless relinquishing_active_administrator?
+    return unless self.class.uncached { self.class.administrator.where(active: true).count } <= 1
+
+    errors.add(:base, "Нельзя удалить последнего активного администратора")
+  end
+
+  def relinquishing_active_administrator?
+    persisted? && role_in_database == "administrator" && active_in_database &&
+      (!administrator? || !active?)
   end
 end

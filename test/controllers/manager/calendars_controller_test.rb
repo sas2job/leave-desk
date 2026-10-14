@@ -35,6 +35,39 @@ module Manager
       assert_select ".team-calendar td.leave", count: 31
     end
 
+    test "loads only approved requests overlapping the visible month" do
+      no_leave = create_user("no-leave@example.test", manager: @manager, name: "No Leave")
+      other_manager = create_user("other-manager@example.test", role: :manager)
+      outsider = create_user("outsider@example.test", manager: other_manager, name: "Outside")
+
+      [ [ @employee, Date.new(2025, 10, 15), @manager ],
+        [ @employee, Date.new(2026, 10, 15), @manager ],
+        [ @employee, Date.new(2027, 10, 15), @manager ],
+        [ outsider, Date.new(2026, 10, 17), other_manager ] ].each do |employee, date, reviewer|
+        request = LeaveRequest.create!(employee:, leave_type: @leave_type, starts_on: date, ends_on: date)
+        request.approve!(by: reviewer)
+      end
+      LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2026, 10, 16), ends_on: Date.new(2026, 10, 16))
+
+      loaded_requests = 0
+      subscriber = lambda do |*arguments|
+        payload = arguments.last
+        loaded_requests += payload[:record_count] if payload[:class_name] == "LeaveRequest"
+      end
+
+      sign_in_as(@manager)
+      ActiveSupport::Notifications.subscribed(subscriber, "instantiation.active_record") do
+        get manager_calendar_path(year: 2026, month: 10)
+      end
+
+      assert_response :success
+      assert_equal 1, loaded_requests
+      assert_select ".team-calendar td.leave", count: 1
+      assert_select "tbody th", text: no_leave.name
+      assert_select "tbody th", text: outsider.name, count: 0
+    end
+
     test "shows approved leave and birthday on the same day" do
       request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
         starts_on: Date.new(2026, 5, 12), ends_on: Date.new(2026, 5, 12))

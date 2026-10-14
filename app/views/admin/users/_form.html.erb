@@ -34,7 +34,9 @@
       </div>
       <div class="field">
         <%= form.label :password, user.persisted? ? "Новый пароль" : "Пароль" %>
-        <%= form.password_field :password, required: !user.persisted?, autocomplete: "new-password" %>
+        <%= form.password_field :password, required: !user.persisted?,
+          minlength: User::MINIMUM_PASSWORD_LENGTH, autocomplete: "new-password" %>
+        <small>Не менее <%= User::MINIMUM_PASSWORD_LENGTH %> символов.</small>
       </div>
       <div class="field">
         <%= form.label :password_confirmation, "Подтверждение пароля" %>

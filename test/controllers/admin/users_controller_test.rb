@@ -134,6 +134,53 @@ module Admin
       assert_select ".error-summary li", text: "Подтверждение пароля: не совпадает с паролем"
     end
 
+    test "administrator cannot create or replace a password with a short value" do
+      sign_in_as(@administrator)
+
+      assert_no_difference("User.count") do
+        post admin_users_path, params: { user: {
+          name: "New Employee", email_address: "new@example.test", password: "1",
+          password_confirmation: "1", role: "employee", active: true
+        } }
+      end
+      assert_response :unprocessable_entity
+      assert_select ".error-summary li", text: "Пароль: длина меньше 12 символов"
+
+      patch admin_user_path(@employee), params: { user: { password: "short" } }
+      assert_response :unprocessable_entity
+      assert @employee.reload.authenticate("test-password")
+    end
+
+    test "last active administrator cannot deactivate or demote their account" do
+      sign_in_as(@administrator)
+      session_record = @administrator.sessions.last
+
+      [ { active: false }, { role: "employee" } ].each do |attributes|
+        patch admin_user_path(@administrator), params: { user: attributes }
+        assert_response :unprocessable_entity
+        assert_select ".error-summary li", text: "Нельзя удалить последнего активного администратора"
+        assert @administrator.reload.active?
+        assert @administrator.administrator?
+        assert Session.exists?(session_record.id)
+      end
+
+      get admin_users_path
+      assert_response :success
+    end
+
+    test "administrator may hand over access before deactivating their account" do
+      replacement = create_user("replacement@example.test", role: :administrator)
+      sign_in_as(@administrator)
+
+      patch admin_user_path(@administrator), params: { user: { active: false } }
+
+      assert_redirected_to admin_users_path
+      assert_not @administrator.reload.active?
+      assert replacement.reload.active?
+      assert replacement.administrator?
+      assert_empty @administrator.sessions.reload
+    end
+
     private
 
     def create_user(email_address, role: :employee)

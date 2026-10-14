@@ -18,6 +18,31 @@ class UserTest < ActiveSupport::TestCase
     assert_includes duplicate.errors[:email_address], "уже используется"
   end
 
+  test "requires a new password of at least twelve characters" do
+    user = User.new(name: "Employee", email_address: "employee@example.test", password: "1")
+
+    assert_not user.valid?
+    assert_includes user.errors[:password], "длина меньше 12 символов"
+
+    user.password = "a" * 12
+    assert user.valid?
+    user.save!
+
+    user.password = "short"
+    assert_not user.valid?
+    assert user.reload.authenticate("a" * 12)
+  end
+
+  test "password limit accepts Unicode within bcrypt byte limit" do
+    user = User.new(name: "Employee", email_address: "employee@example.test",
+      password: "😀" * 18)
+
+    assert user.valid?
+    user.password = "😀" * 19
+    assert_not user.valid?
+    assert_predicate user.errors[:password], :present?
+  end
+
   test "manager must be active and have manager role" do
     employee = User.create!(name: "Employee", email_address: "employee@example.test",
       password: "test-password")

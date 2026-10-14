@@ -15,8 +15,11 @@ module Manager
         @dates = Date.new(@year, @month, 1).all_month.to_a
       end
 
-      employees = calendar_employees.includes(leave_requests: :leave_type).order(:name)
-      @rows = employees.map { |employee| calendar_row(employee) }
+      employees = calendar_employees.order(:name).to_a
+      requests_by_employee = LeaveRequest.where(employee_id: employees.map(&:id), status: :approved)
+        .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)
+        .group_by(&:employee_id)
+      @rows = employees.map { |employee| calendar_row(employee, requests_by_employee.fetch(employee.id, [])) }
     end
 
     private
@@ -31,9 +34,8 @@ module Manager
       User.where(role: %i[employee manager], active: true)
     end
 
-    def calendar_row(employee)
-      approved = employee.leave_requests.select(&:approved?)
-      leave_days = approved.each_with_object(Set.new) do |request, days|
+    def calendar_row(employee, requests)
+      leave_days = requests.each_with_object(Set.new) do |request, days|
         first_visible_date = [ request.starts_on, @dates.first ].max
         last_visible_date = [ request.ends_on, @dates.last ].min
         (first_visible_date..last_visible_date).each { |date| days << date }
