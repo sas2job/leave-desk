@@ -43,6 +43,17 @@ module Admin
       assert_equal "employee@example.test", @employee.reload.email_address
     end
 
+    test "rejects malformed manager identifiers without changing data" do
+      sign_in_as(@administrator)
+
+      [ true, 1.5, "1.5" ].each do |identifier|
+        patch admin_user_path(@employee), params: { user: { manager_id: identifier } }, as: :json
+
+        assert_response :bad_request
+        assert_nil @employee.reload.manager_id
+      end
+    end
+
     test "non administrator cannot access employee administration" do
       sign_in_as(@employee)
 

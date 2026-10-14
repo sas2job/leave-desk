@@ -32,6 +32,17 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "rejects malformed leave type identifiers without creating a request" do
+    [ true, 1.5, "1.5" ].each do |identifier|
+      assert_no_difference("LeaveRequest.count") do
+        post leave_requests_path, params: { leave_request: {
+          leave_type_id: identifier, starts_on: "2026-11-10", ends_on: "2026-11-12"
+        } }, as: :json
+      end
+      assert_response :bad_request
+    end
+  end
+
   test "lists only current user requests" do
     own_request = create_request(@employee)
     other_request = create_request(@other_employee,

@@ -17,4 +17,18 @@ class ApplicationController < ActionController::Base
     end
     values
   end
+
+  def require_identifier_fields!(values, *fields)
+    fields.each do |field|
+      next unless values.key?(field)
+
+      value = values[field]
+      next if value.nil? || value == ""
+      next if value.is_a?(Integer) && value.positive?
+      next if value.is_a?(String) && /\A[1-9]\d*\z/.match?(value)
+
+      raise ActionController::BadRequest, "Expected an identifier for #{field}"
+    end
+    values
+  end
 end
