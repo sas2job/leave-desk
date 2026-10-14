@@ -12,6 +12,8 @@ module Manager
     def approve
       @leave_request.approve!(by: Current.user, comment: params[:review_comment])
       redirect_to manager_leave_requests_path, notice: "Заявка одобрена."
+    rescue LeaveRequest::ReviewNotAuthorized
+      head :not_found
     rescue LeaveRequest::InvalidTransition => error
       redirect_to manager_leave_requests_path, alert: error.message
     end
@@ -19,6 +21,8 @@ module Manager
     def reject
       @leave_request.reject!(by: Current.user, comment: params[:review_comment])
       redirect_to manager_leave_requests_path, notice: "Заявка отклонена."
+    rescue LeaveRequest::ReviewNotAuthorized
+      head :not_found
     rescue LeaveRequest::InvalidTransition => error
       redirect_to manager_leave_requests_path, alert: error.message
     end

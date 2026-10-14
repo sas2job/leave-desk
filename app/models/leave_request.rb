@@ -1,5 +1,6 @@
 class LeaveRequest < ApplicationRecord
   class InvalidTransition < StandardError; end
+  class ReviewNotAuthorized < StandardError; end
 
   SUPPORTED_DATES = Date.new(2000, 1, 1)..Date.new(2100, 12, 31)
 
@@ -163,8 +164,12 @@ class LeaveRequest < ApplicationRecord
 
   def review!(new_status:, by:, comment:)
     with_lock do
+      raise InvalidTransition, "Сотрудник не может согласовать собственную заявку" if by&.id == employee_id
+      current_employee = User.uncached do
+        User.where(id: employee_id).lock("FOR UPDATE").first
+      end
+      raise ReviewNotAuthorized unless by && current_employee&.manager_id == by.id
       raise InvalidTransition, "Рассмотреть можно только заявку на рассмотрении" unless pending?
-      raise InvalidTransition, "Сотрудник не может согласовать собственную заявку" if by == employee
 
       previous_status = status
       update!(status: new_status, reviewer: by, reviewed_at: Time.current,
