@@ -12,6 +12,7 @@ module LeaveDesk
     config.load_defaults 8.1
     config.i18n.default_locale = :ru
     config.time_zone = "Europe/Moscow"
+    config.action_cable.mount_path = nil
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
