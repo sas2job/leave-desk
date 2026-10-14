@@ -12,6 +12,24 @@ class SeedsTest < ActiveSupport::TestCase
     assert_predicate LeaveType.find_by!(code: "UNPAID"), :include_public_holidays?
   end
 
+  test "rerun preserves administrator edits after a request uses the policy" do
+    load Rails.root.join("db/seeds.rb")
+    annual = LeaveType.find_by!(code: "ANNUAL")
+    annual.update!(name: "Переименованный отпуск", active: false)
+    sick = LeaveType.find_by!(code: "SICK")
+    sick.update!(holiday_handling: :exclude_public_holidays)
+    employee = User.create!(name: "Example Employee", email_address: "seed-employee@example.test",
+      password: "test-password")
+    LeaveRequest.create!(employee:, leave_type: sick, starts_on: Date.new(2026, 10, 20),
+      ends_on: Date.new(2026, 10, 20))
+
+    2.times { load Rails.root.join("db/seeds.rb") }
+
+    assert_equal "Переименованный отпуск", annual.reload.name
+    assert_not annual.active?
+    assert_predicate sick.reload, :exclude_public_holidays?
+  end
+
   test "rerun preserves an administrator-disabled reference type" do
     load Rails.root.join("db/seeds.rb")
     leave_type = LeaveType.find_by!(code: "BIRTHDAY")
