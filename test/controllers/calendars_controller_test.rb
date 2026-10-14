@@ -101,6 +101,20 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "parses years only as decimal" do
+    sign_in_as(@employee)
+
+    travel_to Date.new(2026, 10, 9) do
+      get calendar_path(year: "02030", month: "10")
+      assert_response :success
+      assert_select "h1", text: "Мой календарь — октябрь 2030"
+
+      get calendar_path(year: "0x7ee", month: "10")
+      assert_response :success
+      assert_select "h1", text: "Мой календарь — октябрь 2026"
+    end
+  end
+
   test "rejects structured calendar filters" do
     sign_in_as(@employee)
 

@@ -80,6 +80,20 @@ module Manager
       end
     end
 
+    test "parses years only as decimal" do
+      sign_in_as(@manager)
+
+      travel_to Date.new(2026, 10, 9) do
+        get manager_calendar_path(year: "02030", month: "10")
+        assert_response :success
+        assert_select "h1", text: "Календарь октябрь 2030"
+
+        get manager_calendar_path(year: "0x7ee", month: "10")
+        assert_response :success
+        assert_select "h1", text: "Календарь октябрь 2026"
+      end
+    end
+
     test "rejects structured calendar filters" do
       sign_in_as(@manager)
 
