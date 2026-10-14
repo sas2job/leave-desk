@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Leave Desk PostgreSQL backup daily
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+Unit=leave-desk-backup.service
+
+[Install]
+WantedBy=timers.target

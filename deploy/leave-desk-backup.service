@@ -1,0 +1,11 @@
+[Unit]
+Description=Leave Desk daily PostgreSQL backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/projects/leave-desk
+ExecStart=/usr/bin/bash /root/projects/leave-desk/backup.sh
+UMask=0077
