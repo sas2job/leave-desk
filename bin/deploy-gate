@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+
+require "json"
+
+event_name = ENV.fetch("GITHUB_EVENT_NAME")
+repository = ENV.fetch("GITHUB_REPOSITORY")
+revision = nil
+
+case event_name
+when "workflow_dispatch"
+  revision = ENV["GITHUB_SHA"]
+when "workflow_run"
+  event = JSON.parse(File.read(ENV.fetch("GITHUB_EVENT_PATH")))
+  run = event.fetch("workflow_run")
+  candidate = run["head_sha"]
+  if run["conclusion"] == "success" && run["event"] == "push" &&
+      run.dig("head_repository", "full_name") == repository &&
+      run["head_branch"] == event.dig("repository", "default_branch") &&
+      candidate == ENV["MAIN_TIP_SHA"]
+    revision = candidate
+  end
+end
+
+eligible = revision.is_a?(String) && revision.match?(/\A[0-9a-f]{40}\z/)
+File.open(ENV.fetch("GITHUB_OUTPUT"), "a") do |output|
+  output.puts "deploy=#{eligible}"
+  output.puts "sha=#{revision}" if eligible
+end
+
+puts eligible ? "Deployment revision approved" : "Deployment skipped: event is ineligible or superseded"

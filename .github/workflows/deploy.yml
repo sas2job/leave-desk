@@ -10,18 +10,54 @@ concurrency:
   group: production
   cancel-in-progress: false
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
-  deploy:
+  authorize:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      deploy: ${{ steps.gate.outputs.deploy }}
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - name: Checkout trusted deployment gate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+
+      - name: Read current main revision
+        if: github.event_name == 'workflow_run'
+        id: main_tip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Authorize deployment revision
+        id: gate
+        env:
+          MAIN_TIP_SHA: ${{ steps.main_tip.outputs.sha }}
+        run: ruby bin/deploy-gate
+
+  deploy:
+    needs: authorize
+    if: needs.authorize.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: write
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -29,23 +65,10 @@ jobs:
       IMAGE_NAME: ghcr.io/${{ github.repository }}
 
     steps:
-      - name: Select tested commit
-        id: revision
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}
-          CURRENT_SHA: ${{ github.sha }}
-        run: |
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
-            echo "sha=$WORKFLOW_SHA" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=$CURRENT_SHA" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Checkout tested commit
+      - name: Checkout authorized revision
         uses: actions/checkout@v7
         with:
-          ref: ${{ steps.revision.outputs.sha }}
+          ref: ${{ needs.authorize.outputs.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -63,13 +86,13 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ steps.revision.outputs.sha }}
+            ${{ env.IMAGE_NAME }}:${{ needs.authorize.outputs.sha }}
             ${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ steps.revision.outputs.sha }}
+            org.opencontainers.image.revision=${{ needs.authorize.outputs.sha }}
 
       - name: Configure SSH
         env:
@@ -92,7 +115,7 @@ jobs:
       - name: Deploy tested image
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REVISION: ${{ steps.revision.outputs.sha }}
+          REVISION: ${{ needs.authorize.outputs.sha }}
         run: |
           printf '%s' "$GHCR_TOKEN" | ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -eu; \

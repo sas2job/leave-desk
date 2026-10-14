@@ -1,0 +1,83 @@
+require "test_helper"
+require "json"
+require "open3"
+require "tempfile"
+require "yaml"
+
+class DeployGateTest < ActiveSupport::TestCase
+  CURRENT_SHA = "a" * 40
+  OLD_SHA = "b" * 40
+
+  test "only successful upstream main pushes can deploy automatically" do
+    assert_equal({ "deploy" => "true", "sha" => CURRENT_SHA }, decision(workflow_run_event))
+
+    [
+      workflow_run_event(conclusion: "failure"),
+      workflow_run_event(event: "pull_request"),
+      workflow_run_event(branch: "feature"),
+      workflow_run_event(repository: "fork/leave-desk"),
+      workflow_run_event(sha: OLD_SHA),
+      workflow_run_event(sha: "invalid\nsha")
+    ].each do |payload|
+      assert_equal({ "deploy" => "false" }, decision(payload))
+    end
+  end
+
+  test "fork pull request named main cannot deploy" do
+    payload = workflow_run_event(event: "pull_request", branch: "main",
+      repository: "fork/leave-desk")
+
+    assert_equal({ "deploy" => "false" }, decision(payload))
+  end
+
+  test "manual dispatch accepts its explicitly selected revision" do
+    assert_equal({ "deploy" => "true", "sha" => OLD_SHA },
+      decision({}, event_name: "workflow_dispatch", sha: OLD_SHA))
+  end
+
+  test "production job is gated by the unprivileged authorization job" do
+    workflow = YAML.load_file(Rails.root.join(".github/workflows/deploy.yml"))
+    authorize = workflow.fetch("jobs").fetch("authorize")
+    deploy = workflow.fetch("jobs").fetch("deploy")
+
+    assert_equal({ "contents" => "read" }, authorize.fetch("permissions"))
+    assert_nil authorize["environment"]
+    assert_equal "authorize", deploy.fetch("needs")
+    assert_equal "needs.authorize.outputs.deploy == 'true'", deploy.fetch("if")
+  end
+
+  private
+
+  def workflow_run_event(conclusion: "success", event: "push", branch: "main",
+    repository: "example/leave-desk", sha: CURRENT_SHA)
+    {
+      "repository" => { "default_branch" => "main" },
+      "workflow_run" => {
+        "conclusion" => conclusion, "event" => event, "head_branch" => branch,
+        "head_repository" => { "full_name" => repository }, "head_sha" => sha
+      }
+    }
+  end
+
+  def decision(payload, event_name: "workflow_run", sha: CURRENT_SHA)
+    Tempfile.create("deploy-event") do |event_file|
+      event_file.write(JSON.generate(payload))
+      event_file.flush
+      Tempfile.create("deploy-output") do |output_file|
+        environment = {
+          "GITHUB_EVENT_NAME" => event_name,
+          "GITHUB_EVENT_PATH" => event_file.path,
+          "GITHUB_OUTPUT" => output_file.path,
+          "GITHUB_REPOSITORY" => "example/leave-desk",
+          "GITHUB_SHA" => sha,
+          "MAIN_TIP_SHA" => CURRENT_SHA
+        }
+        _stdout, stderr, status = Open3.capture3(environment, RbConfig.ruby,
+          Rails.root.join("bin/deploy-gate").to_s)
+        assert status.success?, stderr
+        output_file.rewind
+        output_file.read.lines.to_h { |line| line.strip.split("=", 2) }
+      end
+    end
+  end
+end
