@@ -41,7 +41,7 @@
         </tr>
         <tr>
           <% @dates.each do |date| %>
-            <th scope="col" class="<%= "weekend" if date.saturday? || date.sunday? %>">
+            <th scope="col" class="<%= "weekend" if @calendar_off_days.include?(date) %>">
               <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
             </th>
           <% end %>
@@ -55,7 +55,7 @@
               <% leave = row[:leave_days].include?(date) %>
               <% birthday = row[:birthday] == date %>
               <% classes = [] %>
-              <% classes << "weekend" if date.saturday? || date.sunday? %>
+              <% classes << "weekend" if @calendar_off_days.include?(date) %>
               <% classes << "leave" if leave %>
               <% classes << "birthday" if birthday %>
               <% labels = [format_date(date)] %>

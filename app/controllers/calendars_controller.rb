@@ -13,6 +13,8 @@ class CalendarsController < ApplicationController
       @dates = Date.new(@year, @month, 1).all_month.to_a
     end
 
+    @calendar_off_days = FederalCalendar.nonworking_dates(@dates)
+
     @leave_requests = Current.user.leave_requests.includes(:leave_type)
       .where(status: %i[pending approved])
       .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)

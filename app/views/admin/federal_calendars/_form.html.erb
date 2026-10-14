@@ -1,0 +1,44 @@
+<% if calendar.errors.any? %>
+  <div class="error-summary" role="alert">
+    <strong>Проверьте заполнение формы</strong>
+    <ul>
+      <% calendar.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<section class="card form-card">
+  <%= form_with model: [:admin, calendar] do |form| %>
+    <div class="form-grid">
+      <div class="field">
+        <%= form.label :year, "Год" %>
+        <% if calendar.persisted? %>
+          <%= form.number_field :year, value: calendar.year, disabled: true %>
+        <% else %>
+          <%= form.number_field :year, min: 2000, max: 2100, required: true %>
+        <% end %>
+      </div>
+      <div class="field field--full">
+        <%= form.label :legal_basis, "Нормативное основание" %>
+        <%= form.text_area :legal_basis, required: true, rows: 3,
+          placeholder: "Статья 112 ТК РФ; Постановление Правительства РФ от ... № ..." %>
+      </div>
+      <div class="field field--full">
+        <%= form.label :public_holidays_input, "Нерабочие праздничные даты" %>
+        <p>Одна дата в строке, формат ГГГГ-ММ-ДД. Только эти даты исключаются из ежегодного отпуска.</p>
+        <%= form.text_area :public_holidays_input, rows: 15, required: true %>
+      </div>
+      <div class="field field--full">
+        <%= form.label :transfers_input, "Переносы выходных" %>
+        <p>Одна пара в строке: исходная дата -> новая дата. Перенесённый выходной входит в длительность отпуска.</p>
+        <%= form.text_area :transfers_input, rows: 5 %>
+      </div>
+    </div>
+    <div class="form-actions">
+      <%= form.submit calendar.persisted? ? "Сохранить" : "Добавить" %>
+      <%= link_to "Отмена", admin_federal_calendars_path, class: "button button--secondary" %>
+    </div>
+  <% end %>
+</section>

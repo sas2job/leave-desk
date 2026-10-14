@@ -9,7 +9,9 @@ module ApplicationHelper
     "created" => "Заявка создана",
     "approved" => "Заявка одобрена",
     "rejected" => "Заявка отклонена",
-    "cancelled" => "Заявка отменена"
+    "cancelled" => "Заявка отменена",
+    "calendar_unverified" => "Заявка требует проверки календаря",
+    "calendar_reconciled" => "Заявка проверена по календарю"
   }.freeze
 
   def leave_request_status_label(leave_request)
@@ -32,7 +34,11 @@ module ApplicationHelper
     leave_request_event_label(event).sub(/\AЗаявка /, "Заявка №#{event.leave_request.id} ")
   end
 
-  def notification_request_path(leave_request)
+  def notification_request_path(leave_request, event_type: nil)
+    if Current.user.administrator? && event_type == "calendar_unverified"
+      return admin_calendar_reviews_path(anchor: dom_id(leave_request))
+    end
+
     if leave_request.employee_id == Current.user.id
       leave_requests_path(anchor: dom_id(leave_request))
     else

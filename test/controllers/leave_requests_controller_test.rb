@@ -57,6 +57,7 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", text: /\d{2} [а-яё.]+ \d{2}:\d{2}/i
     assert_no_match(/\d{2} [A-Z][a-z]{2} \d{2}:\d{2}/, response.body)
     assert_select "##{dom_id(own_request)}"
+    assert_select "##{dom_id(own_request)}", text: /Календарь года ещё не подтверждён/
     assert_select "##{dom_id(other_request)}", count: 0
     assert_no_match(/01\.12\.2026/, response.body)
   end

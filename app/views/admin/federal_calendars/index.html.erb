@@ -1,0 +1,52 @@
+<main class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Администрирование</p>
+      <h1>Федеральные календари</h1>
+      <p class="lede">Для каждого года укажите праздничные даты, переносы выходных и основание в НПА.</p>
+    </div>
+    <%= link_to "Добавить год", new_admin_federal_calendar_path, class: "button" %>
+  </header>
+
+  <% if @import_error %>
+    <div class="error-summary" role="alert"><strong>Импорт не выполнен</strong><p><%= @import_error %></p></div>
+  <% end %>
+
+  <section class="card form-card">
+    <h2>Загрузить календарь из JSON</h2>
+    <p>Выберите файл на своём компьютере. Если файл подготовил сотрудник, администратор проверяет его перед загрузкой.</p>
+    <%= form_with url: import_admin_federal_calendars_path, multipart: true do |form| %>
+      <div class="field">
+        <%= form.label :calendar_file, "Файл JSON" %>
+        <%= form.file_field :calendar_file, accept: ".json,application/json", required: true %>
+      </div>
+      <div class="field checkbox-field">
+        <%= form.check_box :replace %>
+        <%= form.label :replace, "Заменить уже внесённый календарь этого года" %>
+      </div>
+      <div class="form-actions"><%= form.submit "Импортировать" %></div>
+    <% end %>
+  </section>
+
+  <% if @calendars.any? %>
+    <div class="request-list">
+      <% @calendars.each do |calendar| %>
+        <article class="request-card">
+          <div class="request-card__summary">
+            <h2 class="request-card__title"><%= calendar.year %> год</h2>
+          </div>
+          <p><%= calendar.legal_basis %></p>
+          <p>Нерабочих праздничных дат: <%= calendar.public_holidays.size %>; переносов: <%= calendar.transfers.size %>.</p>
+          <div class="request-card__actions">
+            <%= link_to "Изменить", edit_admin_federal_calendar_path(calendar), class: "button button--secondary" %>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <section class="card empty-state">
+      <h2>Календари не настроены</h2>
+      <p>Добавьте год и проверьте праздничные даты по действующему законодательству.</p>
+    </section>
+  <% end %>
+</main>

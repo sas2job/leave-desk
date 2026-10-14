@@ -5,15 +5,19 @@ class RussianFederalHoliday
   ].freeze
 
   def self.on?(date)
-    FIXED_DATES.include?([ date.month, date.day ])
+    calendar = FederalCalendar.find_by(year: date.year)
+    calendar ? calendar.public_holiday?(date) : FIXED_DATES.include?([ date.month, date.day ])
   end
 
   def self.count_between(starts_on, ends_on)
+    calendars = FederalCalendar.where(year: starts_on.year..ends_on.year).index_by(&:year)
     (starts_on.year..ends_on.year).sum do |year|
-      FIXED_DATES.count do |month, day|
-        date = Date.new(year, month, day)
-        date >= starts_on && date <= ends_on
-      end
+      dates = calendars[year]&.public_holidays || fixed_dates_for(year)
+      dates.count { |date| date >= starts_on && date <= ends_on }
     end
+  end
+
+  def self.fixed_dates_for(year)
+    FIXED_DATES.map { |month, day| Date.new(year, month, day) }
   end
 end

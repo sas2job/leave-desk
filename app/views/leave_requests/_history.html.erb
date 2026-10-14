@@ -5,7 +5,7 @@
       <li>
         <strong><%= leave_request_event_label(event) %></strong>
         <span><%= leave_request_event_transition(event) %></span>
-        <span><%= event.actor.name %>, <%= l(event.occurred_at, format: :short) %></span>
+        <span><%= event.actor&.name || "Система" %>, <%= l(event.occurred_at, format: :short) %></span>
         <% if event.comment.present? %>
           <p><%= event.comment %></p>
         <% end %>

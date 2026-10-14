@@ -105,6 +105,13 @@ ru:
         code: "Код"
         active: "Активность"
         holiday_handling: "Учёт праздничных дней"
+      federal_calendar:
+        year: "Год"
+        legal_basis: "Нормативное основание"
+        public_holidays: "Нерабочие праздничные даты"
+        public_holidays_input: "Нерабочие праздничные даты"
+        transfers: "Переносы выходных"
+        transfers_input: "Переносы выходных"
       leave_request:
         employee: "Сотрудник"
         starts_on: "Дата начала"

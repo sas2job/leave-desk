@@ -42,6 +42,9 @@
               <div class="meta-label">Продолжительность</div>
               <div class="meta-value"><%= format_duration(leave_request.duration_in_days) %> дн.</div>
             </div>
+            <% if leave_request.calendar_unverified? %>
+              <p role="status">Календарь года ещё не подтверждён. Расчёт ожидает проверки администратора.</p>
+            <% end %>
           </div>
 
           <% if leave_request.pending? %>

@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+require_relative "../config/environment"
+
+replace = ARGV.delete("--replace")
+abort "Использование: bin/import-federal-calendar [--replace] ПУТЬ_К_JSON" unless ARGV.one?
+
+begin
+  File.open(ARGV.first, "rb") do |file|
+    calendar = FederalCalendarImporter.call(file, replace: !!replace)
+    puts "Федеральный календарь на #{calendar.year} год импортирован."
+  end
+rescue Errno::ENOENT, Errno::EACCES, FederalCalendarImporter::InvalidFile => error
+  abort "Импорт не выполнен: #{error.message}"
+end

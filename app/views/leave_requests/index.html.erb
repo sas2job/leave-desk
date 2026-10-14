@@ -30,6 +30,9 @@
             <div class="meta-label">Продолжительность</div>
             <div class="meta-value"><%= format_duration(leave_request.duration_in_days) %> дн.</div>
           </div>
+          <% if leave_request.calendar_unverified? %>
+            <p role="status">Календарь года ещё не подтверждён. Администратор проверит расчёт после внесения НПА.</p>
+          <% end %>
           <div>
             <div class="meta-label">Границы периода</div>
             <div class="meta-value"><%= leave_request.starts_afternoon? ? "После полудня" : "С утра" %> — <%= leave_request.ends_morning? ? "до полудня" : "до конца дня" %></div>

@@ -1,0 +1,101 @@
+require "test_helper"
+
+module Admin
+  class FederalCalendarsControllerTest < ActionDispatch::IntegrationTest
+    setup do
+      @administrator = User.create!(name: "Administrator", email_address: "admin@example.test",
+        password: "test-password", role: :administrator)
+      @employee = User.create!(name: "Employee", email_address: "employee@example.test",
+        password: "test-password")
+    end
+
+    test "only administrators can manage calendars" do
+      sign_in_as(@employee)
+      get admin_federal_calendars_path
+      assert_response :forbidden
+      assert_no_difference("FederalCalendar.count") do
+        post admin_federal_calendars_path, params: { federal_calendar: calendar_attributes }
+      end
+      assert_response :forbidden
+    end
+
+    test "administrator creates and updates calendar with legal basis" do
+      sign_in_as(@administrator)
+      assert_difference("FederalCalendar.count", 1) do
+        post admin_federal_calendars_path, params: { federal_calendar: calendar_attributes }
+      end
+      calendar = FederalCalendar.last
+      assert_redirected_to admin_federal_calendars_path
+      assert_equal [ Date.new(2026, 1, 1) ], calendar.public_holidays
+      assert_equal [ { "from" => "2026-03-07", "to" => "2026-03-09" } ], calendar.transfers
+
+      patch admin_federal_calendar_path(calendar), params: { federal_calendar: {
+        legal_basis: "Новое постановление", public_holidays_input: "2026-01-01\n2026-06-12",
+        transfers_input: ""
+      } }
+      assert_redirected_to admin_federal_calendars_path
+      assert_equal "Новое постановление", calendar.reload.legal_basis
+      assert_equal 2, calendar.public_holidays.size
+      assert_empty calendar.transfers
+    end
+
+    test "invalid dates leave published calendar unchanged" do
+      calendar = FederalCalendar.create!(year: 2026, legal_basis: "НПА",
+        public_holidays: [ Date.new(2026, 1, 1) ])
+      sign_in_as(@administrator)
+      patch admin_federal_calendar_path(calendar), params: { federal_calendar: {
+        legal_basis: "Исправленный НПА", public_holidays_input: "2027-01-01",
+        transfers_input: ""
+      } }
+      assert_response :unprocessable_entity
+      assert_equal "НПА", calendar.reload.legal_basis
+      assert_equal [ Date.new(2026, 1, 1) ], calendar.public_holidays
+    end
+
+    test "rejects typed JSON fields and malformed year" do
+      sign_in_as(@administrator)
+      assert_no_difference("FederalCalendar.count") do
+        post admin_federal_calendars_path, params: {
+          federal_calendar: calendar_attributes.merge(legal_basis: 123)
+        }, as: :json
+      end
+      assert_response :bad_request
+
+      assert_no_difference("FederalCalendar.count") do
+        post admin_federal_calendars_path, params: {
+          federal_calendar: calendar_attributes.merge(year: "2026x")
+        }
+      end
+      assert_response :unprocessable_entity
+    end
+
+    test "administrator imports file selected from computer" do
+      sign_in_as(@administrator)
+      Tempfile.create([ "federal-calendar", ".json" ]) do |file|
+        file.write({ year: 2026, legal_basis: "НПА", public_holidays: [ "2026-01-01" ],
+          transfers: [] }.to_json)
+        file.flush
+        assert_difference("FederalCalendar.count", 1) do
+          post import_admin_federal_calendars_path, params: {
+            calendar_file: Rack::Test::UploadedFile.new(file.path, "application/json")
+          }
+        end
+      end
+      assert_redirected_to admin_federal_calendars_path
+      assert_equal "НПА", FederalCalendar.last.legal_basis
+    end
+
+    test "employee cannot import a calendar" do
+      sign_in_as(@employee)
+      post import_admin_federal_calendars_path
+      assert_response :forbidden
+    end
+
+    private
+
+    def calendar_attributes
+      { year: "2026", legal_basis: "Статья 112 ТК РФ; постановление о переносах",
+        public_holidays_input: "2026-01-01", transfers_input: "2026-03-07 -> 2026-03-09" }
+    end
+  end
+end

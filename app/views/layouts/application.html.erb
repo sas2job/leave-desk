@@ -44,6 +44,8 @@
             <% end %>
             <% if Current.user.administrator? %>
               <%= link_to "Виды отпусков", admin_leave_types_path %>
+              <%= link_to "Федеральные календари", admin_federal_calendars_path %>
+              <%= link_to "Проверка календаря", admin_calendar_reviews_path %>
             <% end %>
           </nav>
 

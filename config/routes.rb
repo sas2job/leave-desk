@@ -17,6 +17,10 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    resources :calendar_reviews, only: %i[index update]
+    resources :federal_calendars, except: %i[show destroy] do
+      collection { post :import }
+    end
     resources :leave_types, except: %i[show destroy]
     resources :users, except: %i[show destroy]
   end

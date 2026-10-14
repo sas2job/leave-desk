@@ -33,9 +33,23 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".team-calendar td.leave[title*='20.10.2026']", count: 0
   end
 
+  test "shows transferred day off and working source weekend" do
+    FederalCalendar.create!(year: 2026, legal_basis: "Постановление о переносах",
+      public_holidays: RussianFederalHoliday.fixed_dates_for(2026),
+      transfers: [ { "from" => "2026-10-10", "to" => "2026-10-12" } ])
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: 10)
+
+    assert_response :success
+    assert_select "thead tr:last-child th:nth-child(10):not(.weekend)"
+    assert_select "thead tr:last-child th:nth-child(12).weekend"
+  end
+
   test "shows only visible dates for a request spanning the supported range" do
     request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
-      starts_on: Date.new(2000, 1, 1), ends_on: Date.new(2100, 12, 31))
+      starts_on: Date.new(2026, 10, 1), ends_on: Date.new(2026, 10, 31))
+    request.update_columns(starts_on: Date.new(2000, 1, 1), ends_on: Date.new(2100, 12, 31))
     request.approve!(by: @manager)
     sign_in_as(@employee)
 

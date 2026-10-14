@@ -184,11 +184,133 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_equal 7, request.duration_in_days
   end
 
+  test "calendar changes do not recalculate a saved request" do
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    calendar = FederalCalendar.create!(year: 2026, legal_basis: "Статья 112 ТК РФ",
+      public_holidays: RussianFederalHoliday.fixed_dates_for(2026))
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 6, 11), ends_on: Date.new(2026, 6, 13))
+    assert_equal 2, request.duration_in_days
+
+    calendar.update!(public_holidays: calendar.public_holidays - [ Date.new(2026, 6, 12) ],
+      legal_basis: "Исправленное основание")
+    assert_equal 2, request.reload.duration_in_days
+    request.approve!(by: @manager)
+    assert_equal 2, request.reload.duration_in_days
+
+    another_employee = User.create!(name: "Another employee", email_address: "another@example.test",
+      password: "test-password", manager: @manager)
+    later_request = LeaveRequest.create!(employee: another_employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 6, 11), ends_on: Date.new(2026, 6, 13))
+    assert_equal 3, later_request.duration_in_days
+  end
+
+  test "request without yearly calendar alerts administrators and waits for explicit reconciliation" do
+    administrator = User.create!(name: "Administrator", email_address: "administrator@example.test",
+      password: "test-password", role: :administrator)
+    second_administrator = User.create!(name: "Second administrator", email_address: "second-admin@example.test",
+      password: "test-password", role: :administrator)
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 6, 11), ends_on: Date.new(2026, 6, 13))
+
+    assert_predicate request, :calendar_unverified?
+    assert_equal 2, request.duration_in_days
+    assert_equal 1, administrator.notifications.count
+    assert_equal 1, second_administrator.notifications.count
+    assert_predicate administrator.notifications.first.leave_request_event, :calendar_unverified?
+    assert_nil administrator.notifications.first.leave_request_event.actor
+
+    FederalCalendar.create!(year: 2026, legal_basis: "Изменённый календарь",
+      public_holidays: [ Date.new(2026, 1, 1) ])
+    assert_predicate request.reload, :calendar_unverified?
+    assert_equal 2, request.duration_in_days
+
+    request.reconcile_calendar!(by: administrator)
+    assert_not request.reload.calendar_unverified?
+    assert_equal 3, request.duration_in_days
+    assert_predicate request.events.last, :calendar_reconciled?
+    assert_equal administrator, request.events.last.actor
+    assert_predicate @employee.notifications.last.leave_request_event, :calendar_reconciled?
+  end
+
+  test "calendar reconciliation requires administrator and a configured year" do
+    request = create_request
+    assert_raises(LeaveRequest::InvalidTransition) { request.reconcile_calendar!(by: @manager) }
+    assert_raises(LeaveRequest::InvalidTransition) do
+      administrator = User.create!(name: "Administrator", email_address: "administrator@example.test",
+        password: "test-password", role: :administrator)
+      request.reconcile_calendar!(by: administrator)
+    end
+    assert_predicate request.reload, :calendar_unverified?
+  end
+
+  test "changing holiday dates flags affected active requests but changing transfers does not" do
+    administrator = User.create!(name: "Administrator", email_address: "administrator@example.test",
+      password: "test-password", role: :administrator)
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    calendar = FederalCalendar.create!(year: 2026, legal_basis: "НПА",
+      public_holidays: RussianFederalHoliday.fixed_dates_for(2026))
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 6, 11), ends_on: Date.new(2026, 6, 13))
+    assert_not request.calendar_unverified?
+
+    calendar.update!(transfers: [ { "from" => "2026-06-13", "to" => "2026-06-15" } ])
+    assert_not request.reload.calendar_unverified?
+    assert_empty administrator.notifications
+
+    calendar.update!(public_holidays: [ Date.new(2026, 1, 1) ])
+    assert_predicate request.reload, :calendar_unverified?
+    assert_equal 2, request.duration_in_days
+    assert_predicate administrator.notifications.last.leave_request_event, :calendar_unverified?
+  end
+
+  test "transferred day off remains in annual leave duration" do
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    FederalCalendar.create!(year: 2026, legal_basis: "Статья 112 ТК РФ; постановление о переносах",
+      public_holidays: RussianFederalHoliday.fixed_dates_for(2026),
+      transfers: [ { "from" => "2026-06-13", "to" => "2026-06-15" } ])
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 6, 11), ends_on: Date.new(2026, 6, 15))
+
+    assert_equal 4, request.duration_in_days
+  end
+
+  test "new request is restricted to the current calendar year" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 12, 31), ends_on: Date.new(2027, 1, 1))
+    assert_not request.valid?
+    assert_includes request.errors[:base], "Оформить отсутствие можно только в текущем календарном году"
+
+    travel_to Date.new(2027, 1, 1) do
+      request.starts_on = Date.new(2027, 1, 1)
+      assert request.valid?
+    end
+  end
+
+  test "current year follows Moscow time at the year boundary" do
+    travel_to Time.utc(2026, 12, 31, 22) do
+      request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2027, 1, 1), ends_on: Date.new(2027, 1, 1))
+      assert request.valid?
+    end
+  end
+
+  test "request created last year can be reviewed and cancelled" do
+    request = create_request
+    travel_to Date.new(2027, 1, 1) do
+      request.approve!(by: @manager)
+      request.cancel!
+    end
+    assert_predicate request.reload, :cancelled?
+  end
+
   test "duration handles the full supported range and counts holidays across years" do
     request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
       starts_on: Date.new(2000, 1, 1), ends_on: Date.new(2100, 12, 31))
 
-    assert_predicate request, :valid?
+    assert_not request.valid?
+    assert_includes request.errors[:base], "Оформить отсутствие можно только в текущем календарном году"
     assert_equal 36_890, request.duration_in_days
 
     @leave_type.update!(holiday_handling: :exclude_public_holidays)
@@ -258,7 +380,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
     attributes = {
       employee_id: @employee.id, leave_type_id: @leave_type.id,
       starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 1),
-      status: LeaveRequest.statuses.fetch(:pending), created_at: Time.current,
+      status: LeaveRequest.statuses.fetch(:pending), duration_half_days: 1, created_at: Time.current,
       updated_at: Time.current
     }
     LeaveRequest.insert_all!([ attributes.merge(start_part: 0, end_part: 0) ])

@@ -1,0 +1,38 @@
+<main class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Администрирование</p>
+      <h1>Проверка календаря</h1>
+      <p class="lede">Эти заявки созданы до внесения календаря года. Их длительность меняется только после явной проверки с записью в историю.</p>
+    </div>
+  </header>
+
+  <% if @requests.any? %>
+    <div class="request-list">
+      <% @requests.each do |request| %>
+        <article id="<%= dom_id(request) %>" class="request-card">
+          <div class="request-card__summary">
+            <h2 class="request-card__title">Заявка №<%= request.id %></h2>
+            <span class="status status--<%= request.status %>"><%= leave_request_status_label(request) %></span>
+          </div>
+          <p><%= request.employee.name %> — <%= request.leave_type.name %></p>
+          <p><%= format_date(request.starts_on) %>–<%= format_date(request.ends_on) %></p>
+          <p>Сохранено: <%= format_duration(request.duration_in_days) %> дн.</p>
+          <% if @configured_years.include?(request.starts_on.year) %>
+            <% new_duration = request.calendar_duration_in_days %>
+            <p>По внесённому календарю: <%= format_duration(new_duration) %> дн.</p>
+            <% if new_duration&.positive? %>
+              <%= button_to "Подтвердить расчёт", admin_calendar_review_path(request), method: :patch %>
+            <% else %>
+              <p>Новый расчёт не даёт положительной длительности. Требуется отдельное решение по заявке.</p>
+            <% end %>
+          <% else %>
+            <p>Календарь <%= request.starts_on.year %> года ещё не внесён.</p>
+          <% end %>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <section class="card empty-state"><h2>Заявок для проверки нет</h2></section>
+  <% end %>
+</main>

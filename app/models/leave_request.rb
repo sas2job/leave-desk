@@ -17,6 +17,7 @@ class LeaveRequest < ApplicationRecord
 
   validates :starts_on, :ends_on, presence: true
   validate :dates_are_supported
+  validate :dates_are_in_current_year, on: :create
   validate :ends_on_is_not_before_starts_on
   validate :reviewer_is_not_employee
   validate :leave_type_is_active, on: :create
@@ -24,7 +25,10 @@ class LeaveRequest < ApplicationRecord
   validate :period_boundaries_are_in_order
   validate :duration_is_positive
   validate :leave_type_id_has_valid_syntax
+  validate :calculation_inputs_are_unchanged, on: :update
+  before_validation :store_duration, on: :create
   after_create :record_created_event
+  after_create :record_calendar_unverified_event, if: :calendar_unverified?
 
   def save(**options)
     with_leave_type_lock { super }
@@ -53,6 +57,14 @@ class LeaveRequest < ApplicationRecord
   end
 
   def duration_in_days
+    if persisted? && duration_half_days
+      return duration_half_days.even? ? duration_half_days / 2 : duration_half_days / 2.0
+    end
+
+    calendar_duration_in_days
+  end
+
+  def calendar_duration_in_days
     return if leave_type.blank? || !dates_supported? || ends_on < starts_on
 
     days = ends_on.jd - starts_on.jd + 1
@@ -60,6 +72,37 @@ class LeaveRequest < ApplicationRecord
     days -= 0.5 if starts_afternoon? && counted_calendar_date?(starts_on)
     days -= 0.5 if ends_morning? && counted_calendar_date?(ends_on)
     days
+  end
+
+  def reconcile_calendar!(by:)
+    raise InvalidTransition, "Проверить календарь может только администратор" unless by&.administrator?
+
+    self.class.transaction do
+      calendar = FederalCalendar.where(year: starts_on.year).lock("FOR UPDATE").first
+      raise InvalidTransition, "Календарь года ещё не внесён" unless calendar
+
+      with_lock do
+        raise InvalidTransition, "Календарь заявки уже проверен" unless calendar_unverified?
+
+        new_duration = calendar_duration_in_days
+        raise InvalidTransition, "Новый расчёт не даёт положительной длительности" unless new_duration&.positive?
+
+        previous_duration = duration_in_days
+        update!(duration_half_days: (new_duration * 2).to_i, calendar_unverified: false)
+        record_event!(:calendar_reconciled, by:, from_status: status,
+          comment: "Продолжительность: #{previous_duration} → #{new_duration} дн.")
+      end
+    end
+  end
+
+  def flag_calendar_for_review!
+    with_lock do
+      return if calendar_unverified?
+
+      update!(calendar_unverified: true)
+      record_event!(:calendar_unverified, by: nil, from_status: status,
+        comment: "Праздничные даты изменились; расчёт требует проверки администратора")
+    end
   end
 
   private
@@ -72,6 +115,7 @@ class LeaveRequest < ApplicationRecord
         LeaveType.where(id: leave_type_id).lock("FOR UPDATE").first
       end
       association(:leave_type).target = locked_type
+      FederalCalendar.where(year: starts_on.year).lock("FOR UPDATE").first if new_record? && dates_supported?
       yield
     end
   end
@@ -87,6 +131,26 @@ class LeaveRequest < ApplicationRecord
   def dates_are_supported
     errors.add(:starts_on, "должна быть между 01.01.2000 и 31.12.2100") if starts_on && !supported_date?(starts_on)
     errors.add(:ends_on, "должна быть между 01.01.2000 и 31.12.2100") if ends_on && !supported_date?(ends_on)
+  end
+
+  def dates_are_in_current_year
+    return unless dates_supported?
+    return if starts_on.year == Date.current.year && ends_on.year == Date.current.year
+
+    errors.add(:base, "Оформить отсутствие можно только в текущем календарном году")
+  end
+
+  def calculation_inputs_are_unchanged
+    fields = %i[leave_type_id starts_on ends_on start_part end_part]
+    return unless fields.any? { |field| will_save_change_to_attribute?(field) }
+
+    errors.add(:base, "Даты и способ расчёта сохранённой заявки нельзя изменить; отмените её и создайте новую")
+  end
+
+  def store_duration
+    calculated_duration = duration_in_days
+    self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
+    self.calendar_unverified = !FederalCalendar.exists?(year: starts_on.year) if dates_supported?
   end
 
   def dates_supported?
@@ -149,7 +213,7 @@ class LeaveRequest < ApplicationRecord
     return if starts_on == ends_on && starts_afternoon? && ends_morning?
     return unless leave_type.exclude_public_holidays?
 
-    duration = duration_in_days
+    duration = new_record? ? duration_half_days && duration_half_days / 2.0 : duration_in_days
     return if duration.nil? || duration.positive?
 
     errors.add(:base, "На эти даты оформить «#{leave_type.name}» не получится: " \
@@ -177,6 +241,11 @@ class LeaveRequest < ApplicationRecord
 
   def record_created_event
     record_event!(:created, by: employee, from_status: nil, comment: employee_comment)
+  end
+
+  def record_calendar_unverified_event
+    record_event!(:calendar_unverified, by: nil, from_status: status,
+      comment: "Календарь года ещё не внесён; расчёт требует проверки администратора")
   end
 
   def record_event!(event_type, by:, from_status:, comment: nil)

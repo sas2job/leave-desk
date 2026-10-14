@@ -15,6 +15,8 @@ module Manager
         @dates = Date.new(@year, @month, 1).all_month.to_a
       end
 
+      @calendar_off_days = FederalCalendar.nonworking_dates(@dates)
+
       employees = calendar_employees.order(:name).to_a
       requests_by_employee = LeaveRequest.where(employee_id: employees.map(&:id), status: :approved)
         .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)

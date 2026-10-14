@@ -30,16 +30,16 @@
         <div class="field">
           <%= form.label :starts_on, "Дата начала" %>
         <%= form.date_field :starts_on, required: true,
-          min: LeaveRequest::SUPPORTED_DATES.first.iso8601,
-          max: LeaveRequest::SUPPORTED_DATES.last.iso8601,
+            min: Date.current.beginning_of_year.iso8601,
+            max: Date.current.end_of_year.iso8601,
           value: @leave_request.starts_on.is_a?(Date) ? @leave_request.starts_on : nil %>
         </div>
 
         <div class="field">
           <%= form.label :ends_on, "Дата окончания" %>
         <%= form.date_field :ends_on, required: true,
-          min: LeaveRequest::SUPPORTED_DATES.first.iso8601,
-          max: LeaveRequest::SUPPORTED_DATES.last.iso8601,
+            min: Date.current.beginning_of_year.iso8601,
+            max: Date.current.end_of_year.iso8601,
           value: @leave_request.ends_on.is_a?(Date) ? @leave_request.ends_on : nil %>
         </div>
       <div class="field">

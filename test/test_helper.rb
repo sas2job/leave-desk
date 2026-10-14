@@ -12,6 +12,9 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    setup { travel_to Time.zone.local(2026, 10, 14, 12) }
+    teardown { travel_back }
+
     # Add more helper methods to be used by all tests here...
   end
 end

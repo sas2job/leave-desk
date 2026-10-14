@@ -24,8 +24,9 @@ module Manager
     end
 
     test "shows only visible dates for a long approved request" do
-      request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
-        starts_on: Date.new(2000, 1, 1), ends_on: Date.new(2100, 12, 31))
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 1), ends_on: Date.new(2026, 10, 31))
+    request.update_columns(starts_on: Date.new(2000, 1, 1), ends_on: Date.new(2100, 12, 31))
       request.approve!(by: @manager)
       sign_in_as(@manager)
 
@@ -44,7 +45,10 @@ module Manager
         [ @employee, Date.new(2026, 10, 15), @manager ],
         [ @employee, Date.new(2027, 10, 15), @manager ],
         [ outsider, Date.new(2026, 10, 17), other_manager ] ].each do |employee, date, reviewer|
-        request = LeaveRequest.create!(employee:, leave_type: @leave_type, starts_on: date, ends_on: date)
+      temporary_date = date.year == 2026 ? date : Date.new(2026, date.year == 2025 ? 9 : 11, date.day)
+      request = LeaveRequest.create!(employee:, leave_type: @leave_type,
+        starts_on: temporary_date, ends_on: temporary_date)
+      request.update_columns(starts_on: date, ends_on: date) unless date.year == 2026
         request.approve!(by: reviewer)
       end
       LeaveRequest.create!(employee: @employee, leave_type: @leave_type,

@@ -10,14 +10,26 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_095959) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_14_151621) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
 
+  create_table "federal_calendars", force: :cascade do |t|
+    t.integer "year", null: false
+    t.text "legal_basis", null: false
+    t.date "public_holidays", default: [], null: false, array: true
+    t.jsonb "transfers", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["year"], name: "index_federal_calendars_on_year", unique: true
+    t.check_constraint "jsonb_typeof(transfers) = 'array'::text", name: "federal_calendars_transfers_array"
+    t.check_constraint "year >= 2000 AND year <= 2100", name: "federal_calendars_supported_year"
+  end
+
   create_table "leave_request_events", force: :cascade do |t|
     t.bigint "leave_request_id", null: false
-    t.bigint "actor_id", null: false
+    t.bigint "actor_id"
     t.integer "event_type", null: false
     t.integer "from_status"
     t.integer "to_status", null: false
@@ -25,7 +37,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_095959) do
     t.datetime "occurred_at", null: false
     t.index ["actor_id"], name: "index_leave_request_events_on_actor_id"
     t.index ["leave_request_id"], name: "index_leave_request_events_on_leave_request_id"
-    t.check_constraint "event_type = ANY (ARRAY[0, 1, 2, 3])", name: "leave_request_events_valid_type"
+    t.check_constraint "event_type = 4 OR actor_id IS NOT NULL", name: "leave_request_events_actor_required_except_calendar_alert"
+    t.check_constraint "event_type = ANY (ARRAY[0, 1, 2, 3, 4, 5])", name: "leave_request_events_valid_type"
     t.check_constraint "to_status = ANY (ARRAY[0, 1, 2, 3])", name: "leave_request_events_valid_to_status"
   end
 
@@ -43,9 +56,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_095959) do
     t.datetime "updated_at", null: false
     t.integer "start_part", default: 0, null: false
     t.integer "end_part", default: 1, null: false
+    t.integer "duration_half_days", null: false
+    t.boolean "calendar_unverified", default: false, null: false
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
     t.index ["leave_type_id"], name: "index_leave_requests_on_leave_type_id"
     t.index ["reviewer_id"], name: "index_leave_requests_on_reviewer_id"
+    t.check_constraint "duration_half_days > 0", name: "leave_requests_positive_duration"
     t.check_constraint "end_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_end_part"
     t.check_constraint "ends_on >= starts_on", name: "leave_requests_dates_in_order"
     t.check_constraint "isfinite(ends_on) AND ends_on >= '2000-01-01'::date AND ends_on <= '2100-12-31'::date", name: "leave_requests_supported_end_date"
@@ -74,7 +90,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_095959) do
     t.datetime "read_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["leave_request_event_id"], name: "index_notifications_on_leave_request_event_id", unique: true
+    t.index ["leave_request_event_id", "recipient_id"], name: "index_notifications_on_event_and_recipient", unique: true
     t.index ["recipient_id"], name: "index_notifications_on_recipient_id"
   end
 

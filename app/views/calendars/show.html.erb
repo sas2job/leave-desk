@@ -44,7 +44,7 @@
         </tr>
         <tr>
           <% @dates.each do |date| %>
-            <th scope="col" class="<%= "weekend" if date.saturday? || date.sunday? %>">
+            <th scope="col" class="<%= "weekend" if @calendar_off_days.include?(date) %>">
               <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
             </th>
           <% end %>
@@ -57,7 +57,7 @@
             <% slots = @leave_requests_by_date[date] || {} %>
             <% requests = slots.values.uniq %>
             <% classes = [] %>
-            <% classes << "weekend" if date.saturday? || date.sunday? %>
+            <% classes << "weekend" if @calendar_off_days.include?(date) %>
             <% classes << (requests.first.approved? ? "leave" : "leave-pending") if requests.one? %>
             <% classes << "leave-split" if requests.size == 2 %>
             <% classes << "birthday" if @birthday == date && requests.empty? %>
