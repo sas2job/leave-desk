@@ -85,4 +85,5 @@ MVP охватывает создание заявок на отпуск и их
 - [Архитектурные решения](docs/architecture/adr/)
 - [Непрерывная интеграция](docs/operations/continuous-integration.md)
 - [Подготовка production-развёртывания](docs/operations/production-deployment.md)
+- [Сборка и сетевой доступ к деплою](docs/operations/ci-cd-overview.md)
 - [Резервное копирование и восстановление](docs/operations/database-backup-and-restore.md)
