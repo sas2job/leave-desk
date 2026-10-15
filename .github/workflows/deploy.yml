@@ -107,12 +107,14 @@ jobs:
 
       - name: Update deployment configuration
         run: |
-          scp -P "$DEPLOY_PORT" deploy/compose.yml deploy/Caddyfile \
+          scp -P "$DEPLOY_PORT" deploy/compose.yml deploy/apply-caddy.sh \
             deploy/backup.sh deploy/leave-desk-backup.service \
             deploy/leave-desk-backup.timer \
             deploy/leave-desk-session-prune.service \
             deploy/leave-desk-session-prune.timer \
             "$DEPLOY_USER@$DEPLOY_HOST:/root/projects/leave-desk/"
+          scp -P "$DEPLOY_PORT" deploy/Caddyfile \
+            "$DEPLOY_USER@$DEPLOY_HOST:/root/projects/leave-desk/Caddyfile.next"
 
       - name: Deploy tested image
         env:
@@ -128,6 +130,7 @@ jobs:
             docker compose pull web migrate; \
             docker compose run --rm migrate; \
             docker compose up -d --no-deps web; \
+            sh ./apply-caddy.sh; \
             health_host=\$(sed -n 's/^LEAVE_DESK_PUBLIC_HOST=//p' .env); \
             test -n \"\$health_host\"; \
             for attempt in \$(seq 1 30); do \
@@ -137,3 +140,7 @@ jobs:
             done; \
             docker compose logs --tail=100 web; \
             exit 1"
+      - name: Check public HTTPS
+        run: |
+          curl --fail --silent --show-error --retry 10 --retry-all-errors \
+            --retry-delay 3 --max-time 10 "https://$DEPLOY_HOST/up"
