@@ -1,0 +1,41 @@
+require "test_helper"
+
+class CalendarWindowTest < ActiveSupport::TestCase
+  RequestPeriod = Struct.new(:starts_on, :ends_on)
+  TODAY = Date.new(2026, 10, 14)
+
+  test "month window handles a leap day and clips overlapping requests" do
+    window = CalendarWindow.new(year: "2024", month: "02", today: TODAY)
+
+    assert_equal Date.new(2024, 2, 1), window.dates.first
+    assert_equal Date.new(2024, 2, 29), window.dates.last
+    assert_equal 29, window.dates.size
+    assert_equal window.dates.first..window.dates.last,
+      window.visible_dates_for(RequestPeriod.new(Date.new(2024, 1, 15), Date.new(2024, 3, 10)))
+    assert_nil window.visible_dates_for(RequestPeriod.new(Date.new(2024, 1, 1), Date.new(2024, 1, 31)))
+    assert_nil window.visible_dates_for(RequestPeriod.new(Date.new(2024, 3, 1), Date.new(2024, 3, 31)))
+  end
+
+  test "year window keeps supported boundary years and leap-year length" do
+    first = CalendarWindow.new(year: "2000", month: "all", today: TODAY)
+    last = CalendarWindow.new(year: "2100", month: "all", today: TODAY)
+
+    assert_nil first.month
+    assert_equal Date.new(2000, 1, 1), first.dates.first
+    assert_equal Date.new(2000, 12, 31), first.dates.last
+    assert_equal 366, first.dates.size
+    assert_equal Date.new(2100, 1, 1), last.dates.first
+    assert_equal Date.new(2100, 12, 31), last.dates.last
+    assert_equal 365, last.dates.size
+  end
+
+  test "invalid filters fall back to current year and month" do
+    [ nil, "1999", "2101", "0x7ea", "2_026" ].each do |year|
+      window = CalendarWindow.new(year:, month: "13", today: TODAY)
+
+      assert_equal 2026, window.year
+      assert_equal 10, window.month
+      assert_equal Date.new(2026, 10, 1), window.dates.first
+    end
+  end
+end

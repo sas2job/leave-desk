@@ -1,17 +1,8 @@
 class CalendarsController < ApplicationController
   def show
     require_string_fields!(params, :year, :month)
-    @year = parse_decimal_filter(params.fetch(:year, Date.current.year)) || Date.current.year
-    @year = Date.current.year unless SupportedCalendarPeriod::YEARS.cover?(@year)
-
-    if params[:month] == "all"
-      @month = nil
-      @dates = (Date.new(@year, 1, 1)..Date.new(@year, 12, 31)).to_a
-    else
-      @month = parse_decimal_filter(params.fetch(:month, Date.current.month))
-      @month = Date.current.month unless @month&.between?(1, 12)
-      @dates = Date.new(@year, @month, 1).all_month.to_a
-    end
+    window = CalendarWindow.new(year: params[:year], month: params[:month])
+    @year, @month, @dates = window.year, window.month, window.dates
 
     @calendar_off_days = FederalCalendar.nonworking_dates(@dates)
 
@@ -20,9 +11,9 @@ class CalendarsController < ApplicationController
       .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)
       .order(:starts_on)
     @leave_requests_by_date = @leave_requests.each_with_object({}) do |request, requests_by_date|
-      first_visible_date = [ request.starts_on, @dates.first ].max
-      last_visible_date = [ request.ends_on, @dates.last ].min
-      (first_visible_date..last_visible_date).each do |date|
+      next unless (visible_dates = window.visible_dates_for(request))
+
+      visible_dates.each do |date|
         slots = (requests_by_date[date] ||= {})
         start_slot = request.starts_on.jd * 2 + (request.starts_afternoon? ? 1 : 0)
         end_slot = request.ends_on.jd * 2 + (request.ends_morning? ? 1 : 2)

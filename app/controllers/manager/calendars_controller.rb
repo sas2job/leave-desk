@@ -4,16 +4,8 @@ module Manager
 
     def show
       require_string_fields!(params, :year, :month)
-      @year = parse_decimal_filter(params.fetch(:year, Date.current.year)) || Date.current.year
-      @year = Date.current.year unless SupportedCalendarPeriod::YEARS.cover?(@year)
-      if params[:month] == "all"
-        @month = nil
-        @dates = (Date.new(@year, 1, 1)..Date.new(@year, 12, 31)).to_a
-      else
-        @month = parse_decimal_filter(params.fetch(:month, Date.current.month))
-        @month = Date.current.month unless @month&.between?(1, 12)
-        @dates = Date.new(@year, @month, 1).all_month.to_a
-      end
+      @window = CalendarWindow.new(year: params[:year], month: params[:month])
+      @year, @month, @dates = @window.year, @window.month, @window.dates
 
       @calendar_off_days = FederalCalendar.nonworking_dates(@dates)
 
@@ -38,9 +30,9 @@ module Manager
 
     def calendar_row(employee, requests)
       leave_days = requests.each_with_object(Set.new) do |request, days|
-        first_visible_date = [ request.starts_on, @dates.first ].max
-        last_visible_date = [ request.ends_on, @dates.last ].min
-        (first_visible_date..last_visible_date).each { |date| days << date }
+        next unless (visible_dates = @window.visible_dates_for(request))
+
+        visible_dates.each { |date| days << date }
       end
       { employee:, leave_days:, birthday: birthday_in_year(employee) }
     end
