@@ -27,9 +27,6 @@ class CalendarsController < ApplicationController
   private
 
   def birthday_in_year
-    birthday = Current.user.birthday_on
-    birthday && Date.new(@year, birthday.month, birthday.day)
-  rescue Date::Error
-    nil
+    Current.user.birthday_in_year(@year)
   end
 end

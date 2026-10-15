@@ -33,6 +33,14 @@ class User < ApplicationRecord
   after_update :revoke_sessions_after_authentication_change,
     if: -> { saved_change_to_active? || saved_change_to_password_digest? }
 
+  def birthday_in_year(year)
+    return unless birthday_on.is_a?(Date)
+
+    Date.new(year, birthday_on.month, birthday_on.day)
+  rescue Date::Error
+    nil
+  end
+
   def save(**options)
     with_manager_locks { super }
   end

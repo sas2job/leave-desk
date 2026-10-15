@@ -181,6 +181,31 @@ module Admin
       assert_empty @administrator.sessions.reload
     end
 
+    test "invalid non-finite birthday shows form errors and can be corrected" do
+      sign_in_as(@administrator)
+
+      [ "infinity", "-infinity" ].each do |invalid_date|
+        patch admin_user_path(@employee), params: { user: { birthday_on: invalid_date } }
+        assert_response :unprocessable_entity
+        assert_select ".error-summary li", text: "День рождения: содержит неверную дату"
+        assert_select "input[name='user[birthday_on]']", count: 1
+        assert_nil @employee.reload.birthday_on
+      end
+
+      patch admin_user_path(@employee), params: { user: { birthday_on: "1980-05-04" } }
+      assert_redirected_to admin_users_path
+      assert_equal Date.new(1980, 5, 4), @employee.reload.birthday_on
+    end
+
+    test "edit form renders a persisted employee with a legacy non-finite birthday" do
+      employee = @employee
+      employee.birthday_on = "infinity"
+      html = ApplicationController.render(partial: "admin/users/form",
+        locals: { user: employee }, assigns: { manager_options: [] })
+
+      assert_includes html, 'name="user[birthday_on]"'
+    end
+
     private
 
     def create_user(email_address, role: :employee)

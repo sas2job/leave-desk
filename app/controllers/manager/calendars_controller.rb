@@ -38,10 +38,7 @@ module Manager
     end
 
     def birthday_in_year(employee)
-      birthday = employee.birthday_on
-      birthday && Date.new(@year, birthday.month, birthday.day)
-    rescue Date::Error
-      nil
+      employee.birthday_in_year(@year)
     end
   end
 end

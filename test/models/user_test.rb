@@ -1,6 +1,24 @@
 require "test_helper"
 
 class UserTest < ActiveSupport::TestCase
+  test "birthdays must be finite and may precede the calendar year range" do
+    user = User.new(name: "Example Employee", email_address: "employee@example.test",
+      password: "test-password", birthday_on: Date.new(1980, 5, 4))
+    assert user.valid?
+    assert_equal Date.new(2026, 5, 4), user.birthday_in_year(2026)
+
+    [ "infinity", "-infinity" ].each do |invalid_date|
+      user.birthday_on = invalid_date
+      assert_not user.valid?
+      assert_includes user.errors[:birthday_on], "содержит неверную дату"
+      assert_nil user.birthday_in_year(2026)
+    end
+
+    user.birthday_on = Date.new(2000, 2, 29)
+    assert_nil user.birthday_in_year(2025)
+    assert_equal Date.new(2024, 2, 29), user.birthday_in_year(2024)
+  end
+
   test "normalizes email address" do
     user = User.create!(name: "Example Employee", email_address: "  Employee@Example.Test ",
       password: "test-password")

@@ -22,7 +22,7 @@
       </div>
       <div class="field">
         <%= form.label :birthday_on, "День рождения" %>
-        <%= form.date_field :birthday_on %>
+        <%= form.date_field :birthday_on, value: user.birthday_on.is_a?(Date) ? user.birthday_on.iso8601 : nil %>
       </div>
       <div class="field">
         <%= form.label :role, "Роль" %>

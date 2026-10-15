@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_15_102718) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -116,6 +116,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_100000) do
     t.date "birthday_on"
     t.index "lower((email_address)::text)", name: "index_users_on_lower_email_address", unique: true
     t.index ["manager_id"], name: "index_users_on_manager_id"
+    t.check_constraint "birthday_on IS NULL OR isfinite(birthday_on)", name: "users_finite_birthday"
     t.check_constraint "manager_id IS NULL OR manager_id <> id", name: "users_manager_is_not_self"
     t.check_constraint "role = ANY (ARRAY[0, 1, 2])", name: "users_valid_role"
   end
