@@ -17,6 +17,33 @@ root. Копии старше семи суток удаляются тольк�
 7,5 ГиБ из 15 ГиБ; том PostgreSQL занимал 86 МиБ, первый архив — 30 617 байт.
 Это измерение текущего состояния, а не прогноз будущего роста.
 
+## Установка и обновление таймера
+
+Workflow деплоя копирует `backup.sh`, `leave-desk-backup.service` и
+`leave-desk-backup.timer` в `/root/projects/leave-desk`, но не устанавливает
+unit-файлы в systemd. После первого развёртывания и после изменения этих
+файлов выполните от root на VPS:
+
+```sh
+cd /root/projects/leave-desk
+install -m 0644 leave-desk-backup.service /etc/systemd/system/
+install -m 0644 leave-desk-backup.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now leave-desk-backup.timer
+systemctl restart leave-desk-backup.timer
+systemctl cat leave-desk-backup.service leave-desk-backup.timer
+systemctl show -p FragmentPath leave-desk-backup.service leave-desk-backup.timer
+systemctl is-enabled leave-desk-backup.timer
+systemctl is-active leave-desk-backup.timer
+systemctl list-timers --all leave-desk-backup.timer
+```
+
+Проверяйте, что загруженные определения взяты из `/etc/systemd/system`, а
+следующий запуск назначен на 02:00 UTC. Повторный запуск команд обновляет
+определения и расписание таймера. `Persistent=true` может запустить
+пропущенное за время простоя копирование сразу после включения таймера;
+сначала убедитесь, что PostgreSQL запущен и серверный `.env` настроен.
+
 Проверка состояния на сервере:
 
 ```sh
