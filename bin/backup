@@ -23,18 +23,30 @@ chmod 700 "$backup_directory"
 umask 077
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-destination="$backup_directory/leave-desk-$timestamp.dump"
-temporary="$destination.incomplete"
+temporary="$(mktemp "$backup_directory/.leave-desk-$timestamp.XXXXXXXX")"
+suffix="${temporary##*.}"
+destination="$backup_directory/leave-desk-$timestamp-$suffix.dump"
+checksum_temporary="$temporary.sha256"
+published_archive=false
+complete=false
 
 cleanup() {
-  rm -f "$temporary"
+  if [[ "$published_archive" == true && "$complete" != true ]]; then
+    rm -f -- "$destination"
+  fi
+  rm -f -- "$temporary" "$checksum_temporary"
 }
 trap cleanup EXIT
 
 pg_dump --format=custom --no-owner --no-privileges \
   --file="$temporary" "$DATABASE_URL"
-mv "$temporary" "$destination"
 destination_name="$(basename "$destination")"
-(cd "$backup_directory" && sha256sum "$destination_name" > "$destination_name.sha256")
+checksum_output="$(sha256sum < "$temporary")"
+digest="${checksum_output%% *}"
+printf '%s  %s\n' "$digest" "$destination_name" > "$checksum_temporary"
+ln -- "$temporary" "$destination"
+published_archive=true
+ln -- "$checksum_temporary" "$destination.sha256"
+complete=true
 
 echo "Backup created: $destination"
