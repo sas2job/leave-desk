@@ -1,6 +1,8 @@
 require "test_helper"
 
 class CalendarsControllerTest < ActionDispatch::IntegrationTest
+  include DateIterationBudgetHelper
+
   setup do
     @manager = create_user("manager@example.test", role: :manager)
     @employee = create_user("employee@example.test", manager: @manager,
@@ -53,10 +55,13 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     request.approve!(by: @manager)
     sign_in_as(@employee)
 
-    get calendar_path(year: 2026, month: 10)
+    successor_calls = count_date_successors do
+      get calendar_path(year: 2026, month: 10)
+    end
 
     assert_response :success
     assert_select ".team-calendar td.leave", count: 31
+    assert_operator successor_calls, :<=, 200
   end
 
   test "shows approved morning and pending afternoon on the same date" do
