@@ -5,7 +5,7 @@ module Manager
     def show
       require_string_fields!(params, :year, :month)
       @year = parse_decimal_filter(params.fetch(:year, Date.current.year)) || Date.current.year
-      @year = Date.current.year unless @year.between?(2000, 2100)
+      @year = Date.current.year unless SupportedCalendarPeriod::YEARS.cover?(@year)
       if params[:month] == "all"
         @month = nil
         @dates = (Date.new(@year, 1, 1)..Date.new(@year, 12, 31)).to_a

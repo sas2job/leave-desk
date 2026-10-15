@@ -23,7 +23,7 @@ module Admin
 
     def new
       year = Date.current.year
-      year += 1 while FederalCalendar.exists?(year:) && year < 2100
+      year += 1 while FederalCalendar.exists?(year:) && year < SupportedCalendarPeriod::YEARS.last
       @calendar = FederalCalendar.new(year:,
         public_holidays: RussianFederalHoliday.fixed_dates_for(year))
     end

@@ -120,6 +120,22 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "accepts supported boundary years and rejects years outside them" do
+    sign_in_as(@employee)
+
+    [ 2000, 2100 ].each do |year|
+      get calendar_path(year:, month: 10)
+      assert_response :success
+      assert_select "h1", text: /октябрь #{year}/
+    end
+
+    [ 1999, 2101 ].each do |year|
+      get calendar_path(year:, month: 10)
+      assert_response :success
+      assert_select "h1", text: /октябрь 2026/
+    end
+  end
+
   test "parses years only as decimal" do
     sign_in_as(@employee)
 

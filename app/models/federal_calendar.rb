@@ -11,7 +11,7 @@ class FederalCalendar < ApplicationRecord
     end.to_set
   end
 
-  validates :year, numericality: { only_integer: true, in: 2000..2100 }, uniqueness: true
+  validates :year, numericality: { only_integer: true, in: SupportedCalendarPeriod::YEARS }, uniqueness: true
   validates :legal_basis, presence: true
   validate :year_has_valid_syntax
   validate :year_is_unchanged, on: :update

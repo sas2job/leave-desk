@@ -122,6 +122,22 @@ module Manager
       end
     end
 
+    test "accepts supported boundary years and rejects years outside them" do
+      sign_in_as(@manager)
+
+      [ 2000, 2100 ].each do |year|
+        get manager_calendar_path(year:, month: 10)
+        assert_response :success
+        assert_select "h1", text: /октябрь #{year}/
+      end
+
+      [ 1999, 2101 ].each do |year|
+        get manager_calendar_path(year:, month: 10)
+        assert_response :success
+        assert_select "h1", text: /октябрь 2026/
+      end
+    end
+
     test "parses years only as decimal" do
       sign_in_as(@manager)
 

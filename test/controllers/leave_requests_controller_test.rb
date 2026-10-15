@@ -19,6 +19,21 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(@employee)
   end
 
+  test "new request form uses current-year dates at supported boundaries" do
+    [ 2000, 2100 ].each do |year|
+      travel_to Date.new(year, 6, 1) do
+        sign_in_as(@employee)
+        get new_leave_request_path
+
+        assert_response :success
+        %w[starts_on ends_on].each do |field|
+          assert_select "input[name='leave_request[#{field}]']" \
+                        "[min='#{year}-01-01'][max='#{year}-12-31']"
+        end
+      end
+    end
+  end
+
   test "rejects numeric JSON request fields without creating a request" do
     attributes = { leave_type_id: @leave_type.id, starts_on: "2026-11-10",
       ends_on: "2026-11-12", start_part: "morning", end_part: "afternoon",

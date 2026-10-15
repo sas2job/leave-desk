@@ -9,6 +9,15 @@ module Admin
         password: "test-password")
     end
 
+    test "calendar year form uses supported period" do
+      sign_in_as(@administrator)
+
+      get new_admin_federal_calendar_path
+
+      assert_response :success
+      assert_select "input[name='federal_calendar[year]'][min='2000'][max='2100']"
+    end
+
     test "only administrators can manage calendars" do
       sign_in_as(@employee)
       get admin_federal_calendars_path

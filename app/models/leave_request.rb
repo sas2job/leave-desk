@@ -2,8 +2,6 @@ class LeaveRequest < ApplicationRecord
   class InvalidTransition < StandardError; end
   class ReviewNotAuthorized < StandardError; end
 
-  SUPPORTED_DATES = Date.new(2000, 1, 1)..Date.new(2100, 12, 31)
-
   enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3 }
   enum :start_part, { morning: 0, afternoon: 1 }, prefix: :starts,
     default: :morning, validate: true
@@ -131,8 +129,8 @@ class LeaveRequest < ApplicationRecord
   end
 
   def dates_are_supported
-    errors.add(:starts_on, "должна быть между 01.01.2000 и 31.12.2100") if starts_on && !supported_date?(starts_on)
-    errors.add(:ends_on, "должна быть между 01.01.2000 и 31.12.2100") if ends_on && !supported_date?(ends_on)
+    errors.add(:starts_on, SupportedCalendarPeriod.date_error) if starts_on && !supported_date?(starts_on)
+    errors.add(:ends_on, SupportedCalendarPeriod.date_error) if ends_on && !supported_date?(ends_on)
   end
 
   def dates_are_in_current_year
@@ -160,7 +158,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def supported_date?(date)
-    date.is_a?(Date) && SUPPORTED_DATES.cover?(date)
+    date.is_a?(Date) && SupportedCalendarPeriod::DATES.cover?(date)
   end
 
   def review!(new_status:, by:, comment:)

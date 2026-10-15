@@ -17,7 +17,8 @@
         <% if calendar.persisted? %>
           <%= form.number_field :year, value: calendar.year, disabled: true %>
         <% else %>
-          <%= form.number_field :year, min: 2000, max: 2100, required: true %>
+          <%= form.number_field :year, min: SupportedCalendarPeriod::YEARS.first,
+            max: SupportedCalendarPeriod::YEARS.last, required: true %>
         <% end %>
       </div>
       <div class="field field--full">
