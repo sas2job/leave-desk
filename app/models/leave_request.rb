@@ -24,6 +24,7 @@ class LeaveRequest < ApplicationRecord
   validate :leave_type_is_active, on: :create
   validate :period_does_not_overlap_active_request
   validate :period_boundaries_are_in_order
+  validate :birthday_leave_is_one_full_day, on: :create
   validate :duration_is_positive
   validate :leave_type_id_has_valid_syntax
   validate :calculation_inputs_are_unchanged, on: :update
@@ -210,6 +211,15 @@ class LeaveRequest < ApplicationRecord
 
     errors.add(:base, "Период отсутствия не может начаться после полудня и закончиться " \
       "до полудня того же дня. Выберите окончание «До конца дня» или укажите следующую дату")
+  end
+
+  def birthday_leave_is_one_full_day
+    return unless leave_type&.code == "BIRTHDAY"
+    return unless dates_supported? && ends_on >= starts_on
+    return if start_part.nil? || end_part.nil?
+    return if starts_on == ends_on && starts_morning? && ends_afternoon?
+
+    errors.add(:base, "Выходной в день рождения можно оформить только на один полный день")
   end
 
   def duration_is_positive

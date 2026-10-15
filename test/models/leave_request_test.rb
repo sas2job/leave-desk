@@ -346,6 +346,28 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_equal 8, request.duration_in_days
   end
 
+  test "birthday leave is one full calendar day" do
+    birthday_type = LeaveType.create!(name: "Выходной в день рождения", code: "BIRTHDAY")
+    long_request = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: Date.new(2026, 10, 17), ends_on: Date.new(2026, 11, 2))
+
+    assert_no_difference([ "LeaveRequest.count", "LeaveRequestEvent.count" ]) do
+      assert_not long_request.save
+    end
+    assert_includes long_request.errors[:base],
+      "Выходной в день рождения можно оформить только на один полный день"
+
+    half_day = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: Date.new(2026, 10, 17), ends_on: Date.new(2026, 10, 17),
+      end_part: :morning)
+    assert_not half_day.valid?
+
+    full_day = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: Date.new(2026, 10, 17), ends_on: Date.new(2026, 10, 17))
+    assert full_day.valid?
+    assert_equal 1, full_day.duration_in_days
+  end
+
   test "duration includes federal holidays when leave type requires it" do
     request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
       starts_on: Date.new(2026, 1, 1), ends_on: Date.new(2026, 1, 10))
