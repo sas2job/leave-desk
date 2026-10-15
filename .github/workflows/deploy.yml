@@ -110,6 +110,8 @@ jobs:
           scp -P "$DEPLOY_PORT" deploy/compose.yml deploy/Caddyfile \
             deploy/backup.sh deploy/leave-desk-backup.service \
             deploy/leave-desk-backup.timer \
+            deploy/leave-desk-session-prune.service \
+            deploy/leave-desk-session-prune.timer \
             "$DEPLOY_USER@$DEPLOY_HOST:/root/projects/leave-desk/"
 
       - name: Deploy tested image
