@@ -16,6 +16,8 @@ module Manager
       head :not_found
     rescue LeaveRequest::InvalidTransition => error
       redirect_to manager_leave_requests_path, alert: error.message
+    rescue ActiveRecord::RecordInvalid => error
+      render_review_errors(error)
     end
 
     def reject
@@ -25,6 +27,8 @@ module Manager
       head :not_found
     rescue LeaveRequest::InvalidTransition => error
       redirect_to manager_leave_requests_path, alert: error.message
+    rescue ActiveRecord::RecordInvalid => error
+      render_review_errors(error)
     end
 
     private
@@ -43,6 +47,18 @@ module Manager
 
     def validate_review_comment
       head :bad_request unless params[:review_comment].nil? || params[:review_comment].is_a?(String)
+    end
+
+    def render_review_errors(error)
+      messages = error.record.errors.full_messages
+      respond_to do |format|
+        format.html do
+          flash.now[:alert] = messages.to_sentence
+          index
+          render :index, status: :unprocessable_entity
+        end
+        format.json { render json: { errors: messages }, status: :unprocessable_entity }
+      end
     end
   end
 end

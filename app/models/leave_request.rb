@@ -1,4 +1,6 @@
 class LeaveRequest < ApplicationRecord
+  COMMENT_MAX_LENGTH = 2_000
+
   class InvalidTransition < StandardError; end
   class ReviewNotAuthorized < StandardError; end
 
@@ -15,6 +17,8 @@ class LeaveRequest < ApplicationRecord
   has_many :events, class_name: "LeaveRequestEvent", dependent: :restrict_with_exception
 
   validates :starts_on, :ends_on, presence: true
+  validates :employee_comment, length: { maximum: COMMENT_MAX_LENGTH }, if: :will_save_change_to_employee_comment?
+  validates :review_comment, length: { maximum: COMMENT_MAX_LENGTH }, if: :will_save_change_to_review_comment?
   validate :dates_are_supported
   validate :dates_are_in_current_year, on: :create
   validate :ends_on_is_not_before_starts_on

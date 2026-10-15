@@ -9,6 +9,8 @@ class LeaveType < ApplicationRecord
   normalizes :code, with: ->(code) { code.strip.upcase }
 
   validates :name, :code, presence: true
+  validates :name, length: { maximum: 100 }, if: :will_save_change_to_name?
+  validates :code, length: { maximum: 40 }, if: :will_save_change_to_code?
   validates :code, uniqueness: true
   validate :active_has_boolean_input
   validate :holiday_handling_is_unchanged_when_used

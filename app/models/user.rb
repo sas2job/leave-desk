@@ -19,8 +19,10 @@ class User < ApplicationRecord
   normalizes :email_address, with: ->(email) { email.strip.downcase }
 
   validates :name, presence: true
+  validates :name, length: { maximum: 100 }, if: :will_save_change_to_name?
   validates :email_address, presence: true, uniqueness: { case_sensitive: false },
     format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :email_address, length: { maximum: 254 }, if: :will_save_change_to_email_address?
   validates :password, length: { minimum: MINIMUM_PASSWORD_LENGTH }, allow_nil: true
   validate :manager_is_active_manager
   validate :role_and_activity_support_direct_reports

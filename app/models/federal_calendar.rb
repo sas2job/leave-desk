@@ -13,6 +13,7 @@ class FederalCalendar < ApplicationRecord
 
   validates :year, numericality: { only_integer: true, in: SupportedCalendarPeriod::YEARS }, uniqueness: true
   validates :legal_basis, presence: true
+  validates :legal_basis, length: { maximum: 1_000 }, if: :will_save_change_to_legal_basis?
   validate :year_has_valid_syntax
   validate :year_is_unchanged, on: :update
   validate :parse_form_dates

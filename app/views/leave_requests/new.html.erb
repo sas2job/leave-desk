@@ -54,6 +54,7 @@
         <div class="field field--full">
           <%= form.label :employee_comment, "Комментарий" %>
           <%= form.text_area :employee_comment,
+          maxlength: LeaveRequest::COMMENT_MAX_LENGTH,
             placeholder: "Необязательно: добавьте важные детали" %>
         </div>
       </div>

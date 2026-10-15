@@ -19,6 +19,69 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(@employee)
   end
 
+  test "form accepts 2000 Unicode comment characters and rejects one more" do
+    comment = "🌿" * LeaveRequest::COMMENT_MAX_LENGTH
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-10", ends_on: "2026-11-10",
+        employee_comment: comment
+      } }
+    end
+    assert_response :redirect
+    assert_equal comment, LeaveRequest.last.events.created.first.comment
+
+    assert_no_difference([ "LeaveRequest.count", "LeaveRequestEvent.count" ]) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-20", ends_on: "2026-11-20",
+        employee_comment: comment + "🌿"
+      } }
+    end
+    assert_response :unprocessable_entity
+    assert_select ".error-summary", /2000/
+  end
+
+  test "JSON comment length violation returns validation errors without partial records" do
+    comment = "я" * LeaveRequest::COMMENT_MAX_LENGTH
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-10", ends_on: "2026-11-10",
+        employee_comment: comment
+      } }, as: :json
+    end
+    assert_response :redirect
+
+    assert_no_difference([ "LeaveRequest.count", "LeaveRequestEvent.count" ]) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-20", ends_on: "2026-11-20",
+        employee_comment: comment + "я"
+      } }, as: :json
+    end
+    assert_response :unprocessable_entity
+    assert_match(/2000/, response.parsed_body.fetch("errors").join)
+  end
+
+  test "oversized JSON body is rejected before parsing or persistence" do
+    invalid_json = "x" * (RequestBodyLimit::MAX_BYTES + 1)
+    assert_no_difference([ "LeaveRequest.count", "LeaveRequestEvent.count" ]) do
+      post leave_requests_path, params: invalid_json,
+        headers: { "CONTENT_TYPE" => "application/json", "ACCEPT" => "application/json" }
+    end
+    assert_response 413
+  end
+
+  test "JSON body at the byte limit reaches application parsing" do
+    payload = { leave_request: {
+      leave_type_id: @leave_type.id, starts_on: "2026-11-10", ends_on: "2026-11-10"
+    } }.to_json
+    payload = payload.ljust(RequestBodyLimit::MAX_BYTES)
+
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: payload,
+        headers: { "CONTENT_TYPE" => "application/json", "ACCEPT" => "application/json" }
+    end
+    assert_response :redirect
+  end
+
   test "new request form uses current-year dates at supported boundaries" do
     [ 2000, 2100 ].each do |year|
       travel_to Date.new(year, 6, 1) do

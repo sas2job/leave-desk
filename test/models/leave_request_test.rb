@@ -16,6 +16,16 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_predicate request.events.first, :created?
   end
 
+  test "historical oversized comment does not block a later decision" do
+    request = create_request
+    request.update_columns(employee_comment: "🌿" * (LeaveRequest::COMMENT_MAX_LENGTH + 1))
+
+    request.approve!(by: @manager, comment: "Approved")
+
+    assert_predicate request.reload, :approved?
+    assert_equal LeaveRequest::COMMENT_MAX_LENGTH + 1, request.employee_comment.length
+  end
+
   test "end date cannot precede start date" do
     request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
       starts_on: Date.new(2026, 10, 10), ends_on: Date.new(2026, 10, 9))

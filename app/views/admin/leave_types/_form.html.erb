@@ -14,12 +14,12 @@
     <div class="form-grid">
       <div class="field">
         <%= form.label :name, "Название" %>
-        <%= form.text_field :name, required: true, placeholder: "Например, Учебный отпуск" %>
+        <%= form.text_field :name, required: true, maxlength: 100, placeholder: "Например, Учебный отпуск" %>
       </div>
 
       <div class="field">
         <%= form.label :code, "Код" %>
-        <%= form.text_field :code, required: true, placeholder: "STUDY" %>
+        <%= form.text_field :code, required: true, maxlength: 40, placeholder: "STUDY" %>
       </div>
 
       <div class="field field--full">

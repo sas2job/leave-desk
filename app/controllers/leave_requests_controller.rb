@@ -50,6 +50,9 @@ class LeaveRequestsController < ApplicationController
 
   def render_new_with_errors
     @leave_types = LeaveType.where(active: true).order(:name)
-    render :new, status: :unprocessable_entity
+    respond_to do |format|
+      format.html { render :new, status: :unprocessable_entity }
+      format.json { render json: { errors: @leave_request.errors.full_messages }, status: :unprocessable_entity }
+    end
   end
 end

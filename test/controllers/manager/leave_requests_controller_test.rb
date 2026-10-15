@@ -38,6 +38,42 @@ module Manager
       assert_equal "approved", @employee.notifications.last.leave_request_event.event_type
     end
 
+  test "review comment limit rejects JSON without changing decision or events" do
+    leave_request = create_request(@employee)
+    sign_in_as(@manager)
+    comment = "🌿" * LeaveRequest::COMMENT_MAX_LENGTH
+
+    assert_no_difference("LeaveRequestEvent.count") do
+      patch approve_manager_leave_request_path(leave_request),
+        params: { review_comment: comment + "🌿" }, as: :json
+    end
+    assert_response :unprocessable_entity
+    assert_match(/2000/, response.parsed_body.fetch("errors").join)
+    assert_predicate leave_request.reload, :pending?
+    assert_nil leave_request.reviewer
+
+    assert_difference("LeaveRequestEvent.count", 1) do
+      patch approve_manager_leave_request_path(leave_request),
+        params: { review_comment: comment }, as: :json
+    end
+    assert_response :redirect
+    assert_predicate leave_request.reload, :approved?
+    assert_equal comment, leave_request.events.approved.last.comment
+  end
+
+  test "review comment limit returns a form validation error" do
+    leave_request = create_request(@employee)
+    sign_in_as(@manager)
+
+    assert_no_difference("LeaveRequestEvent.count") do
+      patch reject_manager_leave_request_path(leave_request),
+        params: { review_comment: "я" * (LeaveRequest::COMMENT_MAX_LENGTH + 1) }
+    end
+    assert_response :unprocessable_entity
+    assert_select ".flash--alert", /2000/
+    assert_predicate leave_request.reload, :pending?
+  end
+
     test "shows a repeated review error in Russian" do
       leave_request = create_request(@employee)
       sign_in_as(@manager)
