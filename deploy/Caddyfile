@@ -11,5 +11,9 @@
 		}
 	}
 
+	request_body {
+		max_size 1048576
+	}
+
 	reverse_proxy web:80
 }

@@ -48,6 +48,7 @@ services:
       RAILS_MAX_THREADS: 3
       WEB_CONCURRENCY: 1
       LOG_REQUESTS: "false"
+      THRUSTER_MAX_REQUEST_BODY: "1048576"
       PGHOST: db
       LEAVE_DESK_DATABASE_USER: leave_desk_app
       LEAVE_DESK_DATABASE_PASSWORD: ${LEAVE_DESK_RUNTIME_DATABASE_PASSWORD:?Set a separate runtime database password}
