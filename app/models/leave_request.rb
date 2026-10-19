@@ -35,11 +35,11 @@ class LeaveRequest < ApplicationRecord
   after_create :record_calendar_unverified_event, if: :calendar_unverified?
 
   def save(**options)
-    with_leave_type_lock { super }
+    with_persistence_locks { super }
   end
 
   def save!(**options)
-    with_leave_type_lock { super }
+    with_persistence_locks { super }
   end
 
   def approve!(by:, comment: nil)
@@ -120,7 +120,7 @@ class LeaveRequest < ApplicationRecord
 
   private
 
-  def with_leave_type_lock
+  def with_persistence_locks
     return yield unless leave_type_id.present? && (new_record? || will_save_change_to_leave_type_id?)
 
     self.class.transaction do
@@ -128,17 +128,33 @@ class LeaveRequest < ApplicationRecord
         LeaveType.where(id: leave_type_id).lock("FOR UPDATE").first
       end
       association(:leave_type).target = locked_type
-      if new_record? && calendar_years.any?
-        FederalCalendar.with_year_locks(calendar_years) do
-          FederalCalendar.uncached do
-            FederalCalendar.where(year: calendar_years).order(:year).lock("FOR UPDATE").load
-            yield
-          end
+      if new_record?
+        with_calendar_locks do
+          lock_employee_for_creation
+          yield
         end
       else
         yield
       end
     end
+  end
+
+  def with_calendar_locks
+    return yield if calendar_years.empty?
+
+    FederalCalendar.with_year_locks(calendar_years) do
+      FederalCalendar.uncached do
+        FederalCalendar.where(year: calendar_years).order(:year).lock("FOR UPDATE").load
+        yield
+      end
+    end
+  end
+
+  def lock_employee_for_creation
+    locked_employee = User.uncached do
+      User.where(id: employee_id).lock("FOR UPDATE").first
+    end
+    association(:employee).target = locked_employee
   end
 
   def leave_type_id_has_valid_syntax
