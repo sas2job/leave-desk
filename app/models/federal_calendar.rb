@@ -6,6 +6,14 @@ class FederalCalendar < ApplicationRecord
     with_year_locks([ year ], &block)
   end
 
+  def self.parse_iso_date(value)
+    return unless value.is_a?(String) && value.match?(DATE_PATTERN)
+
+    Date.iso8601(value)
+  rescue Date::Error
+    nil
+  end
+
   def self.with_year_locks(years)
     lock_years = years.map { |year| Integer(year) }.uniq.sort
     unless lock_years.all? { |year| SupportedCalendarPeriod::YEARS.cover?(year) }
@@ -147,11 +155,7 @@ class FederalCalendar < ApplicationRecord
   end
 
   def date_from_input(text)
-    return unless text&.match?(DATE_PATTERN)
-
-    Date.iso8601(text)
-  rescue Date::Error
-    nil
+    self.class.parse_iso_date(text)
   end
 
   def calendar_dates_are_valid

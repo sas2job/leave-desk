@@ -12,6 +12,7 @@ class FederalCalendarImporter
 
     data = JSON.parse(content)
     validate_structure!(data)
+    data = normalize_dates!(data)
 
     FederalCalendar.transaction do
       calendar = FederalCalendar.lock("FOR UPDATE").find_by(year: data.fetch("year"))
@@ -46,5 +47,23 @@ class FederalCalendarImporter
     pair.is_a?(Hash) && pair.keys.sort == %w[from to] && pair.values.all? { |date| date.is_a?(String) }
   end
 
-  private_class_method :validate_structure!, :valid_pair?
+  def self.normalize_dates!(data)
+    public_holidays = data.fetch("public_holidays").map do |value|
+      parse_date!(value, "Праздничные даты")
+    end
+    transfers = data.fetch("transfers").map do |pair|
+      {
+        "from" => parse_date!(pair.fetch("from"), "Даты переносов").iso8601,
+        "to" => parse_date!(pair.fetch("to"), "Даты переносов").iso8601
+      }
+    end
+    data.merge("public_holidays" => public_holidays, "transfers" => transfers)
+  end
+
+  def self.parse_date!(value, field_name)
+    FederalCalendar.parse_iso_date(value) ||
+      raise(InvalidFile, "#{field_name} должны быть в формате ГГГГ-ММ-ДД")
+  end
+
+  private_class_method :validate_structure!, :valid_pair?, :normalize_dates!, :parse_date!
 end
