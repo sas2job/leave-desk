@@ -1,0 +1,103 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  echo "Usage: rollback.sh RELEASE_ID [GHCR_USERNAME]" >&2
+  exit 64
+fi
+
+release_id=$1
+ghcr_username=${2-}
+case "$release_id" in
+  *[!a-zA-Z0-9._-]* | "")
+    echo "Invalid release identifier" >&2
+    exit 64
+    ;;
+esac
+if [ -n "$ghcr_username" ]; then
+  case "$ghcr_username" in
+    *[!a-zA-Z0-9_-]*)
+      echo "Invalid GHCR username" >&2
+      exit 64
+      ;;
+  esac
+fi
+
+script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+deployment_root=${LEAVE_DESK_DEPLOYMENT_ROOT:-$(dirname -- "$(dirname -- "$script_directory")")}
+target_release="$deployment_root/releases/$release_id"
+if [ ! -d "$target_release" ] || [ -L "$target_release" ]; then
+  echo "Release not found: $release_id" >&2
+  exit 1
+fi
+
+image=$(sed -n 's/^LEAVE_DESK_IMAGE=//p' "$target_release/release.env")
+case "$image" in
+  ghcr.io/*:*) ;;
+  *)
+    echo "Release has an invalid image reference" >&2
+    exit 1
+    ;;
+esac
+case "$image" in
+  *[!a-zA-Z0-9._/:@-]*)
+    echo "Release has an invalid image reference" >&2
+    exit 1
+    ;;
+esac
+
+docker_config=
+next_link=
+
+discard_credentials() {
+  if [ -n "$docker_config" ]; then
+    docker --config "$docker_config" logout ghcr.io >/dev/null 2>&1 || true
+    rm -f -- "$docker_config/config.json"
+    rmdir -- "$docker_config"
+    docker_config=
+  fi
+}
+
+cleanup() {
+  status=$?
+  trap - EXIT HUP INT TERM
+  discard_credentials || true
+  if [ -n "$next_link" ]; then
+    rm -f -- "$next_link"
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
+if docker image inspect "$image" >/dev/null 2>&1; then
+  echo "Using cached rollback image: $image"
+else
+  if [ -z "$ghcr_username" ]; then
+    echo "Rollback image is not cached; provide a GHCR username and token on stdin" >&2
+    exit 1
+  fi
+
+  runtime_directory=${ROLLBACK_RUNTIME_DIRECTORY:-${XDG_RUNTIME_DIR:-/tmp}}
+  docker_config=$(mktemp -d "$runtime_directory/leave-desk-rollback-docker.XXXXXX")
+  chmod 0700 "$docker_config"
+  docker --config "$docker_config" login ghcr.io \
+    --username "$ghcr_username" --password-stdin
+  docker --config "$docker_config" pull "$image"
+  discard_credentials
+
+  if ! docker image inspect "$image" >/dev/null 2>&1; then
+    echo "Rollback image is unavailable after pull: $image" >&2
+    exit 1
+  fi
+fi
+
+"$target_release/compose.sh" config --quiet
+
+next_link="$deployment_root/.current.rollback.$$"
+ln -s "releases/$release_id" "$next_link"
+mv -T "$next_link" "$deployment_root/current"
+next_link=
+sync "$deployment_root"
+
+"$target_release/compose.sh" up -d --no-deps --pull never web

@@ -153,15 +153,36 @@ Compose всегда получает SHA-тег, поэтому работаю�
 `https://$DEPLOY_HOST/up` с проверкой сертификата; `DEPLOY_HOST` должен
 совпадать с публичным адресом из `LEAVE_DESK_PUBLIC_HOST`.
 
-Для отката выберите сохранённый каталог предыдущего релиза и атомарно верните
-на него `current`. Его `release.env` уже содержит соответствующий SHA-тег:
+Для отката выберите сохранённый каталог предыдущего релиза. Скрипт сначала
+проверяет его `release.env` и наличие точного SHA-образа, затем атомарно
+переключает `current` и запускает `web` с `--pull never`. Миграции при откате
+автоматически не выполняются.
+
+Если образ уже есть в локальном Docker cache, авторизация GHCR не нужна:
 
 ```sh
 cd /root/projects/leave-desk
-ln -s releases/<предыдущий-release-id> .current.rollback
-mv -T .current.rollback current
-./current/compose.sh pull web
-./current/compose.sh up -d --no-deps web
+./current/rollback.sh <предыдущий-release-id>
+```
+
+Если образ отсутствует, подготовьте отдельный GitHub PAT (classic) с правом
+`read:packages` и доступом к пакету. Передайте токен только через stdin; имя
+GitHub не является секретом:
+
+```sh
+cd /root/projects/leave-desk
+read -r -s -p 'GHCR token: ' GHCR_TOKEN; printf '\n'
+printf '%s\n' "$GHCR_TOKEN" |
+  ./current/rollback.sh <предыдущий-release-id> <github-username>
+unset GHCR_TOKEN
+```
+
+Скрипт использует отдельный временный Docker config, выполняет logout и удаляет
+config до переключения релиза. Токен не передаётся аргументом и не должен
+попадать в shell history или журналы. После любого варианта проверьте локальный
+health endpoint:
+
+```sh
 set -a; . ./.env; set +a
 curl --fail --header "Host: $LEAVE_DESK_PUBLIC_HOST" http://127.0.0.1:3000/up
 ```

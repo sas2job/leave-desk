@@ -117,7 +117,7 @@ jobs:
             leave-desk-backup.service leave-desk-backup.timer
             leave-desk-cache-cleanup.service leave-desk-cache-cleanup.timer
             leave-desk-session-prune.service leave-desk-session-prune.timer
-            publish-release.sh
+            publish-release.sh rollback.sh
           )
 
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \

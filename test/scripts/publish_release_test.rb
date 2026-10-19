@@ -18,6 +18,7 @@ class PublishReleaseTest < ActiveSupport::TestCase
     leave-desk-session-prune.service
     leave-desk-session-prune.timer
     publish-release.sh
+    rollback.sh
   ].freeze
   IMAGE = "ghcr.io/example/leave-desk:#{'a' * 40}"
 
