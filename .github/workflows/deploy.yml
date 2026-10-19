@@ -112,6 +112,8 @@ jobs:
             deploy/leave-desk-backup.timer \
             deploy/leave-desk-session-prune.service \
             deploy/leave-desk-session-prune.timer \
+            deploy/leave-desk-cache-cleanup.service \
+            deploy/leave-desk-cache-cleanup.timer \
             "$DEPLOY_USER@$DEPLOY_HOST:/root/projects/leave-desk/"
           scp -P "$DEPLOY_PORT" deploy/Caddyfile \
             "$DEPLOY_USER@$DEPLOY_HOST:/root/projects/leave-desk/Caddyfile.next"

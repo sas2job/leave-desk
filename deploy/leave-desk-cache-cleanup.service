@@ -1,0 +1,10 @@
+[Unit]
+Description=Remove expired Leave Desk cache entries
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/projects/leave-desk
+ExecStart=/usr/bin/docker compose exec -T web bin/rails runner Rails.cache.cleanup

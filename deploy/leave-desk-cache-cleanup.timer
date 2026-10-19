@@ -1,0 +1,10 @@
+[Unit]
+Description=Remove expired Leave Desk cache entries every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+Unit=leave-desk-cache-cleanup.service
+
+[Install]
+WantedBy=timers.target

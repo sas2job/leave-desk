@@ -1,4 +1,5 @@
 require "test_helper"
+require "tmpdir"
 
 class LoginRateLimiterTest < ActiveSupport::TestCase
   setup { @cache = ActiveSupport::Cache::MemoryStore.new }
@@ -39,9 +40,33 @@ class LoginRateLimiterTest < ActiveSupport::TestCase
     end
   end
 
+  test "file store cleanup removes expired counters and preserves current limits" do
+    Dir.mktmpdir do |directory|
+      @cache = ActiveSupport::Cache::FileStore.new(directory)
+      limiter("192.0.2.1", "expired@example.test").record_failure!
+
+      travel LoginRateLimiter::WINDOW + 1.second do
+        current = limiter("192.0.2.2", "current@example.test")
+        current.record_failure!
+
+        assert_equal 4, cache_files(directory).size
+
+        @cache.cleanup
+
+        assert_equal 2, cache_files(directory).size
+        (LoginRateLimiter::ACCOUNT_LIMIT - 1).times { current.record_failure! }
+        assert current.blocked?
+      end
+    end
+  end
+
   private
 
   def limiter(ip_address, email_address)
     LoginRateLimiter.new(ip_address:, email_address:, cache: @cache)
+  end
+
+  def cache_files(directory)
+    Dir.glob(File.join(directory, "**", "*"), File::FNM_DOTMATCH).select { |path| File.file?(path) }
   end
 end
