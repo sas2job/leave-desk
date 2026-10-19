@@ -42,31 +42,40 @@ class User < ApplicationRecord
   end
 
   def save(**options)
-    with_manager_locks { super }
+    with_user_locks { super }
   end
 
   def save!(**options)
-    with_manager_locks { super }
+    with_user_locks { super }
   end
 
   private
 
-  def with_manager_locks
+  def with_user_locks
+    changing_role_or_activity = persisted? &&
+      (will_save_change_to_role? || will_save_change_to_active?)
     lock_ids = []
-    lock_ids << id if persisted? && (will_save_change_to_role? || will_save_change_to_active?)
+    lock_ids << id if changing_role_or_activity
     assigning_manager = manager_id.present? && (new_record? || will_save_change_to_manager_id?)
     lock_ids << manager_id if assigning_manager
-    removing_administrator = relinquishing_active_administrator?
-    return yield if lock_ids.empty? && !removing_administrator
+    return yield if lock_ids.empty?
+
+    intended_changes = if changing_role_or_activity
+      attributes_before_type_cast.slice(*changed_attribute_names_to_save)
+    end
 
     self.class.transaction do
-      if removing_administrator
+      if changing_role_or_activity
         self.class.uncached do
           self.class.administrator.where(active: true).order(:id).lock("FOR UPDATE").load
         end
       end
       locked_users = self.class.uncached do
         self.class.where(id: lock_ids.uniq).order(:id).lock("FOR UPDATE").index_by(&:id)
+      end
+      if changing_role_or_activity
+        reload
+        assign_attributes(intended_changes)
       end
       association(:manager).target = locked_users[manager_id] if assigning_manager
       yield
