@@ -78,23 +78,32 @@ class LeaveRequest < ApplicationRecord
     days
   end
 
+  def calendar_years
+    return [] unless dates_supported? && ends_on >= starts_on
+
+    (starts_on.year..ends_on.year).to_a
+  end
+
   def reconcile_calendar!(by:)
     raise InvalidTransition, "Проверить календарь может только администратор" unless by&.administrator?
 
-    self.class.transaction do
-      calendar = FederalCalendar.where(year: starts_on.year).lock("FOR UPDATE").first
-      raise InvalidTransition, "Календарь года ещё не внесён" unless calendar
+    FederalCalendar.with_year_locks(calendar_years) do
+      FederalCalendar.uncached do
+        calendars = FederalCalendar.where(year: calendar_years).order(:year).lock("FOR UPDATE").load
+        missing_years = calendar_years - calendars.map(&:year)
+        raise InvalidTransition, missing_calendars_message(missing_years) if missing_years.any?
 
-      with_lock do
-        raise InvalidTransition, "Календарь заявки уже проверен" unless calendar_unverified?
+        with_lock do
+          raise InvalidTransition, "Календарь заявки уже проверен" unless calendar_unverified?
 
-        new_duration = calendar_duration_in_days
-        raise InvalidTransition, "Новый расчёт не даёт положительной длительности" unless new_duration&.positive?
+          new_duration = calendar_duration_in_days
+          raise InvalidTransition, "Новый расчёт не даёт положительной длительности" unless new_duration&.positive?
 
-        previous_duration = duration_in_days
-        update!(duration_half_days: (new_duration * 2).to_i, calendar_unverified: false)
-        record_event!(:calendar_reconciled, by:, from_status: status,
-          comment: "Продолжительность: #{previous_duration} → #{new_duration} дн.")
+          previous_duration = duration_in_days
+          update!(duration_half_days: (new_duration * 2).to_i, calendar_unverified: false)
+          record_event!(:calendar_reconciled, by:, from_status: status,
+            comment: "Продолжительность: #{previous_duration} → #{new_duration} дн.")
+        end
       end
     end
   end
@@ -119,10 +128,10 @@ class LeaveRequest < ApplicationRecord
         LeaveType.where(id: leave_type_id).lock("FOR UPDATE").first
       end
       association(:leave_type).target = locked_type
-      if new_record? && dates_supported?
-        FederalCalendar.with_year_lock(starts_on.year) do
+      if new_record? && calendar_years.any?
+        FederalCalendar.with_year_locks(calendar_years) do
           FederalCalendar.uncached do
-            FederalCalendar.where(year: starts_on.year).lock("FOR UPDATE").first
+            FederalCalendar.where(year: calendar_years).order(:year).lock("FOR UPDATE").load
             yield
           end
         end
@@ -163,8 +172,15 @@ class LeaveRequest < ApplicationRecord
     FederalCalendar.uncached do
       calculated_duration = duration_in_days
       self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
-      self.calendar_unverified = !FederalCalendar.exists?(year: starts_on.year) if dates_supported?
+      years = calendar_years
+      self.calendar_unverified = FederalCalendar.where(year: years).count != years.size if years.any?
     end
+  end
+
+  def missing_calendars_message(years)
+    return "Календарь #{years.first} года ещё не внесён" if years.one?
+
+    "Календари #{years.join(', ')} годов ещё не внесены"
   end
 
   def dates_supported?

@@ -2,20 +2,28 @@ class FederalCalendar < ApplicationRecord
   DATE_PATTERN = /\A\d{4}-\d{2}-\d{2}\z/
   YEAR_LOCK_NAMESPACE = 0x4c445943
 
-  def self.with_year_lock(year)
-    lock_year = Integer(year)
-    raise ArgumentError, "unsupported calendar year" unless SupportedCalendarPeriod::YEARS.cover?(lock_year)
+  def self.with_year_lock(year, &block)
+    with_year_locks([ year ], &block)
+  end
+
+  def self.with_year_locks(years)
+    lock_years = years.map { |year| Integer(year) }.uniq.sort
+    unless lock_years.all? { |year| SupportedCalendarPeriod::YEARS.cover?(year) }
+      raise ArgumentError, "unsupported calendar year"
+    end
 
     transaction do
       integer_type = ActiveRecord::Type::Integer.new
-      binds = [
-        ActiveRecord::Relation::QueryAttribute.new("namespace", YEAR_LOCK_NAMESPACE, integer_type),
-        ActiveRecord::Relation::QueryAttribute.new("year", lock_year, integer_type)
-      ]
-      connection.exec_query(
-        "SELECT pg_advisory_xact_lock($1, $2) IS NULL AS lock_acquired",
-        "Federal calendar year lock", binds
-      )
+      lock_years.each do |lock_year|
+        binds = [
+          ActiveRecord::Relation::QueryAttribute.new("namespace", YEAR_LOCK_NAMESPACE, integer_type),
+          ActiveRecord::Relation::QueryAttribute.new("year", lock_year, integer_type)
+        ]
+        connection.exec_query(
+          "SELECT pg_advisory_xact_lock($1, $2) IS NULL AS lock_acquired",
+          "Federal calendar year lock", binds
+        )
+      end
       yield
     end
   end
@@ -85,7 +93,8 @@ class FederalCalendar < ApplicationRecord
 
   def flag_requests_with_changed_duration
     year_dates = Date.new(year, 1, 1)..Date.new(year, 12, 31)
-    LeaveRequest.where(starts_on: year_dates, status: %i[pending approved], calendar_unverified: false)
+    LeaveRequest.where(status: %i[pending approved], calendar_unverified: false)
+      .where("starts_on <= ? AND ends_on >= ?", year_dates.end, year_dates.begin)
       .includes(:leave_type).find_each do |request|
       next if (request.calendar_duration_in_days * 2).to_i == request.duration_half_days
 

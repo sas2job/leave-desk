@@ -25,6 +25,27 @@ module Admin
       assert_select "##{dom_id(@leave_request)}", text: /Календарь 2026 года ещё не внесён/
     end
 
+    test "historical cross-year request waits for every calendar" do
+      @leave_request.update_columns(starts_on: Date.new(2026, 12, 30),
+        ends_on: Date.new(2027, 1, 10), duration_half_days: 8)
+      FederalCalendar.create!(year: 2026, legal_basis: "НПА 2026",
+        public_holidays: RussianFederalHoliday.fixed_dates_for(2026))
+      sign_in_as(@administrator)
+
+      get admin_calendar_reviews_path
+
+      assert_response :success
+      assert_select "##{dom_id(@leave_request)}", text: /Календарь 2027 года ещё не внесён/
+      assert_select "form[action='#{admin_calendar_review_path(@leave_request)}']", count: 0
+
+      FederalCalendar.create!(year: 2027, legal_basis: "НПА 2027",
+        public_holidays: RussianFederalHoliday.fixed_dates_for(2027))
+      get admin_calendar_reviews_path
+
+      assert_select "##{dom_id(@leave_request)}", text: /По внесённому календарю: 4 дн./
+      assert_select "form[action='#{admin_calendar_review_path(@leave_request)}']", count: 1
+    end
+
     test "administrator explicitly reconciles request after calendar import" do
       FederalCalendar.create!(year: 2026, legal_basis: "НПА",
         public_holidays: [ Date.new(2026, 1, 1) ])

@@ -5,10 +5,11 @@ class FederalCalendarConcurrencyTest < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   YEAR = 2026
+  NEXT_YEAR = YEAR + 1
 
   setup do
     @suffix = SecureRandom.hex(6)
-    FederalCalendar.where(year: YEAR).delete_all
+    FederalCalendar.where(year: [ YEAR, NEXT_YEAR ]).delete_all
     @manager = create_user("manager-#{@suffix}@example.test", role: :manager)
     @employee = create_user("employee-#{@suffix}@example.test", manager: @manager)
     @administrator = create_user("administrator-#{@suffix}@example.test", role: :administrator)
@@ -22,7 +23,7 @@ class FederalCalendarConcurrencyTest < ActiveSupport::TestCase
     Notification.where(leave_request_event_id: event_ids).delete_all
     LeaveRequestEvent.where(leave_request_id: request_ids).delete_all
     LeaveRequest.where(id: request_ids).delete_all
-    FederalCalendar.where(year: YEAR).delete_all
+    FederalCalendar.where(year: [ YEAR, NEXT_YEAR ]).delete_all
     @leave_type&.delete
     @employee&.delete
     @manager&.delete
@@ -137,6 +138,48 @@ class FederalCalendarConcurrencyTest < ActiveSupport::TestCase
     release_calendar&.push(true)
     calendar_thread&.join(5)
     request_thread&.join(5)
+  end
+
+  test "cross-year reconciliation waits for an update in the later year" do
+    FederalCalendar.create!(year: YEAR, legal_basis: "Initial calendar #{YEAR}",
+      public_holidays: RussianFederalHoliday.fixed_dates_for(YEAR))
+    calendar = FederalCalendar.create!(year: NEXT_YEAR, legal_basis: "Initial calendar #{NEXT_YEAR}",
+      public_holidays: RussianFederalHoliday.fixed_dates_for(NEXT_YEAR))
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(YEAR, 12, 30), ends_on: Date.new(YEAR, 12, 31))
+    request.update_columns(ends_on: Date.new(NEXT_YEAR, 1, 10), duration_half_days: 8)
+    calendar.assign_attributes(legal_basis: "Updated calendar #{NEXT_YEAR}",
+      public_holidays: calendar.public_holidays - [ Date.new(NEXT_YEAR, 1, 8) ])
+    calendar_has_year_lock = Queue.new
+    release_calendar = Queue.new
+    reconciliation_started = Queue.new
+    pause_calendar_after_year_lock(calendar, calendar_has_year_lock, release_calendar)
+
+    calendar_thread = Thread.new do
+      ActiveRecord::Base.connection_pool.with_connection { calendar.save! }
+    end
+    Timeout.timeout(5) { calendar_has_year_lock.pop }
+    reconciliation_thread = Thread.new do
+      ActiveRecord::Base.connection_pool.with_connection do
+        reconciliation_started << true
+        LeaveRequest.find(request.id).reconcile_calendar!(by: User.find(@administrator.id))
+      end
+    end
+    Timeout.timeout(5) { reconciliation_started.pop }
+
+    assert_nil reconciliation_thread.join(0.1)
+    release_calendar << true
+    calendar_thread.value
+    reconciliation_thread.value
+
+    assert_not request.reload.calendar_unverified?
+    assert_equal 5, request.duration_in_days
+    assert_equal %w[calendar_unverified calendar_reconciled],
+      request.events.order(:id).last(2).map(&:event_type)
+  ensure
+    release_calendar&.push(true)
+    calendar_thread&.join(5)
+    reconciliation_thread&.join(5)
   end
 
   private

@@ -18,7 +18,8 @@
           <p><%= request.employee.name %> — <%= request.leave_type.name %></p>
           <p><%= format_date(request.starts_on) %>–<%= format_date(request.ends_on) %></p>
           <p>Сохранено: <%= format_duration(request.duration_in_days) %> дн.</p>
-          <% if @configured_years.include?(request.starts_on.year) %>
+          <% missing_years = request.calendar_years.reject { |year| @configured_years.include?(year) } %>
+          <% if missing_years.empty? %>
             <% new_duration = request.calendar_duration_in_days %>
             <p>По внесённому календарю: <%= format_duration(new_duration) %> дн.</p>
             <% if new_duration&.positive? %>
@@ -26,8 +27,10 @@
             <% else %>
               <p>Новый расчёт не даёт положительной длительности. Требуется отдельное решение по заявке.</p>
             <% end %>
+          <% elsif missing_years.one? %>
+            <p>Календарь <%= missing_years.first %> года ещё не внесён.</p>
           <% else %>
-            <p>Календарь <%= request.starts_on.year %> года ещё не внесён.</p>
+            <p>Календари <%= missing_years.join(", ") %> годов ещё не внесены.</p>
           <% end %>
         </article>
       <% end %>
