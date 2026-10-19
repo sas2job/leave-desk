@@ -75,9 +75,9 @@ cookie больше не должны давать доступ.
 запуск с новой схемой доступа выполняйте так:
 
 ```sh
-docker compose pull web migrate
-docker compose run --rm migrate
-docker compose up -d --no-deps web
+./current/compose.sh pull web migrate
+./current/compose.sh run --rm migrate
+./current/compose.sh up -d --no-deps web
 ```
 
 `migrate` выполняет `db:prepare`, создаёт ограниченную роль и выдаёт ей права
@@ -97,7 +97,7 @@ docker compose up -d --no-deps web
 интерактивного терминала на VPS, в каталоге `/root/projects/leave-desk`:
 
 ```sh
-docker compose exec -it web bin/first-administrator
+./current/compose.sh exec -it web bin/first-administrator
 ```
 
 Команда запрашивает имя, адрес почты и пароль без эха пароля в терминале.
@@ -135,25 +135,33 @@ Workflow `.github/workflows/deploy.yml` запускается после усп
 Compose всегда получает SHA-тег, поэтому работающий релиз не зависит от
 дальнейшего перемещения `latest`.
 
-Во время выпуска workflow копирует `deploy/compose.yml`, служебные скрипты и
-новый `Caddyfile` под именем `Caddyfile.next`. Затем он временно авторизует
-Docker на VPS токеном текущего запуска, обновляет `LEAVE_DESK_IMAGE` в
-серверном `.env`, запускает `migrate` и обновляет `web`.
-`apply-caddy.sh` проверяет кандидат в контейнере Caddy с образом и окружением
-из Compose. При ошибке проверки действующий файл остаётся нетронутым. После
-проверки скрипт копирует содержимое в файл, видимый bind mount, согласует
-образ и окружение сервиса Caddy через `docker compose up`, затем явно
-перезагружает конфигурацию. Если обновление или перезагрузка не удались,
-скрипт восстанавливает прежний файл. После внутреннего `/up` runner проверяет
+Во время выпуска workflow загружает Compose-конфигурацию, `Caddyfile`,
+служебные скрипты и unit-файлы в отдельный каталог `.incoming` на VPS. Только
+после проверки SHA-256 manifest полный каталог переименовывается в
+`releases/<release-id>`, а ссылка `current` переключается атомарно. SHA-тег
+образа хранится внутри релиза в `release.env`; production-секреты остаются
+только в стабильном серверном `.env`. Оборванная загрузка и ошибка записи не
+меняют файлы, которые читают Compose и запущенные таймеры.
+
+`current/apply-caddy.sh` проверяет кандидат в контейнере Caddy с образом и
+окружением из опубликованного релиза. Проверенный файл атомарно заменяет
+`caddy/Caddyfile` внутри каталога, подключённого в контейнер целиком. Скрипт
+согласует сервис через Compose и явно перезагружает конфигурацию. При обычной
+ошибке прежний файл восстанавливается атомарно; при принудительном завершении
+на диске остаётся полный старый или новый файл, пригодный для restart. После
+внутреннего `/up` runner проверяет
 `https://$DEPLOY_HOST/up` с проверкой сертификата; `DEPLOY_HOST` должен
 совпадать с публичным адресом из `LEAVE_DESK_PUBLIC_HOST`.
-Production-секреты приложения остаются только в серверном `.env`.
 
-Для отката нужно указать в серверном `.env` ранее выпущенный SHA-тег и выполнить:
+Для отката выберите сохранённый каталог предыдущего релиза и атомарно верните
+на него `current`. Его `release.env` уже содержит соответствующий SHA-тег:
 
 ```sh
-docker compose pull web
-docker compose up -d --no-deps web
+cd /root/projects/leave-desk
+ln -s releases/<предыдущий-release-id> .current.rollback
+mv -T .current.rollback current
+./current/compose.sh pull web
+./current/compose.sh up -d --no-deps web
 set -a; . ./.env; set +a
 curl --fail --header "Host: $LEAVE_DESK_PUBLIC_HOST" http://127.0.0.1:3000/up
 ```

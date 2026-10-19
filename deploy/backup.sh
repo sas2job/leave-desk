@@ -10,8 +10,9 @@ install -d -m 0700 -- "$backup_directory"
 exec 9>"$backup_directory/.backup.lock"
 flock -n 9 || { echo 'Backup is already running' >&2; exit 1; }
 
-cd /root/projects/leave-desk
-database_bytes=$(docker compose exec -T db psql -U leave_desk -d postgres -Atqc \
+release_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+compose="$release_directory/compose.sh"
+database_bytes=$("$compose" exec -T db psql -U leave_desk -d postgres -Atqc \
   "SELECT pg_database_size('leave_desk_production')")
 [[ "$database_bytes" =~ ^[0-9]+$ ]] || { echo 'Could not measure database size' >&2; exit 1; }
 
@@ -33,9 +34,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker compose exec -T db pg_dump -U leave_desk --format=custom \
+"$compose" exec -T db pg_dump -U leave_desk --format=custom \
   --no-owner --no-privileges leave_desk_production > "$staging/database.dump"
-docker compose exec -T db pg_restore --list < "$staging/database.dump" > /dev/null
+"$compose" exec -T db pg_restore --list < "$staging/database.dump" > /dev/null
 (cd "$staging" && sha256sum database.dump > database.dump.sha256)
 
 available_bytes=$(df -B1 --output=avail "$backup_directory" | tail -n 1)

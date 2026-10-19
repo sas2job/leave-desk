@@ -7,4 +7,4 @@ After=docker.service
 Type=oneshot
 User=root
 WorkingDirectory=/root/projects/leave-desk
-ExecStart=/usr/bin/docker compose exec -T web bin/rails runner Rails.cache.cleanup
+ExecStart=/root/projects/leave-desk/current/compose.sh exec -T web bin/rails runner Rails.cache.cleanup

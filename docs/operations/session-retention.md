@@ -6,11 +6,12 @@
 удаляются вместе с записью. Очистка не пишет их в журнал.
 
 После выпуска версии с `Session.prune_expired!` на VPS установите или обновите
-таймер и службу из каталога `deploy`:
+таймер и службу из опубликованного каталога `current`:
 
 ```sh
-install -m 0644 leave-desk-session-prune.service /etc/systemd/system/
-install -m 0644 leave-desk-session-prune.timer /etc/systemd/system/
+cd /root/projects/leave-desk
+install -m 0644 current/leave-desk-session-prune.service /etc/systemd/system/
+install -m 0644 current/leave-desk-session-prune.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now leave-desk-session-prune.timer
 systemctl is-enabled leave-desk-session-prune.timer
@@ -18,8 +19,8 @@ systemctl is-active leave-desk-session-prune.timer
 systemctl list-timers leave-desk-session-prune.timer
 ```
 
-Команды выполняются от root из `/root/projects/leave-desk`, где находится
-`compose.yml`. Перед установкой убедитесь, что `web` запущен и миграция с
+Команды выполняются от root из `/root/projects/leave-desk`; unit-файл вызывает
+`current/compose.sh`. Перед установкой убедитесь, что `web` запущен и миграция с
 индексом `sessions.created_at` выполнена. Для проверки запуска и результата:
 
 ```sh

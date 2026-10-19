@@ -6,14 +6,14 @@ Production использует Rails `FileStore` внутри web-контей�
 `Rails.cache.cleanup` каждые 15 минут и физически удаляет только истёкшие
 записи.
 
-Workflow выпуска копирует unit-файлы в `/root/projects/leave-desk`, но не
-устанавливает их в systemd. После первого выпуска и после изменения файлов
-установите или обновите их на VPS:
+Workflow выпуска публикует unit-файлы в атомарно переключаемом каталоге
+`/root/projects/leave-desk/current`, но не устанавливает их в systemd. После
+первого выпуска и после изменения файлов установите или обновите их на VPS:
 
 ```sh
 cd /root/projects/leave-desk
-install -m 0644 leave-desk-cache-cleanup.service /etc/systemd/system/
-install -m 0644 leave-desk-cache-cleanup.timer /etc/systemd/system/
+install -m 0644 current/leave-desk-cache-cleanup.service /etc/systemd/system/
+install -m 0644 current/leave-desk-cache-cleanup.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now leave-desk-cache-cleanup.timer
 systemctl restart leave-desk-cache-cleanup.timer

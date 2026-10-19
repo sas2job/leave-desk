@@ -71,21 +71,22 @@ Production использует неизменяемый SHA-тег. Тег `lat
 GitHub Actions выполняет следующие действия:
 
 1. Настраивает временный SSH-ключ и проверяет host key сервера.
-2. Копирует `deploy/compose.yml`, `deploy/Caddyfile`, скрипт резервного
-   копирования и service/timer-файлы для backup, очистки сессий и файлового
-   кеша.
+2. Загружает `deploy/compose.yml`, `deploy/Caddyfile`, служебные скрипты и
+   service/timer-файлы в отдельный `.incoming`-каталог, проверяет SHA-256
+   manifest и атомарно переключает ссылку `current` на полный релиз.
 3. Временно авторизует Docker на VPS в GHCR токеном текущего workflow.
-4. Обновляет `LEAVE_DESK_IMAGE` в серверном `.env`, записывая SHA-тег.
+4. Читает SHA-тег из `current/release.env`; секреты остаются в серверном `.env`.
 5. Выполняет:
 
    ```sh
-docker compose pull web migrate
-docker compose run --rm migrate
-   docker compose up -d --no-deps web
+   ./current/compose.sh pull web migrate
+   ./current/compose.sh run --rm migrate
+   ./current/compose.sh up -d --no-deps web
    ```
 
-PostgreSQL и Caddy при этом не перезапускаются. После скачивания образа
-авторизация GHCR удаляется с VPS.
+PostgreSQL при этом не перезапускается. Проверенный `Caddyfile` публикуется
+атомарно внутри каталога bind mount; Caddy согласуется через Compose и получает
+явный reload. После скачивания образа авторизация GHCR удаляется с VPS.
 
 ### 5. Проверка выпуска
 

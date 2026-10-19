@@ -5,7 +5,7 @@ class CacheCleanupConfigurationTest < ActiveSupport::TestCase
     service = Rails.root.join("deploy/leave-desk-cache-cleanup.service").read
 
     assert_includes service,
-      "ExecStart=/usr/bin/docker compose exec -T web bin/rails runner Rails.cache.cleanup"
+      "ExecStart=/root/projects/leave-desk/current/compose.sh exec -T web bin/rails runner Rails.cache.cleanup"
   end
 
   test "systemd timer runs cleanup every fifteen minutes" do
@@ -15,10 +15,10 @@ class CacheCleanupConfigurationTest < ActiveSupport::TestCase
     assert_includes timer, "Persistent=true"
   end
 
-  test "deployment copies cache cleanup units" do
+  test "deployment stages cache cleanup units in the atomic release" do
     workflow = Rails.root.join(".github/workflows/deploy.yml").read
 
-    assert_includes workflow, "deploy/leave-desk-cache-cleanup.service"
-    assert_includes workflow, "deploy/leave-desk-cache-cleanup.timer"
+    assert_includes workflow, "leave-desk-cache-cleanup.service"
+    assert_includes workflow, "leave-desk-cache-cleanup.timer"
   end
 end

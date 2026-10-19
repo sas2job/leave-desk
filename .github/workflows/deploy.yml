@@ -105,34 +105,49 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Update deployment configuration
+      - name: Publish deployment configuration atomically
+        env:
+          REVISION: ${{ needs.authorize.outputs.sha }}
+          RELEASE_ID: ${{ needs.authorize.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
-          scp -P "$DEPLOY_PORT" deploy/compose.yml deploy/apply-caddy.sh \
-            deploy/backup.sh deploy/leave-desk-backup.service \
-            deploy/leave-desk-backup.timer \
-            deploy/leave-desk-session-prune.service \
-            deploy/leave-desk-session-prune.timer \
-            deploy/leave-desk-cache-cleanup.service \
-            deploy/leave-desk-cache-cleanup.timer \
-            "$DEPLOY_USER@$DEPLOY_HOST:/root/projects/leave-desk/"
-          scp -P "$DEPLOY_PORT" deploy/Caddyfile \
-            "$DEPLOY_USER@$DEPLOY_HOST:/root/projects/leave-desk/Caddyfile.next"
+          deployment_root=/root/projects/leave-desk
+          staging_directory="$deployment_root/.incoming/$RELEASE_ID"
+          release_files=(
+            Caddyfile apply-caddy.sh backup.sh compose.sh compose.yml
+            leave-desk-backup.service leave-desk-backup.timer
+            leave-desk-cache-cleanup.service leave-desk-cache-cleanup.timer
+            leave-desk-session-prune.service leave-desk-session-prune.timer
+            publish-release.sh
+          )
+
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -eu; umask 077; mkdir -p '$deployment_root/.incoming';
+             test ! -e '$staging_directory'; mkdir '$staging_directory'"
+
+          manifest="$RUNNER_TEMP/leave-desk-$RELEASE_ID.SHA256SUMS"
+          (cd deploy && sha256sum "${release_files[@]}") > "$manifest"
+          scp -P "$DEPLOY_PORT" "${release_files[@]/#/deploy/}" \
+            "$DEPLOY_USER@$DEPLOY_HOST:$staging_directory/"
+          scp -P "$DEPLOY_PORT" "$manifest" \
+            "$DEPLOY_USER@$DEPLOY_HOST:$staging_directory/SHA256SUMS"
+
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -eu; sh '$staging_directory/publish-release.sh' '$deployment_root'
+               '$staging_directory' '$RELEASE_ID' '$IMAGE_NAME:$REVISION'"
 
       - name: Deploy tested image
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REVISION: ${{ needs.authorize.outputs.sha }}
         run: |
           printf '%s' "$GHCR_TOKEN" | ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -eu; \
             docker login ghcr.io -u '${{ github.actor }}' --password-stdin; \
             trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT; \
             cd /root/projects/leave-desk; \
-            sed -i 's|^LEAVE_DESK_IMAGE=.*|LEAVE_DESK_IMAGE=$IMAGE_NAME:$REVISION|' .env; \
-            docker compose pull web migrate; \
-            docker compose run --rm migrate; \
-            docker compose up -d --no-deps web; \
-            sh ./apply-caddy.sh; \
+            ./current/compose.sh pull web migrate; \
+            ./current/compose.sh run --rm migrate; \
+            ./current/compose.sh up -d --no-deps web; \
+            ./current/apply-caddy.sh; \
             health_host=\$(sed -n 's/^LEAVE_DESK_PUBLIC_HOST=//p' .env); \
             test -n \"\$health_host\"; \
             for attempt in \$(seq 1 30); do \
@@ -140,7 +155,7 @@ jobs:
                 http://127.0.0.1:3000/up && exit 0; \
               sleep 2; \
             done; \
-            docker compose logs --tail=100 web; \
+            ./current/compose.sh logs --tail=100 web; \
             exit 1"
       - name: Check public HTTPS
         run: |

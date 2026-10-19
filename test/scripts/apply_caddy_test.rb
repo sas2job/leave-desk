@@ -4,75 +4,179 @@ require "open3"
 require "tmpdir"
 
 class ApplyCaddyTest < ActiveSupport::TestCase
-  test "valid candidate is applied, reconciled and reloaded" do
-    with_deployment do |directory, environment|
-      File.write(File.join(directory, "Caddyfile.next"), "new configuration")
+  test "compose mounts the stable Caddy configuration directory" do
+    compose = YAML.safe_load_file(Rails.root.join("deploy/compose.yml"), aliases: true)
+    volumes = compose.fetch("services").fetch("caddy").fetch("volumes")
 
-      _output, error, status = run_apply(directory, environment)
+    assert_includes volumes, "./caddy:/etc/caddy:ro"
+    assert_not volumes.any? { |volume| volume.start_with?("./Caddyfile:") }
+  end
+
+  test "valid candidate is atomically published, reconciled and reloaded" do
+    with_deployment do |directory, release, environment|
+      File.write(File.join(release, "Caddyfile"), "new configuration")
+
+      _output, error, status = run_apply(release, environment)
 
       assert status.success?, error
-      assert_equal "new configuration", File.read(File.join(directory, "Caddyfile"))
-      assert_equal [ "run", "up", "exec" ], docker_actions(environment)
+      assert_equal "new configuration", active_configuration(directory)
+      assert_equal [ "run", "up", "exec" ], compose_actions(environment)
+      assert_empty temporary_configurations(directory)
     end
   end
 
   test "invalid candidate leaves active configuration untouched" do
-    with_deployment do |directory, environment|
-      File.write(File.join(directory, "Caddyfile.next"), "INVALID")
+    with_deployment do |directory, release, environment|
+      File.write(File.join(release, "Caddyfile"), "INVALID")
 
-      _output, _error, status = run_apply(directory, environment)
+      _output, _error, status = run_apply(release, environment)
 
       assert_not status.success?
-      assert_equal "old configuration", File.read(File.join(directory, "Caddyfile"))
-      assert_equal [ "run" ], docker_actions(environment)
+      assert_equal "old configuration", active_configuration(directory)
+      assert_equal [ "run" ], compose_actions(environment)
+      assert_empty temporary_configurations(directory)
     end
   end
 
-  test "failed reload restores active configuration" do
-    with_deployment do |directory, environment|
-      File.write(File.join(directory, "Caddyfile.next"), "new configuration")
+  test "write failure leaves active configuration untouched" do
+    with_deployment do |directory, release, environment|
+      File.write(File.join(release, "Caddyfile"), "new configuration")
+      configuration_directory = File.join(directory, "caddy")
+      FileUtils.chmod(0o500, configuration_directory)
 
-      _output, _error, status = run_apply(directory,
+      _output, _error, status = run_apply(release, environment)
+
+      assert_not status.success?
+      assert_equal "old configuration", active_configuration(directory)
+      assert_equal [ "run" ], compose_actions(environment)
+    ensure
+      FileUtils.chmod(0o700, configuration_directory)
+    end
+  end
+
+  test "failed reload atomically restores active configuration" do
+    with_deployment do |directory, release, environment|
+      File.write(File.join(release, "Caddyfile"), "new configuration")
+
+      _output, _error, status = run_apply(release,
         environment.merge("FAIL_RELOAD_FOR_NEW_CONFIG" => "yes"))
 
       assert_not status.success?
-      assert_equal "old configuration", File.read(File.join(directory, "Caddyfile"))
-      assert_equal [ "run", "up", "exec", "up", "exec" ], docker_actions(environment)
+      assert_equal "old configuration", active_configuration(directory)
+      assert_equal [ "run", "up", "exec", "up", "exec" ], compose_actions(environment)
+      assert_empty temporary_configurations(directory)
+    end
+  end
+
+  test "failed container reconciliation atomically restores active configuration" do
+    with_deployment do |directory, release, environment|
+      File.write(File.join(release, "Caddyfile"), "new configuration")
+
+      _output, _error, status = run_apply(release,
+        environment.merge("FAIL_UP_FOR_NEW_CONFIG" => "yes"))
+
+      assert_not status.success?
+      assert_equal "old configuration", active_configuration(directory)
+      assert_equal [ "run", "up", "up", "exec" ], compose_actions(environment)
+      assert_empty temporary_configurations(directory)
+    end
+  end
+
+  test "forced interruption leaves a complete configuration for the next restart" do
+    with_deployment do |directory, release, environment|
+      File.write(File.join(release, "Caddyfile"), "new configuration")
+
+      _output, _error, status = run_apply(release,
+        environment.merge("KILL_PARENT_ON_UP_FOR_NEW_CONFIG" => "yes"))
+
+      assert status.signaled?
+      assert_equal "new configuration", active_configuration(directory)
+
+      _output, error, retry_status = run_apply(release, environment)
+      assert retry_status.success?, error
+      assert_equal "new configuration", active_configuration(directory)
+    end
+  end
+
+  test "legacy single-file configuration is available for rollback" do
+    with_deployment(active_configuration: false) do |directory, release, environment|
+      File.write(File.join(directory, "Caddyfile"), "legacy configuration")
+      File.write(File.join(release, "Caddyfile"), "new configuration")
+
+      _output, _error, status = run_apply(release,
+        environment.merge("FAIL_RELOAD_FOR_NEW_CONFIG" => "yes"))
+
+      assert_not status.success?
+      assert_equal "legacy configuration", active_configuration(directory)
+      assert_equal "legacy configuration", File.read(File.join(directory, "Caddyfile"))
     end
   end
 
   private
 
-  def with_deployment
+  def with_deployment(active_configuration: true)
     Dir.mktmpdir("leave-desk-caddy-test") do |directory|
-      executable_directory = File.join(directory, "bin")
-      FileUtils.mkdir_p(executable_directory)
-      FileUtils.cp(Rails.root.join("deploy/apply-caddy.sh"), directory)
-      File.write(File.join(directory, "Caddyfile"), "old configuration")
-      docker = File.join(executable_directory, "docker")
-      File.write(docker, <<~'SH')
-        #!/bin/sh
-        printf '%s\n' "$2" >> "$DOCKER_LOG"
-        if [ "$2" = run ] && grep -q INVALID Caddyfile.next; then
-          exit 1
-        fi
-        if [ "$2" = exec ] && [ "${FAIL_RELOAD_FOR_NEW_CONFIG:-}" = yes ] &&
-            grep -q 'new configuration' Caddyfile; then
-          exit 1
-        fi
-      SH
-      FileUtils.chmod(0o755, docker)
-      environment = { "PATH" => "#{executable_directory}:#{ENV.fetch('PATH')}",
-        "DOCKER_LOG" => File.join(directory, "docker.log") }
-      yield directory, environment
+      release = File.join(directory, "releases", "new-release")
+      configuration_directory = File.join(directory, "caddy")
+      FileUtils.mkdir_p([ release, configuration_directory ])
+      FileUtils.cp(Rails.root.join("deploy/apply-caddy.sh"), release)
+      File.write(File.join(configuration_directory, "Caddyfile"), "old configuration") if active_configuration
+      write_fake_compose(release)
+
+      environment = {
+        "LEAVE_DESK_DEPLOYMENT_ROOT" => directory,
+        "COMPOSE_LOG" => File.join(directory, "compose.log"),
+        "ACTIVE_CADDYFILE" => File.join(configuration_directory, "Caddyfile"),
+        "CANDIDATE_CADDYFILE" => File.join(release, "Caddyfile")
+      }
+      yield directory, release, environment
     end
   end
 
-  def run_apply(directory, environment)
-    Open3.capture3(environment, "sh", File.join(directory, "apply-caddy.sh"))
+  def write_fake_compose(release)
+    compose = File.join(release, "compose.sh")
+    File.write(compose, <<~'SH')
+      #!/bin/sh
+      set -eu
+      action=$1
+      printf '%s\n' "$action" >> "$COMPOSE_LOG"
+
+      if [ "$action" = run ] && grep -q INVALID "$CANDIDATE_CADDYFILE"; then
+        exit 1
+      fi
+
+      if [ "$action" = up ] && grep -q 'new configuration' "$ACTIVE_CADDYFILE"; then
+        if [ "${KILL_PARENT_ON_UP_FOR_NEW_CONFIG:-}" = yes ]; then
+          kill -KILL "$PPID"
+          exit 1
+        fi
+        if [ "${FAIL_UP_FOR_NEW_CONFIG:-}" = yes ]; then
+          exit 1
+        fi
+      fi
+
+      if [ "$action" = exec ] &&
+        [ "${FAIL_RELOAD_FOR_NEW_CONFIG:-}" = yes ] &&
+        grep -q 'new configuration' "$ACTIVE_CADDYFILE"; then
+        exit 1
+      fi
+    SH
+    FileUtils.chmod(0o755, compose)
   end
 
-  def docker_actions(environment)
-    File.readlines(environment.fetch("DOCKER_LOG"), chomp: true)
+  def run_apply(release, environment)
+    Open3.capture3(environment, "sh", File.join(release, "apply-caddy.sh"))
+  end
+
+  def active_configuration(directory)
+    File.read(File.join(directory, "caddy", "Caddyfile"))
+  end
+
+  def temporary_configurations(directory)
+    Dir.glob(File.join(directory, "caddy", ".Caddyfile.*"))
+  end
+
+  def compose_actions(environment)
+    File.readlines(environment.fetch("COMPOSE_LOG"), chomp: true)
   end
 end
