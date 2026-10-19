@@ -119,8 +119,16 @@ class LeaveRequest < ApplicationRecord
         LeaveType.where(id: leave_type_id).lock("FOR UPDATE").first
       end
       association(:leave_type).target = locked_type
-      FederalCalendar.where(year: starts_on.year).lock("FOR UPDATE").first if new_record? && dates_supported?
-      yield
+      if new_record? && dates_supported?
+        FederalCalendar.with_year_lock(starts_on.year) do
+          FederalCalendar.uncached do
+            FederalCalendar.where(year: starts_on.year).lock("FOR UPDATE").first
+            yield
+          end
+        end
+      else
+        yield
+      end
     end
   end
 
@@ -152,9 +160,11 @@ class LeaveRequest < ApplicationRecord
   end
 
   def store_duration
-    calculated_duration = duration_in_days
-    self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
-    self.calendar_unverified = !FederalCalendar.exists?(year: starts_on.year) if dates_supported?
+    FederalCalendar.uncached do
+      calculated_duration = duration_in_days
+      self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
+      self.calendar_unverified = !FederalCalendar.exists?(year: starts_on.year) if dates_supported?
+    end
   end
 
   def dates_supported?

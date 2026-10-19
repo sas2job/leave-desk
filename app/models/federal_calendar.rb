@@ -1,5 +1,24 @@
 class FederalCalendar < ApplicationRecord
   DATE_PATTERN = /\A\d{4}-\d{2}-\d{2}\z/
+  YEAR_LOCK_NAMESPACE = 0x4c445943
+
+  def self.with_year_lock(year)
+    lock_year = Integer(year)
+    raise ArgumentError, "unsupported calendar year" unless SupportedCalendarPeriod::YEARS.cover?(lock_year)
+
+    transaction do
+      integer_type = ActiveRecord::Type::Integer.new
+      binds = [
+        ActiveRecord::Relation::QueryAttribute.new("namespace", YEAR_LOCK_NAMESPACE, integer_type),
+        ActiveRecord::Relation::QueryAttribute.new("year", lock_year, integer_type)
+      ]
+      connection.exec_query(
+        "SELECT pg_advisory_xact_lock($1, $2) IS NULL AS lock_acquired",
+        "Federal calendar year lock", binds
+      )
+      yield
+    end
+  end
 
   def self.nonworking_dates(dates)
     return Set.new if dates.empty?
@@ -19,6 +38,14 @@ class FederalCalendar < ApplicationRecord
   validate :parse_form_dates
   validate :calendar_dates_are_valid
   after_update :flag_requests_with_changed_duration, if: :saved_change_to_public_holidays?
+
+  def save(**options)
+    with_year_lock_for_save { super }
+  end
+
+  def save!(**options)
+    with_year_lock_for_save { super }
+  end
 
   def public_holidays_input
     @public_holidays_input ||= public_holidays.map(&:iso8601).join("\n")
@@ -49,6 +76,12 @@ class FederalCalendar < ApplicationRecord
   end
 
   private
+
+  def with_year_lock_for_save
+    return yield unless SupportedCalendarPeriod::YEARS.cover?(year)
+
+    self.class.with_year_lock(year) { yield }
+  end
 
   def flag_requests_with_changed_duration
     year_dates = Date.new(year, 1, 1)..Date.new(year, 12, 31)
