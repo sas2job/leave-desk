@@ -132,8 +132,7 @@ jobs:
             "$DEPLOY_USER@$DEPLOY_HOST:$staging_directory/SHA256SUMS"
 
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "set -eu; sh '$staging_directory/publish-release.sh' '$deployment_root'
-               '$staging_directory' '$RELEASE_ID' '$IMAGE_NAME:$REVISION'"
+            "set -eu; sh '$staging_directory/publish-release.sh' '$deployment_root' '$staging_directory' '$RELEASE_ID' '$IMAGE_NAME:$REVISION'"
 
       - name: Deploy tested image
         env:

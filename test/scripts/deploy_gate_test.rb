@@ -56,6 +56,18 @@ class DeployGateTest < ActiveSupport::TestCase
     assert_includes command, "./current/compose.sh logs --tail=100 web"
   end
 
+  test "release publisher receives all required arguments in one remote command" do
+    workflow = YAML.load_file(Rails.root.join(".github/workflows/deploy.yml"))
+    deploy_steps = workflow.fetch("jobs").fetch("deploy").fetch("steps")
+    command = deploy_steps.find do |step|
+      step["name"] == "Publish deployment configuration atomically"
+    end.fetch("run")
+
+    assert_includes command,
+      "sh '$staging_directory/publish-release.sh' '$deployment_root' " \
+      "'$staging_directory' '$RELEASE_ID' '$IMAGE_NAME:$REVISION'"
+  end
+
   private
 
   def workflow_run_event(conclusion: "success", event: "push", branch: "main",
