@@ -120,11 +120,11 @@ jobs:
           deployment_root=/root/projects/leave-desk
           staging_directory="$deployment_root/.incoming/$RELEASE_ID"
           release_files=(
-            Caddyfile apply-caddy.sh backup.sh compose.sh compose.yml
+            Caddyfile apply-caddy.sh apply-migrations.sh backup.sh compose.sh compose.yml
             leave-desk-backup.service leave-desk-backup.timer
             leave-desk-cache-cleanup.service leave-desk-cache-cleanup.timer
             leave-desk-session-prune.service leave-desk-session-prune.timer
-            publish-release.sh rollback.sh wait-for-health.sh
+            publish-release.sh rollback.sh schema-compatibility wait-for-health.sh
           )
 
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
@@ -151,7 +151,7 @@ jobs:
             trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT; \
             cd /root/projects/leave-desk; \
             ./current/compose.sh pull web migrate; \
-            ./current/compose.sh run --rm migrate; \
+            ./current/apply-migrations.sh; \
             ./current/compose.sh up -d --no-deps web; \
             ./current/apply-caddy.sh; \
             health_host=\$(sed -n 's/^LEAVE_DESK_PUBLIC_HOST=//p' .env); \

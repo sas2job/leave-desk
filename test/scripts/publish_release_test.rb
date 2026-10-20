@@ -8,6 +8,7 @@ class PublishReleaseTest < ActiveSupport::TestCase
   RELEASE_FILES = %w[
     Caddyfile
     apply-caddy.sh
+    apply-migrations.sh
     backup.sh
     compose.sh
     compose.yml
@@ -19,6 +20,7 @@ class PublishReleaseTest < ActiveSupport::TestCase
     leave-desk-session-prune.timer
     publish-release.sh
     rollback.sh
+    schema-compatibility
     wait-for-health.sh
   ].freeze
   IMAGE = "ghcr.io/example/leave-desk@sha256:#{'a' * 64}"

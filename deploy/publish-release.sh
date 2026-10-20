@@ -67,6 +67,7 @@ fi
 
 required_files='Caddyfile
 apply-caddy.sh
+apply-migrations.sh
 backup.sh
 compose.sh
 compose.yml
@@ -78,6 +79,7 @@ leave-desk-session-prune.service
 leave-desk-session-prune.timer
 publish-release.sh
 rollback.sh
+schema-compatibility
 wait-for-health.sh'
 
 for file in $required_files; do
@@ -116,7 +118,8 @@ printf 'LEAVE_DESK_IMAGE=%s\n' "$image" > "$release_environment"
 chmod 0600 "$release_environment"
 mv "$release_environment" "$staging_directory/release.env"
 release_environment=
-chmod 0755 "$staging_directory/apply-caddy.sh" "$staging_directory/backup.sh" \
+chmod 0755 "$staging_directory/apply-caddy.sh" "$staging_directory/apply-migrations.sh" \
+  "$staging_directory/backup.sh" \
   "$staging_directory/compose.sh" "$staging_directory/publish-release.sh" \
   "$staging_directory/rollback.sh" "$staging_directory/wait-for-health.sh"
 for file in $required_files SHA256SUMS release.env; do

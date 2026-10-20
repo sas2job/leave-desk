@@ -23,11 +23,53 @@ if [ -n "$ghcr_username" ]; then
   esac
 fi
 
+read_generation() {
+  generation_file=$1
+  generation_label=$2
+
+  if [ ! -f "$generation_file" ] || [ -L "$generation_file" ]; then
+    echo "Missing or unsafe $generation_label: $generation_file" >&2
+    return 1
+  fi
+
+  generation_value=$(cat "$generation_file")
+  case "$generation_value" in
+    "" | *[!0-9]*)
+      echo "Invalid $generation_label: $generation_file" >&2
+      return 1
+      ;;
+  esac
+  if [ "${#generation_value}" -ne 14 ]; then
+    echo "Invalid $generation_label: $generation_file" >&2
+    return 1
+  fi
+
+  printf '%s\n' "$generation_value"
+}
+
 script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 deployment_root=${LEAVE_DESK_DEPLOYMENT_ROOT:-$(dirname -- "$(dirname -- "$script_directory")")}
 target_release="$deployment_root/releases/$release_id"
 if [ ! -d "$target_release" ] || [ -L "$target_release" ]; then
   echo "Release not found: $release_id" >&2
+  exit 1
+fi
+
+rollback_floor=00000000000000
+rollback_floor_file="$deployment_root/schema-rollback-floor"
+if [ -e "$rollback_floor_file" ] || [ -L "$rollback_floor_file" ]; then
+  rollback_floor=$(read_generation "$rollback_floor_file" "schema rollback floor")
+fi
+
+target_generation=00000000000000
+target_generation_file="$target_release/schema-compatibility"
+if [ -e "$target_generation_file" ] || [ -L "$target_generation_file" ]; then
+  target_generation=$(read_generation "$target_generation_file" \
+    "release schema compatibility")
+fi
+
+if [ "$target_generation" -lt "$rollback_floor" ]; then
+  echo "Release schema compatibility $target_generation is below rollback floor $rollback_floor" >&2
   exit 1
 fi
 
