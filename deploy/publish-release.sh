@@ -18,16 +18,28 @@ case "$release_id" in
     ;;
 esac
 
-case "$image" in
-  ghcr.io/*:*) ;;
+image_repository=${image%@sha256:*}
+image_digest=${image##*@sha256:}
+if [ "$image_repository" = "$image" ] || [ "${#image_digest}" -ne 64 ]; then
+  echo "Release image must use a sha256 digest" >&2
+  exit 64
+fi
+case "$image_repository" in
+  ghcr.io/?*) ;;
   *)
-    echo "Invalid release image" >&2
+    echo "Invalid release image repository" >&2
     exit 64
     ;;
 esac
-case "$image" in
-  *[!a-zA-Z0-9._/:@-]*)
-    echo "Invalid release image" >&2
+case "$image_repository" in
+  *[!a-zA-Z0-9._/-]* | *[@:]* )
+    echo "Invalid release image repository" >&2
+    exit 64
+    ;;
+esac
+case "$image_digest" in
+  *[!0-9a-f]*)
+    echo "Invalid release image digest" >&2
     exit 64
     ;;
 esac

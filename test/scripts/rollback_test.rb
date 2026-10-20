@@ -4,7 +4,8 @@ require "open3"
 require "tmpdir"
 
 class RollbackTest < ActiveSupport::TestCase
-  IMAGE = "ghcr.io/example/leave-desk:#{'b' * 40}"
+  IMAGE = "ghcr.io/example/leave-desk@sha256:#{'b' * 64}"
+  LEGACY_IMAGE = "ghcr.io/example/leave-desk:#{'c' * 40}"
   TOKEN = "test-token-that-must-not-be-logged"
 
   test "uses a cached private image without credentials or a registry pull" do
@@ -18,6 +19,16 @@ class RollbackTest < ActiveSupport::TestCase
       assert_equal [ "config --quiet", "up -d --no-deps --pull never web" ],
         compose_actions(environment)
       assert_empty credential_directories(environment)
+    end
+  end
+
+  test "keeps cached legacy SHA-tag releases available during transition" do
+    with_rollback_environment(cached: true, image: LEGACY_IMAGE) do |root, environment|
+      _output, error, status = rollback(root, environment:, stdin_data: "")
+
+      assert status.success?, error
+      assert_current_release root, "old-release"
+      assert_equal [ "image inspect #{LEGACY_IMAGE}" ], docker_actions(environment)
     end
   end
 
@@ -67,7 +78,7 @@ class RollbackTest < ActiveSupport::TestCase
 
   private
 
-  def with_rollback_environment(cached:)
+  def with_rollback_environment(cached:, image: IMAGE)
     Dir.mktmpdir("leave-desk-rollback-test") do |root|
       new_release = File.join(root, "releases", "new-release")
       old_release = File.join(root, "releases", "old-release")
@@ -75,7 +86,7 @@ class RollbackTest < ActiveSupport::TestCase
       runtime_directory = File.join(root, "runtime")
       FileUtils.mkdir_p([ new_release, old_release, executable_directory, runtime_directory ])
       File.symlink("releases/new-release", File.join(root, "current"))
-      File.write(File.join(old_release, "release.env"), "LEAVE_DESK_IMAGE=#{IMAGE}\n")
+      File.write(File.join(old_release, "release.env"), "LEAVE_DESK_IMAGE=#{image}\n")
       write_fake_compose(old_release)
       write_fake_docker(executable_directory)
 

@@ -21,7 +21,8 @@ class PublishReleaseTest < ActiveSupport::TestCase
     rollback.sh
     wait-for-health.sh
   ].freeze
-  IMAGE = "ghcr.io/example/leave-desk:#{'a' * 40}"
+  IMAGE = "ghcr.io/example/leave-desk@sha256:#{'a' * 64}"
+  REPLACEMENT_IMAGE = "ghcr.io/example/leave-desk@sha256:#{'b' * 64}"
 
   test "publishes a verified release through one current symlink switch" do
     with_staged_release do |root, staging, environment|
@@ -46,6 +47,37 @@ class PublishReleaseTest < ActiveSupport::TestCase
       assert_equal File.join(root, "releases", "old-release"),
         File.realpath(File.join(root, "current"))
       assert_not File.exist?(File.join(root, "releases", "new-release"))
+    end
+  end
+
+  test "rejects a mutable image tag without changing current" do
+    with_staged_release do |root, staging, environment|
+      _output, error, status = publish(root, staging, environment:,
+        image: "ghcr.io/example/leave-desk:#{'a' * 40}")
+
+      assert_equal 64, status.exitstatus
+      assert_includes error, "must use a sha256 digest"
+      assert_equal File.join(root, "releases", "old-release"),
+        File.realpath(File.join(root, "current"))
+    end
+  end
+
+  test "a second build cannot replace a published release identity" do
+    with_staged_release do |root, staging, environment|
+      _output, error, status = publish(root, staging, environment:)
+      assert status.success?, error
+
+      replacement = File.join(root, ".incoming", "replacement")
+      FileUtils.mkdir(replacement)
+      stage_release(replacement)
+      _output, error, status = publish(root, replacement, environment:,
+        image: REPLACEMENT_IMAGE)
+
+      assert_not status.success?
+      assert_includes error, "Release already exists"
+      release = File.join(root, "releases", "new-release")
+      assert_equal "LEAVE_DESK_IMAGE=#{IMAGE}\n", File.read(File.join(release, "release.env"))
+      assert_equal release, File.realpath(File.join(root, "current"))
     end
   end
 
@@ -90,14 +122,18 @@ class PublishReleaseTest < ActiveSupport::TestCase
       File.write(File.join(old_release, "marker"), "old release")
       File.symlink("releases/old-release", File.join(root, "current"))
 
-      RELEASE_FILES.each do |file|
-        source = Rails.root.join("deploy", file)
-        FileUtils.cp(source, File.join(staging, file))
-      end
-      write_manifest(staging)
+      stage_release(staging)
 
       yield root, staging, {}
     end
+  end
+
+  def stage_release(staging)
+    RELEASE_FILES.each do |file|
+      source = Rails.root.join("deploy", file)
+      FileUtils.cp(source, File.join(staging, file))
+    end
+    write_manifest(staging)
   end
 
   def write_manifest(staging)
@@ -122,8 +158,8 @@ class PublishReleaseTest < ActiveSupport::TestCase
     FileUtils.chmod(0o755, path)
   end
 
-  def publish(root, staging, environment:)
+  def publish(root, staging, environment:, image: IMAGE)
     Open3.capture3(environment, "sh", Rails.root.join("deploy/publish-release.sh").to_s,
-      root, staging, "new-release", IMAGE)
+      root, staging, "new-release", image)
   end
 end

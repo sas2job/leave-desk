@@ -65,7 +65,27 @@ class DeployGateTest < ActiveSupport::TestCase
 
     assert_includes command,
       "sh '$staging_directory/publish-release.sh' '$deployment_root' " \
-      "'$staging_directory' '$RELEASE_ID' '$IMAGE_NAME:$REVISION'"
+      "'$staging_directory' '$RELEASE_ID' '$release_image'"
+  end
+
+  test "each build has a unique tag while releases use the build digest" do
+    workflow = YAML.load_file(Rails.root.join(".github/workflows/deploy.yml"))
+    deploy_steps = workflow.fetch("jobs").fetch("deploy").fetch("steps")
+    build = deploy_steps.find { |step| step["name"] == "Build and publish image" }
+    publish = deploy_steps.find do |step|
+      step["name"] == "Publish deployment configuration atomically"
+    end
+    tags = build.fetch("with").fetch("tags").lines.map(&:strip)
+
+    assert_equal "build", build.fetch("id")
+    assert_includes tags,
+      "${{ env.IMAGE_NAME }}:${{ needs.authorize.outputs.sha }}-" \
+      "${{ github.run_id }}-${{ github.run_attempt }}"
+    assert_not_includes tags, "${{ env.IMAGE_NAME }}:${{ needs.authorize.outputs.sha }}"
+    assert_equal "${{ steps.build.outputs.digest }}", publish.fetch("env").fetch("IMAGE_DIGEST")
+    assert_equal "${{ needs.authorize.outputs.sha }}-${{ github.run_id }}-" \
+      "${{ github.run_attempt }}", publish.fetch("env").fetch("RELEASE_ID")
+    assert_includes publish.fetch("run"), 'release_image="$IMAGE_NAME@$IMAGE_DIGEST"'
   end
 
   private

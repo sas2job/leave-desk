@@ -33,7 +33,29 @@ fi
 
 image=$(sed -n 's/^LEAVE_DESK_IMAGE=//p' "$target_release/release.env")
 case "$image" in
-  ghcr.io/*:*) ;;
+  ghcr.io/?*@sha256:*)
+    image_repository=${image%@sha256:*}
+    image_digest=${image##*@sha256:}
+    if [ "${#image_digest}" -ne 64 ]; then
+      echo "Release has an invalid image digest" >&2
+      exit 1
+    fi
+    case "$image_repository" in
+      *[!a-zA-Z0-9._/-]* | *[@:]* )
+        echo "Release has an invalid image repository" >&2
+        exit 1
+        ;;
+    esac
+    case "$image_digest" in
+      *[!0-9a-f]*)
+        echo "Release has an invalid image digest" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  ghcr.io/*:*)
+    # Releases published before digest pinning retain their legacy SHA tag.
+    ;;
   *)
     echo "Release has an invalid image reference" >&2
     exit 1

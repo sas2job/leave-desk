@@ -81,12 +81,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and publish image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ needs.authorize.outputs.sha }}
+            ${{ env.IMAGE_NAME }}:${{ needs.authorize.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
             ${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -107,9 +108,15 @@ jobs:
 
       - name: Publish deployment configuration atomically
         env:
-          REVISION: ${{ needs.authorize.outputs.sha }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
           RELEASE_ID: ${{ needs.authorize.outputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
+          digest_hex=${IMAGE_DIGEST#sha256:}
+          if [[ "$digest_hex" == "$IMAGE_DIGEST" || ${#digest_hex} -ne 64 || "$digest_hex" == *[^0-9a-f]* ]]; then
+            echo 'Build did not return a valid sha256 image digest' >&2
+            exit 1
+          fi
+          release_image="$IMAGE_NAME@$IMAGE_DIGEST"
           deployment_root=/root/projects/leave-desk
           staging_directory="$deployment_root/.incoming/$RELEASE_ID"
           release_files=(
@@ -132,7 +139,7 @@ jobs:
             "$DEPLOY_USER@$DEPLOY_HOST:$staging_directory/SHA256SUMS"
 
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "set -eu; sh '$staging_directory/publish-release.sh' '$deployment_root' '$staging_directory' '$RELEASE_ID' '$IMAGE_NAME:$REVISION'"
+            "set -eu; sh '$staging_directory/publish-release.sh' '$deployment_root' '$staging_directory' '$RELEASE_ID' '$release_image'"
 
       - name: Deploy tested image
         env:
