@@ -357,7 +357,9 @@ class LeaveRequestTest < ActiveSupport::TestCase
   end
 
   test "birthday leave is one full calendar day" do
-    birthday_type = LeaveType.create!(name: "Выходной в день рождения", code: "BIRTHDAY")
+    birthday_type = LeaveType.find_or_create_by!(code: "BIRTHDAY") do |leave_type|
+      leave_type.name = "Выходной в день рождения"
+    end
     long_request = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
       starts_on: Date.new(2026, 10, 17), ends_on: Date.new(2026, 11, 2))
 
