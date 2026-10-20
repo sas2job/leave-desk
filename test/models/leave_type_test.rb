@@ -7,6 +7,16 @@ class LeaveTypeTest < ActiveSupport::TestCase
     assert_equal "TEST_ANNUAL", leave_type.code
   end
 
+  test "birthday reference code cannot change" do
+    leave_type = LeaveType.find_or_create_by!(code: "BIRTHDAY") do |new_type|
+      new_type.name = "Birthday leave"
+    end
+
+    assert_not leave_type.update(code: "BDAY")
+    assert_includes leave_type.errors[:code], "нельзя изменить для системного вида отпуска"
+    assert_equal "BIRTHDAY", leave_type.reload.code
+  end
+
   test "holiday handling cannot change after leave type is used" do
     leave_type = LeaveType.create!(name: "Annual leave", code: "TEST_ANNUAL")
     employee = User.create!(name: "Employee", email_address: "employee@example.test",

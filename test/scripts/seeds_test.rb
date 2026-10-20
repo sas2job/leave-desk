@@ -39,4 +39,16 @@ class SeedsTest < ActiveSupport::TestCase
 
     assert_not leave_type.reload.active?
   end
+
+  test "rerun does not duplicate birthday type after rejected code edit" do
+    load Rails.root.join("db/seeds.rb")
+    birthday_type = LeaveType.find_by!(code: "BIRTHDAY")
+
+    assert_not birthday_type.update(code: "BDAY")
+
+    load Rails.root.join("db/seeds.rb")
+
+    assert_equal [ birthday_type.id ], LeaveType.where(code: "BIRTHDAY").pluck(:id)
+    assert_not LeaveType.exists?(code: "BDAY")
+  end
 end

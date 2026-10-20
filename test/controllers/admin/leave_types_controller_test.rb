@@ -20,6 +20,30 @@ module Admin
       @leave_type = LeaveType.create!(name: "Annual leave", code: "TEST_ANNUAL")
     end
 
+    test "administrator cannot change birthday reference code" do
+      birthday_type = birthday_leave_type
+      sign_in_as(@administrator)
+
+      patch admin_leave_type_path(birthday_type), params: { leave_type: {
+        name: birthday_type.name, code: "BDAY", active: true
+      } }
+
+      assert_response :unprocessable_entity
+      assert_equal "BIRTHDAY", birthday_type.reload.code
+      assert_select ".error-summary", text: /нельзя изменить для системного вида отпуска/
+    end
+
+    test "birthday reference code is read only in the administration form" do
+      birthday_type = birthday_leave_type
+      sign_in_as(@administrator)
+
+      get edit_admin_leave_type_path(birthday_type)
+
+      assert_response :success
+      assert_select "input[name='leave_type[code]'][readonly][value='BIRTHDAY']"
+      assert_select ".field-hint", text: /Системный код.+нельзя изменить/
+    end
+
     test "rejects numeric JSON leave type fields without creating a type" do
       sign_in_as(@administrator)
       attributes = { name: "Study leave", code: "TEST_STUDY",
@@ -128,6 +152,12 @@ module Admin
     end
 
     private
+
+    def birthday_leave_type
+      LeaveType.find_or_create_by!(code: "BIRTHDAY") do |new_type|
+        new_type.name = "Birthday leave"
+      end
+    end
 
     def create_user(email_address, role: :employee)
       User.create!(name: "Example User", email_address:, password: "test-password", role:)

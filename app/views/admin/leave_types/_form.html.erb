@@ -19,7 +19,11 @@
 
       <div class="field">
         <%= form.label :code, "Код" %>
-        <%= form.text_field :code, required: true, maxlength: 40, placeholder: "STUDY" %>
+        <%= form.text_field :code, required: true, maxlength: 40, placeholder: "STUDY",
+              readonly: leave_type.persisted? && leave_type.code == LeaveType::BIRTHDAY_CODE %>
+        <% if leave_type.persisted? && leave_type.code == LeaveType::BIRTHDAY_CODE %>
+          <p class="field-hint">Системный код выхода в день рождения нельзя изменить.</p>
+        <% end %>
       </div>
 
       <div class="field field--full">
