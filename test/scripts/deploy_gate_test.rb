@@ -46,6 +46,16 @@ class DeployGateTest < ActiveSupport::TestCase
     assert_equal "needs.authorize.outputs.deploy == 'true'", deploy.fetch("if")
   end
 
+  test "deployment bounds internal health checks and reports deadline expiry" do
+    workflow = YAML.load_file(Rails.root.join(".github/workflows/deploy.yml"))
+    deploy_steps = workflow.fetch("jobs").fetch("deploy").fetch("steps")
+    command = deploy_steps.find { |step| step["name"] == "Deploy tested image" }.fetch("run")
+
+    assert_includes command, "timeout --signal=TERM --kill-after=5s 90s"
+    assert_includes command, "Internal health check timed out after 90 seconds"
+    assert_includes command, "./current/compose.sh logs --tail=100 web"
+  end
+
   private
 
   def workflow_run_event(conclusion: "success", event: "push", branch: "main",

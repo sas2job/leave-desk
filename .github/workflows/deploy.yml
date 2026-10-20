@@ -117,7 +117,7 @@ jobs:
             leave-desk-backup.service leave-desk-backup.timer
             leave-desk-cache-cleanup.service leave-desk-cache-cleanup.timer
             leave-desk-session-prune.service leave-desk-session-prune.timer
-            publish-release.sh rollback.sh
+            publish-release.sh rollback.sh wait-for-health.sh
           )
 
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
@@ -150,13 +150,18 @@ jobs:
             ./current/apply-caddy.sh; \
             health_host=\$(sed -n 's/^LEAVE_DESK_PUBLIC_HOST=//p' .env); \
             test -n \"\$health_host\"; \
-            for attempt in \$(seq 1 30); do \
-              curl --fail --silent --show-error --header \"Host: \$health_host\" \
-                http://127.0.0.1:3000/up && exit 0; \
-              sleep 2; \
-            done; \
-            ./current/compose.sh logs --tail=100 web; \
-            exit 1"
+            if timeout --signal=TERM --kill-after=5s 90s \
+              ./current/wait-for-health.sh http://127.0.0.1:3000/up \"\$health_host\"; then \
+              :; \
+            else \
+              health_status=\$?; \
+              case \"\$health_status\" in \
+                124|137) echo 'Internal health check timed out after 90 seconds' >&2 ;; \
+                *) echo \"Internal health check failed with status \$health_status\" >&2 ;; \
+              esac; \
+              ./current/compose.sh logs --tail=100 web; \
+              exit 1; \
+            fi"
       - name: Check public HTTPS
         run: |
           curl --fail --silent --show-error --retry 10 --retry-all-errors \
