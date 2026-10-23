@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${DEPLOY_HOST:?}"
+: "${DEPLOY_PORT:?}"
+: "${DEPLOY_USER:?}"
+: "${RUNNER_TEMP:?}"
+
+archive=/var/backups/leave-desk/leave-desk-20261020T020027Z
+script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+download_directory=$(mktemp -d "$RUNNER_TEMP/leave-desk-pre-reset.XXXXXXXX")
+chmod 0700 "$download_directory"
+container="leave-desk-history-audit-${GITHUB_RUN_ID:-local}"
+container_started=0
+
+cleanup() {
+  if [ "$container_started" -eq 1 ]; then
+    docker stop "$container" >/dev/null 2>&1 || true
+  fi
+  rm -f -- "$download_directory/database.dump" \
+    "$download_directory/database.dump.sha256" "$download_directory/restore.stderr"
+  rmdir -- "$download_directory"
+}
+trap cleanup EXIT
+
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
+  "$DEPLOY_USER@$DEPLOY_HOST" "cat '$archive/database.dump'" \
+  > "$download_directory/database.dump"
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
+  "$DEPLOY_USER@$DEPLOY_HOST" "cat '$archive/database.dump.sha256'" \
+  > "$download_directory/database.dump.sha256"
+(cd "$download_directory" && sha256sum --status --check database.dump.sha256)
+
+docker run -d --rm --network none --memory 512m --name "$container" \
+  -e POSTGRES_PASSWORD=isolated-audit -e POSTGRES_DB=audit \
+  postgres:16-alpine >/dev/null
+container_started=1
+
+ready=0
+for _ in $(seq 1 30); do
+  if docker exec "$container" pg_isready -U postgres -d audit >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+if [ "$ready" -ne 1 ]; then
+  echo 'Isolated PostgreSQL did not become ready' >&2
+  exit 1
+fi
+
+if ! docker exec -i "$container" pg_restore -U postgres -d audit \
+  --single-transaction --exit-on-error \
+  < "$download_directory/database.dump" > /dev/null \
+  2> "$download_directory/restore.stderr"; then
+  echo 'Historical archive restore failed' >&2
+  exit 1
+fi
+
+result=$(docker exec -i "$container" psql -X -U postgres -d audit \
+  -v ON_ERROR_STOP=1 -A -t -F , \
+  < "$script_directory/audit-cancelled-approval-history.sql")
+IFS=, read -r total valid invalid same_time <<< "$result"
+for count in "$total" "$valid" "$invalid" "$same_time"; do
+  [[ "$count" =~ ^[0-9]+$ ]] || {
+    echo 'Historical audit returned an invalid aggregate' >&2
+    exit 1
+  }
+done
+
+without_notification=$(docker exec "$container" psql -X -U postgres -d audit \
+  -v ON_ERROR_STOP=1 -A -t -c '
+    SELECT COUNT(*)
+    FROM leave_requests requests
+    JOIN leave_request_events approvals
+      ON approvals.leave_request_id = requests.id
+    WHERE requests.status = 3
+      AND requests.reviewer_id IS NOT NULL
+      AND approvals.event_type = 1
+      AND approvals.actor_id = requests.reviewer_id
+      AND approvals.occurred_at = requests.reviewed_at
+      AND NOT EXISTS (
+        SELECT 1 FROM notifications
+        WHERE notifications.leave_request_event_id = approvals.id
+      )')
+[[ "$without_notification" =~ ^[0-9]+$ ]] || {
+  echo 'Historical approval count is invalid' >&2
+  exit 1
+}
+
+printf 'Pre-reset archive: reviewed cancellations=%s; valid histories=%s; invalid histories=%s; approvals without notifications=%s\n' \
+  "$total" "$valid" "$invalid" "$without_notification"
+test "$invalid" -eq 0
