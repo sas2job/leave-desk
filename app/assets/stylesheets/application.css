@@ -402,6 +402,13 @@ h2 {
   gap: 0.85rem;
 }
 
+.history-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
 .request-card {
   display: grid;
   grid-template-columns: minmax(170px, 1.4fr) repeat(2, minmax(110px, 0.7fr)) auto;

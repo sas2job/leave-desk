@@ -1,12 +1,15 @@
 module Manager
   class LeaveRequestsController < ApplicationController
+    include HistoryPagination
+
     before_action :require_manager
     before_action :set_leave_request, only: %i[approve reject]
     before_action :validate_review_comment, only: %i[approve reject]
 
     def index
-      @leave_requests = managed_leave_requests.includes(:employee, :leave_type, events: :actor)
-        .order(created_at: :desc)
+      @leave_requests = paginate_history(
+        managed_leave_requests.includes(:employee, :leave_type, events: :actor)
+      )
     end
 
     def approve

@@ -55,4 +55,5 @@
       <%= link_to "Создать заявку", new_leave_request_path, class: "button" %>
     </section>
   <% end %>
+  <%= render "shared/history_pagination", path: leave_requests_path %>
 </main>

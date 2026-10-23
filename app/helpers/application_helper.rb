@@ -40,9 +40,9 @@ module ApplicationHelper
     end
 
     if leave_request.employee_id == Current.user.id
-      leave_requests_path(anchor: dom_id(leave_request))
+      leave_requests_path(before: leave_request.id + 1, anchor: dom_id(leave_request))
     else
-      manager_leave_requests_path(anchor: dom_id(leave_request))
+      manager_leave_requests_path(before: leave_request.id + 1, anchor: dom_id(leave_request))
     end
   end
 
