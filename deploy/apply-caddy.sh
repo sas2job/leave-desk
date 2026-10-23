@@ -7,6 +7,33 @@ candidate="$release_directory/Caddyfile"
 configuration_directory="$deployment_root/caddy"
 active="$configuration_directory/Caddyfile"
 legacy_active="$deployment_root/Caddyfile"
+ready_timeout=${LEAVE_DESK_CADDY_READY_TIMEOUT_SECONDS:-20}
+
+case "$ready_timeout" in
+  ''|*[!0-9]*) echo "Caddy readiness timeout must be 1–60 seconds" >&2; exit 1 ;;
+esac
+if [ "$ready_timeout" -lt 1 ] || [ "$ready_timeout" -gt 60 ]; then
+  echo "Caddy readiness timeout must be 1–60 seconds" >&2
+  exit 1
+fi
+
+reload_caddy() {
+  deadline=$(( $(date +%s) + ready_timeout ))
+  until "$release_directory/compose.sh" exec -T caddy curl --silent --fail \
+    --max-time 2 --output /dev/null http://127.0.0.1:2019/config/ >/dev/null 2>&1; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      echo "Caddy admin endpoint unavailable after ${ready_timeout}s" >&2
+      return 1
+    fi
+    sleep 1
+  done
+
+  if ! "$release_directory/compose.sh" exec -T caddy caddy reload \
+    --config /etc/caddy/Caddyfile --adapter caddyfile; then
+    echo "Caddy reload failed after admin endpoint became ready" >&2
+    return 1
+  fi
+}
 
 test -f "$candidate"
 mkdir -p -- "$configuration_directory"
@@ -29,9 +56,9 @@ cleanup() {
     restore=$(mktemp "$configuration_directory/.Caddyfile.restore.XXXXXX")
     if cp -- "$backup" "$restore" && sync -d "$restore" && mv -f -- "$restore" "$active"; then
       sync "$configuration_directory"
-      "$release_directory/compose.sh" up -d --no-deps caddy || true
-      "$release_directory/compose.sh" exec -T caddy caddy reload \
-        --config /etc/caddy/Caddyfile --adapter caddyfile || true
+      if ! "$release_directory/compose.sh" up -d --force-recreate --no-deps caddy || ! reload_caddy; then
+        echo "Caddy rollback restored the file but could not confirm the running configuration" >&2
+      fi
     else
       rm -f -- "$restore"
     fi
@@ -73,6 +100,5 @@ sync "$configuration_directory"
 # A directory bind mount observes the atomically replaced file. The first run
 # also recreates a legacy container that still has the former single-file mount.
 "$release_directory/compose.sh" up -d --no-deps caddy
-"$release_directory/compose.sh" exec -T caddy caddy reload \
-  --config /etc/caddy/Caddyfile --adapter caddyfile
+reload_caddy
 rollback_needed=0

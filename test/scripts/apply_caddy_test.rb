@@ -58,12 +58,44 @@ class ApplyCaddyTest < ActiveSupport::TestCase
     with_deployment do |directory, release, environment|
       File.write(File.join(release, "Caddyfile"), "new configuration")
 
-      _output, _error, status = run_apply(release,
+      _output, error, status = run_apply(release,
         environment.merge("FAIL_RELOAD_FOR_NEW_CONFIG" => "yes"))
 
       assert_not status.success?
+      assert_includes error, "Caddy reload failed after admin endpoint became ready"
       assert_equal "old configuration", active_configuration(directory)
       assert_equal [ "run", "up", "exec", "up", "exec" ], compose_actions(environment)
+      assert_empty temporary_configurations(directory)
+    end
+  end
+
+  test "startup delay is retried before reloading valid configuration" do
+    with_deployment do |directory, release, environment|
+      File.write(File.join(release, "Caddyfile"), "new configuration")
+
+      _output, error, status = run_apply(release,
+        environment.merge("PROBE_FAILURES_BEFORE_READY" => "2"))
+
+      assert status.success?, error
+      assert_equal "new configuration", active_configuration(directory)
+      assert_equal 3, File.readlines(environment.fetch("COMPOSE_LOG")).count("probe\n")
+      assert_equal [ "run", "up", "exec" ], compose_actions(environment)
+    end
+  end
+
+  test "unavailable admin endpoint times out and restores previous configuration" do
+    with_deployment do |directory, release, environment|
+      File.write(File.join(release, "Caddyfile"), "new configuration")
+
+      _output, error, status = run_apply(release, environment.merge(
+        "PROBE_ALWAYS_FAIL_FOR_NEW_CONFIG" => "yes",
+        "LEAVE_DESK_CADDY_READY_TIMEOUT_SECONDS" => "1"
+      ))
+
+      assert_not status.success?
+      assert_includes error, "Caddy admin endpoint unavailable after 1s"
+      assert_equal "old configuration", active_configuration(directory)
+      assert_equal [ "run", "up", "up", "exec" ], compose_actions(environment)
       assert_empty temporary_configurations(directory)
     end
   end
@@ -139,6 +171,23 @@ class ApplyCaddyTest < ActiveSupport::TestCase
       #!/bin/sh
       set -eu
       action=$1
+      if [ "$action" = exec ] && [ "${4:-}" = curl ]; then
+        printf 'probe\n' >> "$COMPOSE_LOG"
+        if [ "${PROBE_ALWAYS_FAIL_FOR_NEW_CONFIG:-}" = yes ] &&
+          grep -q 'new configuration' "$ACTIVE_CADDYFILE"; then
+          exit 7
+        fi
+        count=0
+        if [ -f "$COMPOSE_LOG.probes" ]; then
+          count=$(cat "$COMPOSE_LOG.probes")
+        fi
+        count=$((count + 1))
+        printf '%s\n' "$count" > "$COMPOSE_LOG.probes"
+        if [ "$count" -le "${PROBE_FAILURES_BEFORE_READY:-0}" ]; then
+          exit 7
+        fi
+        exit 0
+      fi
       printf '%s\n' "$action" >> "$COMPOSE_LOG"
 
       if [ "$action" = run ] && grep -q INVALID "$CANDIDATE_CADDYFILE"; then
@@ -177,6 +226,6 @@ class ApplyCaddyTest < ActiveSupport::TestCase
   end
 
   def compose_actions(environment)
-    File.readlines(environment.fetch("COMPOSE_LOG"), chomp: true)
+    File.readlines(environment.fetch("COMPOSE_LOG"), chomp: true).reject { |action| action == "probe" }
   end
 end
