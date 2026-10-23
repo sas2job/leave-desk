@@ -1,4 +1,8 @@
 require "test_helper"
+require "fileutils"
+require "open3"
+require "tmpdir"
+require "yaml"
 require Rails.root.join("db/migrate/20261015103423_restore_cancelled_request_approval_events")
 
 class AuditCancelledApprovalHistoryTest < ActiveSupport::TestCase
@@ -25,6 +29,33 @@ class AuditCancelledApprovalHistoryTest < ActiveSupport::TestCase
     assert_equal [ 2, 2, 0, 1 ], audit_counts
   end
 
+  test "runner accepts aggregate counts without invalid histories" do
+    with_fake_ssh("2,2,0,1") do |environment|
+      output, error, status = run_audit(environment)
+
+      assert status.success?, error
+      assert_includes output, "invalid histories: 0"
+    end
+  end
+
+  test "runner rejects invalid histories and malformed aggregates" do
+    [ "2,1,1,0", "unexpected output" ].each do |response|
+      with_fake_ssh(response) do |environment|
+        _output, _error, status = run_audit(environment)
+
+        assert_not status.success?
+      end
+    end
+  end
+
+  test "production audit is the last deployment step" do
+    steps = YAML.load_file(Rails.root.join(".github/workflows/deploy.yml"))
+      .fetch("jobs").fetch("deploy").fetch("steps")
+
+    assert_equal "Audit leave history", steps.last.fetch("name")
+    assert_equal "bash deploy/audit-leave-history.sh", steps.last.fetch("run")
+  end
+
   private
 
   def request_for(employee, leave_type, day, reviewer, reviewed_at)
@@ -49,5 +80,24 @@ class AuditCancelledApprovalHistoryTest < ActiveSupport::TestCase
     result = ActiveRecord::Base.connection.select_one(sql)
     result.values_at("reviewed_cancelled", "valid_history", "invalid_history",
       "approvals_at_review_time").map(&:to_i)
+  end
+
+  def with_fake_ssh(response)
+    Dir.mktmpdir("leave-desk-history-audit-test") do |directory|
+      ssh = File.join(directory, "ssh")
+      File.write(ssh, "#!/bin/sh\nprintf '%s\\n' \"$AUDIT_RESULT\"\n")
+      FileUtils.chmod(0o755, ssh)
+      yield({
+        "PATH" => "#{directory}:#{ENV.fetch('PATH')}",
+        "DEPLOY_HOST" => "example.test",
+        "DEPLOY_PORT" => "22",
+        "DEPLOY_USER" => "operator",
+        "AUDIT_RESULT" => response
+      })
+    end
+  end
+
+  def run_audit(environment)
+    Open3.capture3(environment, "bash", Rails.root.join("deploy/audit-leave-history.sh").to_s)
   end
 end

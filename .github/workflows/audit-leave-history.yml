@@ -27,13 +27,4 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: |
-          result=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            'cd /root/projects/leave-desk && ./current/compose.sh exec -T db psql -X -U leave_desk -d leave_desk_production -v ON_ERROR_STOP=1 -A -t -F ,' \
-            < deploy/audit-cancelled-approval-history.sql)
-          IFS=, read -r total valid invalid same_time <<< "$result"
-          [[ "$total" =~ ^[0-9]+$ && "$valid" =~ ^[0-9]+$ && "$invalid" =~ ^[0-9]+$ && "$same_time" =~ ^[0-9]+$ ]]
-          printf 'Reviewed cancellations: %s; valid histories: %s; invalid histories: %s; approvals at review time: %s\n' \
-            "$total" "$valid" "$invalid" "$same_time"
-          test "$invalid" -eq 0
+        run: bash deploy/audit-leave-history.sh
