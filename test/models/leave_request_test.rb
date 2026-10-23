@@ -275,6 +275,28 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_predicate administrator.notifications.last.leave_request_event, :calendar_unverified?
   end
 
+  test "calendar flagging rechecks status after a selected request becomes inactive" do
+    User.create!(name: "Administrator", email_address: "administrator@example.test",
+      password: "test-password", role: :administrator)
+    FederalCalendar.create!(year: 2026, legal_basis: "НПА",
+      public_holidays: RussianFederalHoliday.fixed_dates_for(2026))
+
+    %i[cancel reject].each do |decision|
+      request = create_request
+      assert_not_predicate request, :calendar_unverified?
+      selected_request = LeaveRequest.find(request.id)
+      decision == :cancel ? request.cancel! : request.reject!(by: @manager)
+      event_count = LeaveRequestEvent.count
+      notification_count = Notification.count
+
+      selected_request.flag_calendar_for_review!
+
+      assert_not_predicate request.reload, :calendar_unverified?
+      assert_equal event_count, LeaveRequestEvent.count
+      assert_equal notification_count, Notification.count
+    end
+  end
+
   test "transferred day off remains in annual leave duration" do
     @leave_type.update!(holiday_handling: :exclude_public_holidays)
     FederalCalendar.create!(year: 2026, legal_basis: "Статья 112 ТК РФ; постановление о переносах",

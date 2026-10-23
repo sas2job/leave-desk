@@ -110,6 +110,7 @@ class LeaveRequest < ApplicationRecord
 
   def flag_calendar_for_review!
     with_lock do
+      return unless pending? || approved?
       return if calendar_unverified?
 
       update!(calendar_unverified: true)
