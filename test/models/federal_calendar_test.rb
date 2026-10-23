@@ -30,6 +30,32 @@ class FederalCalendarTest < ActiveSupport::TestCase
 
     assert_not calendar.valid?
     assert_includes calendar.errors[:public_holidays], "не могут повторяться"
+    assert_not_includes calendar.errors[:transfers], "не могут переносить выходной на праздник"
+
+    calendar.public_holidays_input = "2026-01-01"
+    assert_not calendar.valid?
     assert_includes calendar.errors[:transfers], "не могут переносить выходной на праздник"
+  end
+
+  test "rejects oversized form collections before parsing dates" do
+    calendar = FederalCalendar.new(year: 2026, legal_basis: "НПА")
+    calendar.public_holidays_input = "2026-01-01\n" * 10_000
+    calendar.transfers_input = "2026-02-01 -> 2026-02-02\n" * 10_000
+
+    assert_not calendar.valid?
+    assert_includes calendar.errors[:public_holidays_input], "не могут содержать более 366 строк"
+    assert_includes calendar.errors[:transfers_input], "не могут содержать более 366 строк"
+    assert_empty calendar.public_holidays
+    assert_empty calendar.transfers
+  end
+
+  test "rejects oversized arrays before normalizing dates" do
+    calendar = FederalCalendar.new(year: 2026, legal_basis: "НПА",
+      public_holidays: [ "2026-01-01" ] * 367,
+      transfers: [ { "from" => "2026-02-01", "to" => "2026-02-02" } ] * 367)
+
+    assert_not calendar.valid?
+    assert_includes calendar.errors[:public_holidays], "не могут содержать более 366 дат"
+    assert_includes calendar.errors[:transfers], "не могут содержать более 366 переносов"
   end
 end

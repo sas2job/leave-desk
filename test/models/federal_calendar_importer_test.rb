@@ -29,6 +29,18 @@ class FederalCalendarImporterTest < ActiveSupport::TestCase
     assert_equal "НПА", calendar.legal_basis
   end
 
+  test "rejects oversized JSON collections before date normalization" do
+    data = JSON.parse(calendar_json)
+    data["public_holidays"] = [ "2026-01-01" ] * 367
+    data["transfers"] = [ { "from" => "2026-03-07", "to" => "2026-03-09" } ] * 367
+
+    error = assert_raises(FederalCalendarImporter::InvalidFile) do
+      FederalCalendarImporter.call(StringIO.new(JSON.generate(data)))
+    end
+    assert_match(/Слишком много/, error.message)
+    assert_not FederalCalendar.exists?(year: 2026)
+  end
+
   test "bundled federal calendars import and apply decree and automatic transfers" do
     expected_dates = {
       2025 => { workdays: %w[2025-11-01], days_off: %w[2025-05-02 2025-11-03 2025-12-31] },

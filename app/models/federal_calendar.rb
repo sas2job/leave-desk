@@ -1,5 +1,6 @@
 class FederalCalendar < ApplicationRecord
   DATE_PATTERN = /\A\d{4}-\d{2}-\d{2}\z/
+  MAX_DATE_ENTRIES = 366
   YEAR_LOCK_NAMESPACE = 0x4c445943
 
   def self.with_year_lock(year, &block)
@@ -123,6 +124,16 @@ class FederalCalendar < ApplicationRecord
   end
 
   def parse_form_dates
+    if instance_variable_defined?(:@public_holidays_input) &&
+        @public_holidays_input.to_s.each_line.take(MAX_DATE_ENTRIES + 1).size > MAX_DATE_ENTRIES
+      errors.add(:public_holidays_input, "не могут содержать более #{MAX_DATE_ENTRIES} строк")
+    end
+    if instance_variable_defined?(:@transfers_input) &&
+        @transfers_input.to_s.each_line.take(MAX_DATE_ENTRIES + 1).size > MAX_DATE_ENTRIES
+      errors.add(:transfers_input, "не могут содержать более #{MAX_DATE_ENTRIES} строк")
+    end
+    return if errors[:public_holidays_input].any? || errors[:transfers_input].any?
+
     if instance_variable_defined?(:@public_holidays_input)
       self.public_holidays = parse_date_lines(@public_holidays_input, :public_holidays)
     end
@@ -159,6 +170,15 @@ class FederalCalendar < ApplicationRecord
   end
 
   def calendar_dates_are_valid
+    if public_holidays.size > MAX_DATE_ENTRIES
+      errors.add(:public_holidays, "не могут содержать более #{MAX_DATE_ENTRIES} дат")
+    end
+    if transfers.size > MAX_DATE_ENTRIES
+      errors.add(:transfers, "не могут содержать более #{MAX_DATE_ENTRIES} переносов")
+    end
+    return if errors[:public_holidays_input].any? || errors[:transfers_input].any? ||
+      errors[:public_holidays].any? || errors[:transfers].any?
+
     holidays = public_holidays.filter_map { |value| normalize_date(value, :public_holidays) }
     errors.add(:public_holidays, "должны быть указаны") if holidays.empty?
     errors.add(:public_holidays, "не могут повторяться") if holidays.uniq.size != holidays.size
@@ -176,7 +196,10 @@ class FederalCalendar < ApplicationRecord
     errors.add(:transfers, "должны относиться к выбранному году") if pairs.flatten.any? { |date| date.year != year }
     errors.add(:transfers, "не могут переносить день на сам себя") if pairs.any? { |from, to| from == to }
     errors.add(:transfers, "не могут повторять исходные или новые даты") if pairs.map(&:first).uniq.size != pairs.size || pairs.map(&:last).uniq.size != pairs.size
-    errors.add(:transfers, "не могут переносить выходной на праздник") if pairs.any? { |_from, to| holidays.include?(to) }
+    return if errors[:public_holidays].any? || errors[:transfers].any?
+
+    holiday_set = holidays.to_set
+    errors.add(:transfers, "не могут переносить выходной на праздник") if pairs.any? { |_from, to| holiday_set.include?(to) }
   end
 
   def normalize_date(value, field)

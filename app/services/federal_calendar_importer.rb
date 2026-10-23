@@ -36,6 +36,10 @@ class FederalCalendarImporter
     unless data.is_a?(Hash) && data.keys.sort == FIELDS.sort
       raise InvalidFile, "Ожидаются поля: #{FIELDS.join(', ')}"
     end
+    if (data["public_holidays"].is_a?(Array) && data["public_holidays"].size > FederalCalendar::MAX_DATE_ENTRIES) ||
+        (data["transfers"].is_a?(Array) && data["transfers"].size > FederalCalendar::MAX_DATE_ENTRIES)
+      raise InvalidFile, "Слишком много праздничных дат или переносов (максимум #{FederalCalendar::MAX_DATE_ENTRIES})"
+    end
     unless data["year"].is_a?(Integer) && data["legal_basis"].is_a?(String) &&
         data["public_holidays"].is_a?(Array) && data["public_holidays"].all? { |date| date.is_a?(String) } &&
         data["transfers"].is_a?(Array) && data["transfers"].all? { |pair| valid_pair?(pair) }

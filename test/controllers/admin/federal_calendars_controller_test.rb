@@ -48,6 +48,20 @@ module Admin
       assert_empty calendar.transfers
     end
 
+    test "large duplicate form collections are rejected without creating a calendar" do
+      sign_in_as(@administrator)
+      attributes = calendar_attributes.merge(
+        public_holidays_input: "2026-01-01\n" * 10_000,
+        transfers_input: "2026-02-01 -> 2026-02-02\n" * 10_000
+      )
+
+      assert_no_difference("FederalCalendar.count") do
+        post admin_federal_calendars_path, params: { federal_calendar: attributes }
+      end
+      assert_response :unprocessable_entity
+      assert_select ".error-summary", text: /366 строк/
+    end
+
     test "invalid dates leave published calendar unchanged" do
       calendar = FederalCalendar.create!(year: 2026, legal_basis: "НПА",
         public_holidays: [ Date.new(2026, 1, 1) ])
