@@ -21,6 +21,7 @@ class PublishReleaseTest < ActiveSupport::TestCase
     publish-release.sh
     rollback.sh
     schema-compatibility
+    verify-container-logging.sh
     wait-for-health.sh
   ].freeze
   IMAGE = "ghcr.io/example/leave-desk@sha256:#{'a' * 64}"

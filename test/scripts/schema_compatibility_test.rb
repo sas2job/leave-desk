@@ -13,7 +13,7 @@ class SchemaCompatibilityTest < ActiveSupport::TestCase
       output, error, status = apply_migrations(release, environment:)
 
       assert status.success?, "#{output}\n#{error}"
-      assert_equal [ "stop web", "run --rm migrate" ], compose_actions(environment)
+      assert_equal [ "stop web", "up -d --no-deps db", "run --rm migrate" ], compose_actions(environment)
       assert_equal "#{GENERATION}\n", File.read(File.join(root, "schema-rollback-floor"))
       assert_includes output, "Schema rollback floor: #{GENERATION}"
     end
@@ -28,7 +28,22 @@ class SchemaCompatibilityTest < ActiveSupport::TestCase
 
       assert_not status.success?, output
       assert_includes error, "web remains stopped"
-      assert_equal [ "stop web", "run --rm migrate" ], compose_actions(environment)
+      assert_equal [ "stop web", "up -d --no-deps db", "run --rm migrate" ], compose_actions(environment)
+      assert_equal "#{OLDER_GENERATION}\n",
+        File.read(File.join(root, "schema-rollback-floor"))
+    end
+  end
+
+  test "leaves writer stopped and rollback floor unchanged if database reconciliation fails" do
+    with_migration_environment(floor: OLDER_GENERATION) do |root, release, environment|
+      output, error, status = apply_migrations(
+        release,
+        environment: environment.merge("FAIL_DB_RECONCILE" => "yes")
+      )
+
+      assert_not status.success?, output
+      assert_includes error, "web remains stopped"
+      assert_equal [ "stop web", "up -d --no-deps db" ], compose_actions(environment)
       assert_equal "#{OLDER_GENERATION}\n",
         File.read(File.join(root, "schema-rollback-floor"))
     end
@@ -115,6 +130,9 @@ class SchemaCompatibilityTest < ActiveSupport::TestCase
       #!/bin/sh
       set -eu
       printf '%s\n' "$*" >> "$COMPOSE_LOG"
+      if [ "$*" = "up -d --no-deps db" ] && [ "${FAIL_DB_RECONCILE:-}" = yes ]; then
+        exit 72
+      fi
       if [ "$*" = "run --rm migrate" ] && [ "${FAIL_MIGRATION:-}" = yes ]; then
         exit 71
       fi

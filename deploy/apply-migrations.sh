@@ -47,6 +47,10 @@ if [ "$release_generation" -lt "$rollback_floor" ]; then
 fi
 
 "$script_directory/compose.sh" stop web
+if ! "$script_directory/compose.sh" up -d --no-deps db; then
+  echo "Database service reconciliation failed; web remains stopped" >&2
+  exit 1
+fi
 if ! "$script_directory/compose.sh" run --rm migrate; then
   echo "Database migration failed; web remains stopped" >&2
   exit 1
