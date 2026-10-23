@@ -100,6 +100,28 @@ module Admin
       assert_response :forbidden
     end
 
+    test "invalid calendar years show complete Russian numericality errors" do
+      sign_in_as(@administrator)
+      expected_errors = {
+        "" => "Год: значение должно быть числом",
+        "year" => "Год: значение должно быть числом",
+        "2026.5" => "Год: значение должно быть целым числом",
+        "1999" => "Год: значение должно входить в диапазон 2000..2100"
+      }
+
+      expected_errors.each do |year, message|
+        assert_no_difference("FederalCalendar.count") do
+          post admin_federal_calendars_path, params: {
+            federal_calendar: calendar_attributes.merge(year:)
+          }
+        end
+
+        assert_response :unprocessable_entity
+        assert_select ".error-summary li", text: message
+        assert_no_match(/Translation missing/i, response.body)
+      end
+    end
+
     private
 
     def calendar_attributes
