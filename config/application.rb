@@ -14,6 +14,7 @@ module LeaveDesk
     config.i18n.default_locale = :ru
     config.time_zone = "Europe/Moscow"
     config.action_cable.mount_path = nil
+    config.active_storage.draw_routes = false
     config.middleware.insert_before Rack::MethodOverride, RequestBodyLimit
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
