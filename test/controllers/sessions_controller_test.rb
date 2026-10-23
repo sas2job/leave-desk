@@ -73,6 +73,24 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='email_address'][value='employee@example.test']"
   end
 
+  test "NUL-containing passwords receive the generic failure and count toward login limits" do
+    json_headers = { "CONTENT_TYPE" => "application/json", "ACCEPT" => "text/html" }
+    [ @user.email_address, "unknown@example.test" ].each do |email_address|
+      assert_no_difference("Session.count") do
+        LoginRateLimiter::ACCOUNT_LIMIT.times do
+          post session_path, params: { email_address:, password: "invalid\0password" }.to_json,
+                             headers: json_headers
+          assert_response :unprocessable_entity
+          assert_select ".flash--alert", text: "Неверный адрес электронной почты или пароль."
+        end
+      end
+      assert LoginRateLimiter.new(ip_address: "127.0.0.1", email_address:).blocked?
+    end
+
+    post session_path, params: { email_address: @user.email_address, password: "test-password" }
+    assert_redirected_to new_session_path
+  end
+
   test "rejects inactive user" do
     @user.update!(active: false)
 

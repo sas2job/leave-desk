@@ -24,6 +24,7 @@ class User < ApplicationRecord
     format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :email_address, length: { maximum: 254 }, if: :will_save_change_to_email_address?
   validates :password, length: { minimum: MINIMUM_PASSWORD_LENGTH }, allow_nil: true
+  validate :password_has_no_nul
   validate :manager_is_active_manager
   validate :role_and_activity_support_direct_reports
   validate :retain_active_administrator
@@ -32,6 +33,15 @@ class User < ApplicationRecord
   validate :manager_id_has_valid_syntax
   after_update :revoke_sessions_after_authentication_change,
     if: -> { saved_change_to_active? || saved_change_to_password_digest? }
+
+  def password=(raw_password)
+    @password_with_nul = raw_password.is_a?(String) && raw_password.include?("\0")
+    if @password_with_nul
+      @password = raw_password
+    else
+      super
+    end
+  end
 
   def birthday_in_year(year)
     return unless birthday_on.is_a?(Date)
@@ -50,6 +60,10 @@ class User < ApplicationRecord
   end
 
   private
+
+  def password_has_no_nul
+    errors.add(:password, "содержит недопустимый символ") if @password_with_nul
+  end
 
   def with_user_locks
     changing_role_or_activity = persisted? &&

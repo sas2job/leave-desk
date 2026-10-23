@@ -54,6 +54,40 @@ class RestoreScriptTest < ActiveSupport::TestCase
     end
   end
 
+  test "a missing checksum command is reported before restoring" do
+    with_restore_environment do |directory, environment, calls|
+      archive = create_archive(directory, "leave-desk.dump", "valid archive")
+      isolated_bin = File.join(directory, "isolated-bin")
+      Dir.mkdir(isolated_bin)
+      %w[bash dirname basename].each do |name|
+        executable = ENV.fetch("PATH").split(File::PATH_SEPARATOR).map { |path| File.join(path, name) }
+                        .find { |path| File.executable?(path) }
+        File.symlink(executable, File.join(isolated_bin, name))
+      end
+      File.symlink(File.join(directory, "bin", "pg_restore"), File.join(isolated_bin, "pg_restore"))
+
+      _output, error, status = run_restore(environment.merge("PATH" => isolated_bin), archive)
+
+      assert_not status.success?
+      assert_includes error, "requires sha256sum in PATH"
+      assert_not File.exist?(calls)
+    end
+  end
+
+  test "an unavailable Bash capability is reported before restoring" do
+    with_restore_environment do |directory, environment, calls|
+      archive = create_archive(directory, "leave-desk.dump", "valid archive")
+      script = Rails.root.join("bin/restore").to_s
+
+      _output, error, status = Open3.capture3(environment, "bash", "-c",
+                                              'enable -n mapfile; source "$1" "$2"', "bash", script, archive)
+
+      assert_not status.success?
+      assert_includes error, "requires Bash 4 or newer"
+      assert_not File.exist?(calls)
+    end
+  end
+
   private
 
   def with_restore_environment

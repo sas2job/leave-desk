@@ -206,6 +206,31 @@ module Admin
       assert_includes html, 'name="user[birthday_on]"'
     end
 
+    test "administrator receives a field error for NUL-containing passwords without account changes" do
+      sign_in_as(@administrator)
+      invalid_password = "invalid\0password"
+      json_headers = { "CONTENT_TYPE" => "application/json", "ACCEPT" => "text/html" }
+
+      assert_no_difference("User.count") do
+        post admin_users_path, params: { user: {
+          name: "New Employee", email_address: "new@example.test", password: invalid_password,
+          password_confirmation: invalid_password, role: "employee", active: true
+        } }.to_json, headers: json_headers
+      end
+      assert_response :unprocessable_entity
+      assert_select ".error-summary li", text: "Пароль: содержит недопустимый символ"
+
+      original_digest = @employee.password_digest
+      patch admin_user_path(@employee), params: { user: {
+        name: "Changed Employee", password: invalid_password, password_confirmation: invalid_password
+      } }.to_json, headers: json_headers
+      assert_response :unprocessable_entity
+      assert_select ".error-summary li", text: "Пароль: содержит недопустимый символ"
+      assert_equal original_digest, @employee.reload.password_digest
+      assert_not_equal "Changed Employee", @employee.name
+      assert @employee.authenticate("test-password")
+    end
+
     private
 
     def create_user(email_address, role: :employee)

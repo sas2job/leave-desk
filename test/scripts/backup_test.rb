@@ -57,7 +57,89 @@ class BackupScriptTest < ActiveSupport::TestCase
     end
   end
 
+  test "an existing shared directory is rejected without changing it" do
+    with_backup_environment do |directory, environment|
+      shared = File.join(directory, "shared")
+      Dir.mkdir(shared)
+      File.chmod(0o1777, shared)
+      marker = File.join(shared, "keep.txt")
+      File.write(marker, "existing")
+
+      _output, error, status = run_backup(environment.merge("BACKUP_DIRECTORY" => shared, "DUMP_PAYLOAD" => "new"))
+
+      assert_not status.success?
+      assert_includes error, "mode 700"
+      assert_equal 0o1777, File.stat(shared).mode & 0o7777
+      assert_equal [ "keep.txt" ], Dir.children(shared)
+      assert_equal "existing", File.read(marker)
+    end
+  end
+
+  test "a new directory is created privately" do
+    with_backup_environment do |directory, environment|
+      destination = File.join(directory, "new", "backups")
+
+      _output, error, status = run_backup(environment.merge("BACKUP_DIRECTORY" => destination, "DUMP_PAYLOAD" => "new"))
+
+      assert status.success?, error
+      assert_equal 0o700, File.stat(destination).mode & 0o7777
+      assert_equal 0o700, File.stat(File.dirname(destination)).mode & 0o7777
+      assert_equal 1, Dir.glob(File.join(destination, "leave-desk-*.dump")).size
+    end
+  end
+
+  test "a failed backup preserves an existing private directory and its contents" do
+    with_backup_environment do |directory, environment|
+      marker = File.join(directory, "keep.txt")
+      File.write(marker, "existing")
+      original_mode = File.stat(directory).mode & 0o7777
+
+      _output, _error, status = run_backup(environment.merge("DUMP_PAYLOAD" => "partial", "DUMP_FAIL" => "yes"))
+
+      assert_not status.success?
+      assert_equal original_mode, File.stat(directory).mode & 0o7777
+      assert_equal "existing", File.read(marker)
+      assert_empty Dir.glob(File.join(directory, ".leave-desk-*"))
+    end
+  end
+
+  test "a missing checksum command is reported before creating a directory" do
+    with_backup_environment do |directory, environment|
+      isolated_bin = File.join(directory, "isolated-bin")
+      Dir.mkdir(isolated_bin)
+      %w[bash dirname realpath mkdir stat id date mktemp basename ln rm].each do |name|
+        File.symlink(executable_path(name), File.join(isolated_bin, name))
+      end
+      File.symlink(File.join(directory, "bin", "pg_dump"), File.join(isolated_bin, "pg_dump"))
+      destination = File.join(directory, "not-created")
+
+      _output, error, status = run_backup(environment.merge("PATH" => isolated_bin, "BACKUP_DIRECTORY" => destination))
+
+      assert_not status.success?
+      assert_includes error, "requires sha256sum in PATH"
+      assert_not File.exist?(destination)
+    end
+  end
+
+  test "an unavailable Bash capability is reported before creating a directory" do
+    with_backup_environment do |directory, environment|
+      destination = File.join(directory, "not-created")
+      script = Rails.root.join("bin/backup").to_s
+
+      _output, error, status = Open3.capture3(environment.merge("BACKUP_DIRECTORY" => destination),
+                                              "bash", "-c", 'enable -n mapfile; source "$1"', "bash", script)
+
+      assert_not status.success?
+      assert_includes error, "requires Bash 4 or newer"
+      assert_not File.exist?(destination)
+    end
+  end
+
   private
+
+  def executable_path(name)
+    ENV.fetch("PATH").split(File::PATH_SEPARATOR).map { |path| File.join(path, name) }.find { |path| File.executable?(path) }
+  end
 
   def with_backup_environment
     Dir.mktmpdir("leave-desk-backup-test") do |directory|

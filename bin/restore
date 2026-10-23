@@ -15,6 +15,17 @@ if [[ "${ALLOW_DATABASE_RESTORE:-}" != "yes" ]]; then
   exit 1
 fi
 
+if (( BASH_VERSINFO[0] < 4 )) || ! type -t mapfile >/dev/null; then
+  echo "bin/restore requires Bash 4 or newer" >&2
+  exit 1
+fi
+for prerequisite in dirname basename sha256sum pg_restore; do
+  if ! command -v "$prerequisite" >/dev/null; then
+    echo "bin/restore requires $prerequisite in PATH" >&2
+    exit 1
+  fi
+done
+
 checksum="$archive.sha256"
 if [[ ! -f "$checksum" ]]; then
   echo "Checksum file is missing: $checksum" >&2

@@ -13,7 +13,7 @@ class SessionsController < ApplicationController
 
     password = params[:password]
     user = User.authenticate_by(email_address: @email_address, password:) if
-      @email_address.present? && password.is_a?(String)
+      @email_address.present? && password.is_a?(String) && !password.include?("\0")
 
     if user&.active? && start_new_session_for(user)
       redirect_to after_authentication_url
