@@ -35,4 +35,30 @@ class FirstAdministratorTest < ActiveSupport::TestCase
       end
     end
   end
+
+  test "validation diagnostics identify fields without echoing supplied details" do
+    cases = [
+      { field: :name, value: " ", reason: "Name is required" },
+      { field: :email_address, value: "invalid-email-marker", reason: "Email is invalid" },
+      { field: :password, value: "short!", reason: "Password must have at least 12 characters" }
+    ]
+
+    cases.each do |invalid|
+      credentials = { name: "Private Name Marker", email_address: "private@example.test",
+        password: "sufficient-secret-marker" }
+      credentials[invalid.fetch(:field)] = invalid.fetch(:value)
+
+      assert_no_difference("User.count") do
+        error = assert_raises(ActiveRecord::RecordInvalid) do
+          FirstAdministrator.create!(**credentials)
+        end
+        diagnostic = FirstAdministrator.validation_failure_message(error.record)
+        assert_includes diagnostic, invalid.fetch(:reason)
+        assert_includes diagnostic, "no changes made"
+        credentials.values.each do |value|
+          assert_not_includes diagnostic, value unless value.blank?
+        end
+      end
+    end
+  end
 end

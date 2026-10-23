@@ -33,6 +33,6 @@ begin
   end
 rescue FirstAdministrator::ExistingUsers
   abort "Users exist without an administrator; investigate before bootstrapping."
-rescue ActiveRecord::RecordInvalid
-  abort "Invalid administrator details; no changes made."
+rescue ActiveRecord::RecordInvalid => error
+  abort FirstAdministrator.validation_failure_message(error.record)
 end
