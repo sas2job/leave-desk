@@ -53,7 +53,19 @@ if ! docker exec -i "$container" pg_restore -U postgres -d audit \
   --no-owner --no-privileges --single-transaction --exit-on-error \
   < "$download_directory/database.dump" > /dev/null \
   2> "$download_directory/restore.stderr"; then
-  echo 'Historical archive restore failed' >&2
+  case "$(cat "$download_directory/restore.stderr")" in
+    *'unsupported version'* | *'input file does not appear to be a valid archive'*)
+      reason='incompatible archive format' ;;
+    *'unrecognized configuration parameter'*) reason='server setting incompatibility' ;;
+    *'role '*'does not exist'*) reason='missing database role' ;;
+    *'extension '*'is not available'*) reason='missing database extension' ;;
+    *'already exists'*) reason='object already exists in isolated database' ;;
+    *'permission denied'*) reason='database permission error' ;;
+    *'COPY failed'* | *'invalid input syntax'*) reason='data restore error' ;;
+    *'could not execute query'*) reason='schema restore error' ;;
+    *) reason='unclassified restore error' ;;
+  esac
+  printf 'Historical archive restore failed: %s\n' "$reason" >&2
   exit 1
 fi
 

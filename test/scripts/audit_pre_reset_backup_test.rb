@@ -30,6 +30,18 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
     end
   end
 
+  test "classifies restore errors without exposing database details" do
+    with_fake_commands do |environment|
+      _output, error, status = run_audit(environment.merge(
+        "FAKE_RESTORE_ERROR" => 'pg_restore: error: role "private-role" does not exist'
+      ))
+
+      assert_not status.success?
+      assert_includes error, "missing database role"
+      assert_not_includes error, "private-role"
+    end
+  end
+
   private
 
   def with_fake_commands
@@ -54,7 +66,12 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
         case "$*" in
           run\ *) printf 'fake-container\n' ;;
           *pg_isready*) exit 0 ;;
-          *pg_restore*) cat >/dev/null ;;
+          *pg_restore*)
+            if [ -n "${FAKE_RESTORE_ERROR:-}" ]; then
+              printf '%s\n' "$FAKE_RESTORE_ERROR" >&2
+              exit 71
+            fi
+            cat >/dev/null ;;
           *psql*' -c '*) printf '%s\n' "$FAKE_WITHOUT_NOTIFICATION" ;;
           *psql*) cat >/dev/null; printf '%s\n' "$FAKE_COUNTS" ;;
           stop\ *) exit 0 ;;
