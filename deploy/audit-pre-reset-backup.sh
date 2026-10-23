@@ -50,7 +50,7 @@ if [ "$ready" -ne 1 ]; then
 fi
 
 if ! docker exec -i "$container" pg_restore -U postgres -d audit \
-  --single-transaction --exit-on-error \
+  --no-owner --no-privileges --single-transaction --exit-on-error \
   < "$download_directory/database.dump" > /dev/null \
   2> "$download_directory/restore.stderr"; then
   echo 'Historical archive restore failed' >&2

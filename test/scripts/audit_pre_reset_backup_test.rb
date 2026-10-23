@@ -15,6 +15,7 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
       actions = File.read(environment.fetch("DOCKER_LOG"))
       assert_includes actions, "--network none"
       assert_includes actions, "pg_restore"
+      assert_includes actions, "--no-owner --no-privileges"
       assert_includes actions, "stop leave-desk-history-audit-test"
     end
   end
