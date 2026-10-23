@@ -12,6 +12,7 @@ class PublishReleaseTest < ActiveSupport::TestCase
     backup.sh
     compose.sh
     compose.yml
+    install-maintenance-timers.sh
     leave-desk-backup.service
     leave-desk-backup.timer
     leave-desk-cache-cleanup.service

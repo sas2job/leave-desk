@@ -7,8 +7,11 @@ Production использует Rails `FileStore` внутри web-контей�
 записи.
 
 Workflow выпуска публикует unit-файлы в атомарно переключаемом каталоге
-`/root/projects/leave-desk/current`, но не устанавливает их в systemd. После
-первого выпуска и после изменения файлов установите или обновите их на VPS:
+`/root/projects/leave-desk/current`. После успешного внутреннего health check
+он вместе с backup unit-файлами устанавливает файлы в systemd, выполняет
+`daemon-reload`, включает и перезапускает оба timer, затем делает пробный
+запуск cache service. При сбое шага выпуск завершается с ошибкой. Для ручного
+восстановления используйте:
 
 ```sh
 cd /root/projects/leave-desk

@@ -20,9 +20,10 @@ root. Копии старше семи суток удаляются тольк�
 ## Установка и обновление таймера
 
 Workflow деплоя публикует `backup.sh`, `leave-desk-backup.service` и
-`leave-desk-backup.timer` в атомарно переключаемом каталоге `current`, но не
-устанавливает unit-файлы в systemd. После первого развёртывания и после
-изменения этих файлов выполните от root на VPS:
+`leave-desk-backup.timer` в атомарно переключаемом каталоге `current`. После
+успешного внутреннего health check он устанавливает оба unit-файла в systemd,
+выполняет `daemon-reload`, включает и проверяет timer. Для ручного
+восстановления процедуры выполните от root на VPS:
 
 ```sh
 cd /root/projects/leave-desk

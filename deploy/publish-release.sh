@@ -71,6 +71,7 @@ apply-migrations.sh
 backup.sh
 compose.sh
 compose.yml
+install-maintenance-timers.sh
 leave-desk-backup.service
 leave-desk-backup.timer
 leave-desk-cache-cleanup.service
@@ -121,7 +122,8 @@ mv "$release_environment" "$staging_directory/release.env"
 release_environment=
 chmod 0755 "$staging_directory/apply-caddy.sh" "$staging_directory/apply-migrations.sh" \
   "$staging_directory/backup.sh" \
-  "$staging_directory/compose.sh" "$staging_directory/publish-release.sh" \
+  "$staging_directory/compose.sh" "$staging_directory/install-maintenance-timers.sh" \
+  "$staging_directory/publish-release.sh" \
   "$staging_directory/rollback.sh" "$staging_directory/verify-container-logging.sh" \
   "$staging_directory/wait-for-health.sh"
 for file in $required_files SHA256SUMS release.env; do

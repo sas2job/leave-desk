@@ -121,6 +121,7 @@ jobs:
           staging_directory="$deployment_root/.incoming/$RELEASE_ID"
           release_files=(
             Caddyfile apply-caddy.sh apply-migrations.sh backup.sh compose.sh compose.yml
+            install-maintenance-timers.sh
             leave-desk-backup.service leave-desk-backup.timer
             leave-desk-cache-cleanup.service leave-desk-cache-cleanup.timer
             leave-desk-session-prune.service leave-desk-session-prune.timer
@@ -169,7 +170,8 @@ jobs:
               esac; \
               ./current/compose.sh logs --tail=100 web; \
               exit 1; \
-            fi"
+            fi; \
+            ./current/install-maintenance-timers.sh"
       - name: Check public HTTPS
         run: |
           curl --fail --silent --show-error --retry 10 --retry-all-errors \
