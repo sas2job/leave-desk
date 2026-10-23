@@ -26,7 +26,8 @@ runner динамические, поэтому SSH-порт VPS должен п
 ### 1. CI
 
 При каждом pull request и push в `main` запускается
-`.github/workflows/ci.yml`. Параллельно выполняются:
+`.github/workflows/ci.yml` на GitHub-hosted Ubuntu 24.04, где доступен
+зафиксированный в `.ruby-version` Ruby 4.0.2. Параллельно выполняются:
 
 - `scan_ruby` — Brakeman и аудит зависимостей;
 - `lint` — RuboCop;
