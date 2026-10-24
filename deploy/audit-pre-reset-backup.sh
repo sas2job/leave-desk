@@ -38,7 +38,7 @@ container_started=1
 
 ready=0
 for _ in $(seq 1 30); do
-  if docker exec "$container" pg_isready -U postgres -d audit >/dev/null 2>&1; then
+  if [ "$(docker exec "$container" psql -X -U postgres -d audit -Atqc 'SELECT 1' 2>/dev/null)" = 1 ]; then
     ready=1
     break
   fi

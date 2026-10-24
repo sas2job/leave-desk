@@ -14,6 +14,7 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
       assert_includes output, "approvals without notifications=1"
       actions = File.read(environment.fetch("DOCKER_LOG"))
       assert_includes actions, "--network none"
+      assert_includes actions, "-d audit -Atqc SELECT 1"
       assert_includes actions, "pg_restore"
       assert_includes actions, "--no-owner --no-privileges"
       assert_includes actions, "stop leave-desk-history-audit-test"
@@ -27,6 +28,15 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
       assert_not status.success?, output
       assert_includes output, "invalid histories=1"
       assert_includes File.read(environment.fetch("DOCKER_LOG")), "stop leave-desk-history-audit-test"
+    end
+  end
+
+  test "waits until the isolated database accepts connections" do
+    with_fake_commands do |environment|
+      output, error, status = run_audit(environment.merge("FAKE_DB_READY_FAILURES" => "1"))
+      assert status.success?, error
+      assert_includes output, "valid histories=2"
+      assert_equal 2, File.read(environment.fetch("DB_READY_LOG")).lines.count
     end
   end
 
@@ -77,7 +87,11 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
         printf '%s\n' "$*" >> "$DOCKER_LOG"
         case "$*" in
           run\ *) printf 'fake-container\n' ;;
-          *pg_isready*) exit 0 ;;
+          *'-Atqc SELECT 1'*)
+            printf 'attempt\n' >> "$DB_READY_LOG"
+            attempts=$(wc -l < "$DB_READY_LOG")
+            if [ "$attempts" -le "${FAKE_DB_READY_FAILURES:-0}" ]; then exit 1; fi
+            printf '1\n' ;;
           *pg_restore*)
             if [ -n "${FAKE_RESTORE_ERROR:-}" ]; then
               printf '%s\n' "$FAKE_RESTORE_ERROR" >&2
@@ -102,7 +116,8 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
         "FAKE_CHECKSUM" => checksum,
         "FAKE_COUNTS" => "2,2,0,1",
         "FAKE_WITHOUT_NOTIFICATION" => "1",
-        "DOCKER_LOG" => File.join(directory, "docker.log")
+        "DOCKER_LOG" => File.join(directory, "docker.log"),
+        "DB_READY_LOG" => File.join(directory, "db-ready.log")
       })
     end
   end
