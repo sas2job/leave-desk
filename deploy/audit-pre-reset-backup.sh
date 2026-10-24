@@ -49,23 +49,48 @@ if [ "$ready" -ne 1 ]; then
   exit 1
 fi
 
-if ! docker exec -i "$container" pg_restore -U postgres -d audit \
+if docker exec -i "$container" pg_restore -U postgres -d audit \
   --no-owner --no-privileges --single-transaction --exit-on-error \
   < "$download_directory/database.dump" > /dev/null \
   2> "$download_directory/restore.stderr"; then
-  case "$(cat "$download_directory/restore.stderr")" in
+  :
+else
+  restore_status=$?
+  restore_error=$(cat "$download_directory/restore.stderr")
+  case "$restore_error" in
     *'unsupported version'* | *'input file does not appear to be a valid archive'*)
       reason='incompatible archive format' ;;
+    *'could not read from input file'* | *'end of file'* | *'did not find magic string'*)
+      reason='archive read error' ;;
     *'unrecognized configuration parameter'*) reason='server setting incompatibility' ;;
     *'role '*'does not exist'*) reason='missing database role' ;;
     *'extension '*'is not available'*) reason='missing database extension' ;;
     *'already exists'*) reason='object already exists in isolated database' ;;
     *'permission denied'*) reason='database permission error' ;;
+    *'No space left on device'*) reason='runner storage exhausted' ;;
+    *'out of memory'* | *'Killed'*) reason='memory limit exceeded' ;;
+    *'could not connect to server'* | *'server closed the connection'*)
+      reason='isolated database connection failed' ;;
     *'COPY failed'* | *'invalid input syntax'*) reason='data restore error' ;;
     *'could not execute query'*) reason='schema restore error' ;;
     *) reason='unclassified restore error' ;;
   esac
-  printf 'Historical archive restore failed: %s\n' "$reason" >&2
+  printf 'Historical archive restore failed: %s; exit=%s; stderr_bytes=%s' \
+    "$reason" "$restore_status" "$(wc -c < "$download_directory/restore.stderr")" >&2
+  if [ "$reason" = 'unclassified restore error' ]; then
+    markers=''
+    for marker in pg_restore docker connection archive input file read open header magic \
+      unexpected invalid fatal error denied memory disk space COPY query role extension \
+      schema database relation constraint table index trigger sequence type collation \
+      duplicate syntax command stdin version parameter tablespace encoding terminated \
+      failed warning public; do
+      if [[ "${restore_error,,}" == *"${marker,,}"* ]]; then
+        markers="${markers}${markers:+,}${marker}"
+      fi
+    done
+    printf '; markers=%s' "${markers:-none}" >&2
+  fi
+  printf '\n' >&2
   exit 1
 fi
 

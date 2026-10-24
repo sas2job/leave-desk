@@ -42,6 +42,18 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
     end
   end
 
+  test "reports safe diagnostics for an unclassified restore error" do
+    with_fake_commands do |environment|
+      _output, error, status = run_audit(environment.merge(
+        "FAKE_RESTORE_ERROR" => "private-name: database operation failed"
+      ))
+      assert_not status.success?
+      assert_includes error, "unclassified restore error; exit=71; stderr_bytes="
+      assert_includes error, "markers=database,failed"
+      assert_not_includes error, "private-name"
+    end
+  end
+
   private
 
   def with_fake_commands
