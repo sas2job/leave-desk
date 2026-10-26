@@ -40,6 +40,31 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
     end
   end
 
+  test "audits a selected pre-reset archive" do
+    with_fake_commands do |environment|
+      output, error, status = run_audit(environment.merge(
+        "AUDIT_ARCHIVE_TIMESTAMP" => "20261019T020030Z"
+      ))
+
+      assert status.success?, error
+      assert_includes output, "valid histories=2"
+      assert_includes File.read(environment.fetch("SSH_LOG")),
+        "leave-desk-20261019T020030Z/database.dump"
+    end
+  end
+
+  test "rejects archive timestamps after the reset before connecting" do
+    with_fake_commands do |environment|
+      _output, error, status = run_audit(environment.merge(
+        "AUDIT_ARCHIVE_TIMESTAMP" => "20261021T020030Z"
+      ))
+
+      assert_not status.success?
+      assert_includes error, "Archive timestamp must precede the demo reset"
+      assert_not File.exist?(environment.fetch("SSH_LOG"))
+    end
+  end
+
   test "classifies restore errors without exposing database details" do
     with_fake_commands do |environment|
       _output, error, status = run_audit(environment.merge(
@@ -76,6 +101,7 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
       File.write(checksum, "#{Digest::SHA256.file(archive).hexdigest}  database.dump\n")
       File.write(File.join(bin, "ssh"), <<~'SH')
         #!/bin/sh
+        printf '%s\n' "$*" >> "$SSH_LOG"
         case "$*" in
           *database.dump.sha256*) cat "$FAKE_CHECKSUM" ;;
           *database.dump*) cat "$FAKE_ARCHIVE" ;;
@@ -117,6 +143,7 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
         "FAKE_COUNTS" => "2,2,0,1",
         "FAKE_WITHOUT_NOTIFICATION" => "1",
         "DOCKER_LOG" => File.join(directory, "docker.log"),
+        "SSH_LOG" => File.join(directory, "ssh.log"),
         "DB_READY_LOG" => File.join(directory, "db-ready.log")
       })
     end

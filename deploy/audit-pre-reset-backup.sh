@@ -6,7 +6,13 @@ set -euo pipefail
 : "${DEPLOY_USER:?}"
 : "${RUNNER_TEMP:?}"
 
-archive=/var/backups/leave-desk/leave-desk-20261020T020027Z
+archive_timestamp=${AUDIT_ARCHIVE_TIMESTAMP:-20261020T020027Z}
+if [[ ! "$archive_timestamp" =~ ^[0-9]{8}T[0-9]{6}Z$ ||
+      ! "$archive_timestamp" < 20261020T091700Z ]]; then
+  echo 'Archive timestamp must precede the demo reset' >&2
+  exit 1
+fi
+archive="/var/backups/leave-desk/leave-desk-$archive_timestamp"
 script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 download_directory=$(mktemp -d "$RUNNER_TEMP/leave-desk-pre-reset.XXXXXXXX")
 chmod 0700 "$download_directory"

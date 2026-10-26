@@ -2,6 +2,11 @@ name: Audit pre-reset history
 
 on:
   workflow_dispatch:
+    inputs:
+      archive_timestamp:
+        description: UTC backup timestamp before the demo reset (YYYYMMDDTHHMMSSZ)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -28,4 +33,5 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          AUDIT_ARCHIVE_TIMESTAMP: ${{ inputs.archive_timestamp }}
         run: bash deploy/audit-pre-reset-backup.sh
