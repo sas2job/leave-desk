@@ -14,6 +14,7 @@ class CheckPreResetBackupTest < ActiveSupport::TestCase
       output, error, status = check(directory)
 
       assert status.success?, error
+      assert_includes output, "Pre-reset backups: count=2; earliest=20261019T020000Z; latest=20261020T020000Z"
       assert_includes output, "leave-desk-20261020T020000Z; checksum: valid"
       assert_not_includes output, "20261021"
     end

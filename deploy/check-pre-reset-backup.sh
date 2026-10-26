@@ -5,6 +5,8 @@ backup_directory=${LEAVE_DESK_BACKUP_DIRECTORY:-/var/backups/leave-desk}
 reset_cutoff=20261020T091700Z
 latest=
 latest_stamp=
+earliest_stamp=
+archive_count=0
 
 for candidate in "$backup_directory"/leave-desk-*; do
   [[ -d "$candidate" ]] || continue
@@ -12,6 +14,10 @@ for candidate in "$backup_directory"/leave-desk-*; do
   [[ "$name" =~ ^leave-desk-([0-9]{8}T[0-9]{6}Z)$ ]] || continue
   stamp=${BASH_REMATCH[1]}
   [[ "$stamp" < "$reset_cutoff" ]] || continue
+  archive_count=$((archive_count + 1))
+  if [[ -z "$earliest_stamp" || "$stamp" < "$earliest_stamp" ]]; then
+    earliest_stamp=$stamp
+  fi
   if [[ -z "$latest" || "$stamp" > "$latest_stamp" ]]; then
     latest=$candidate
     latest_stamp=$stamp
@@ -32,4 +38,6 @@ fi
   exit 1
 }
 
+printf 'Pre-reset backups: count=%s; earliest=%s; latest=%s\n' \
+  "$archive_count" "$earliest_stamp" "$latest_stamp"
 printf 'Pre-reset backup: %s; checksum: valid\n' "${latest##*/}"
