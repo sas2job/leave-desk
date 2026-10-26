@@ -10,6 +10,7 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
       output, error, status = run_audit(environment)
 
       assert status.success?, error
+      assert_includes output, "correction migration recorded=1"
       assert_includes output, "reviewed cancellations=2; valid histories=2; invalid histories=0"
       assert_includes output, "approvals without notifications=1"
       actions = File.read(environment.fetch("DOCKER_LOG"))
@@ -50,6 +51,15 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
       assert_includes output, "valid histories=2"
       assert_includes File.read(environment.fetch("SSH_LOG")),
         "leave-desk-20261019T020030Z/database.dump"
+    end
+  end
+
+  test "reports when the correction had not run in the archived database" do
+    with_fake_commands do |environment|
+      output, error, status = run_audit(environment.merge("FAKE_MIGRATION_PRESENT" => "0"))
+
+      assert status.success?, error
+      assert_includes output, "correction migration recorded=0"
     end
   end
 
@@ -124,6 +134,7 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
               exit 71
             fi
             cat >/dev/null ;;
+          *schema_migrations*) printf '%s\n' "$FAKE_MIGRATION_PRESENT" ;;
           *psql*' -c '*) printf '%s\n' "$FAKE_WITHOUT_NOTIFICATION" ;;
           *psql*) cat >/dev/null; printf '%s\n' "$FAKE_COUNTS" ;;
           stop\ *) exit 0 ;;
@@ -141,6 +152,7 @@ class AuditPreResetBackupTest < ActiveSupport::TestCase
         "FAKE_ARCHIVE" => archive,
         "FAKE_CHECKSUM" => checksum,
         "FAKE_COUNTS" => "2,2,0,1",
+        "FAKE_MIGRATION_PRESENT" => "1",
         "FAKE_WITHOUT_NOTIFICATION" => "1",
         "DOCKER_LOG" => File.join(directory, "docker.log"),
         "SSH_LOG" => File.join(directory, "ssh.log"),

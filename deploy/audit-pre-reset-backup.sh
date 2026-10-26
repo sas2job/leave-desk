@@ -100,6 +100,14 @@ else
   exit 1
 fi
 
+migration_present=$(docker exec "$container" psql -X -U postgres -d audit \
+  -v ON_ERROR_STOP=1 -A -t -c \
+  "SELECT COUNT(*) FROM schema_migrations WHERE version = '20261015103423'")
+[[ "$migration_present" =~ ^[01]$ ]] || {
+  echo 'Historical migration status is invalid' >&2
+  exit 1
+}
+
 result=$(docker exec -i "$container" psql -X -U postgres -d audit \
   -v ON_ERROR_STOP=1 -A -t -F , \
   < "$script_directory/audit-cancelled-approval-history.sql")
@@ -131,6 +139,6 @@ without_notification=$(docker exec "$container" psql -X -U postgres -d audit \
   exit 1
 }
 
-printf 'Pre-reset archive: reviewed cancellations=%s; valid histories=%s; invalid histories=%s; approvals without notifications=%s\n' \
-  "$total" "$valid" "$invalid" "$without_notification"
+printf 'Pre-reset archive: correction migration recorded=%s; reviewed cancellations=%s; valid histories=%s; invalid histories=%s; approvals without notifications=%s\n' \
+  "$migration_present" "$total" "$valid" "$invalid" "$without_notification"
 test "$invalid" -eq 0
