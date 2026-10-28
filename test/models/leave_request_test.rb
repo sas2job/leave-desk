@@ -544,7 +544,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
   end
 
   test "birthday leave still requires one complete day with precise times" do
-    birthday_type = LeaveType.create!(name: "Birthday", code: "BIRTHDAY")
+    birthday_type = LeaveType.find_by(code: "BIRTHDAY") || LeaveType.create!(name: "Birthday", code: "BIRTHDAY")
     date = Date.new(2026, 10, 12)
     partial = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
       starts_on: date, ends_on: date, start_time: "09:00", end_time: "18:00")
