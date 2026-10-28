@@ -174,7 +174,13 @@ jobs:
             ./current/install-maintenance-timers.sh"
       - name: Check public HTTPS
         run: |
+          public_host="$(ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sed -n 's/^LEAVE_DESK_PUBLIC_HOST=//p' /root/projects/leave-desk/.env")"
+          if [[ ! "$public_host" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo 'Public host is missing or invalid' >&2
+            exit 1
+          fi
           curl --fail --silent --show-error --retry 10 --retry-all-errors \
-            --retry-delay 3 --max-time 10 "https://$DEPLOY_HOST/up"
+            --retry-delay 3 --max-time 10 "https://$public_host/up"
       - name: Audit leave history
         run: bash deploy/audit-leave-history.sh
