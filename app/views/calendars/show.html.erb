@@ -8,17 +8,21 @@
       <% if @month %>
         <% previous_month = Date.new(@year, @month, 1).prev_month %>
         <% next_month = Date.new(@year, @month, 1).next_month %>
-        <%= link_to "← #{I18n.l(previous_month, format: "%B")}",
-          calendar_path(year: previous_month.year, month: previous_month.month),
-          class: "button button--secondary" %>
+        <% if previous_month.year >= CalendarWindow::FIRST_YEAR %>
+          <%= link_to "← #{I18n.l(previous_month, format: "%B")}",
+            calendar_path(year: previous_month.year, month: previous_month.month),
+            class: "button button--secondary" %>
+        <% end %>
         <%= link_to "#{I18n.l(next_month, format: "%B")} →",
           calendar_path(year: next_month.year, month: next_month.month),
           class: "button button--secondary" %>
         <%= link_to "Весь год", calendar_path(year: @year, month: "all"),
           class: "button button--secondary" %>
       <% else %>
-        <%= link_to "← #{@year - 1}", calendar_path(year: @year - 1, month: "all"),
-          class: "button button--secondary" %>
+        <% if @year > CalendarWindow::FIRST_YEAR %>
+          <%= link_to "← #{@year - 1}", calendar_path(year: @year - 1, month: "all"),
+            class: "button button--secondary" %>
+        <% end %>
         <%= link_to "#{@year + 1} →", calendar_path(year: @year + 1, month: "all"),
           class: "button button--secondary" %>
         <%= link_to "По месяцам", calendar_path(year: @year),
