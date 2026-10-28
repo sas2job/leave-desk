@@ -2,6 +2,7 @@ require "test_helper"
 
 class LeaveRequestTest < ActiveSupport::TestCase
   setup do
+    travel_to Date.new(2026, 1, 1)
     @manager = User.create!(name: "Review Manager", email_address: "manager@example.test",
       password: "test-password", role: :manager)
     @employee = User.create!(name: "Example Employee", email_address: "employee@example.test",
@@ -316,6 +317,19 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
     travel_to Date.new(2027, 1, 1) do
       request.starts_on = Date.new(2027, 1, 1)
+      assert request.valid?
+    end
+  end
+
+  test "new request may start today but not yesterday" do
+    travel_to Date.new(2026, 10, 28) do
+      request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2026, 10, 27), ends_on: Date.new(2026, 10, 29))
+
+      assert_not request.valid?
+      assert_includes request.errors[:starts_on], "не может быть раньше сегодняшнего дня"
+
+      request.starts_on = Date.new(2026, 10, 28)
       assert request.valid?
     end
   end

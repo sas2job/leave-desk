@@ -5,6 +5,7 @@ module Manager
     include DateIterationBudgetHelper
 
     setup do
+      travel_to Date.new(2026, 10, 1)
       @manager = create_user("manager@example.test", role: :manager)
       @employee = create_user("employee@example.test", manager: @manager,
         birthday_on: Date.new(1990, 5, 12))
@@ -12,8 +13,10 @@ module Manager
     end
 
     test "manager sees direct report annual calendar" do
-      request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
-        starts_on: Date.new(2026, 6, 10), ends_on: Date.new(2026, 6, 12))
+      request = travel_to Date.new(2026, 5, 1) do
+        LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+          starts_on: Date.new(2026, 6, 10), ends_on: Date.new(2026, 6, 12))
+      end
       request.approve!(by: @manager)
       sign_in_as(@manager)
 
@@ -50,7 +53,7 @@ module Manager
         [ @employee, Date.new(2026, 10, 15), @manager ],
         [ @employee, Date.new(2027, 10, 15), @manager ],
         [ outsider, Date.new(2026, 10, 17), other_manager ] ].each do |employee, date, reviewer|
-      temporary_date = date.year == 2026 ? date : Date.new(2026, date.year == 2025 ? 9 : 11, date.day)
+        temporary_date = date.year == 2026 ? date : Date.new(2026, date.year == 2025 ? 11 : 12, date.day)
       request = LeaveRequest.create!(employee:, leave_type: @leave_type,
         starts_on: temporary_date, ends_on: temporary_date)
       request.update_columns(starts_on: date, ends_on: date) unless date.year == 2026
@@ -78,8 +81,10 @@ module Manager
     end
 
     test "shows approved leave and birthday on the same day" do
-      request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
-        starts_on: Date.new(2026, 5, 12), ends_on: Date.new(2026, 5, 12))
+      request = travel_to Date.new(2026, 5, 1) do
+        LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+          starts_on: Date.new(2026, 5, 12), ends_on: Date.new(2026, 5, 12))
+      end
       request.approve!(by: @manager)
       sign_in_as(@manager)
 

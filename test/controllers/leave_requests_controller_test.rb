@@ -83,7 +83,7 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "new request form shows Russian date format and bounds the picker" do
-    [ 2000, 2100 ].each do |year|
+    [ 2025, 2100 ].each do |year|
       travel_to Date.new(year, 6, 1) do
         sign_in_as(@employee)
         get new_leave_request_path
@@ -92,8 +92,8 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
         %w[starts_on ends_on].each do |field|
           assert_select "input[type='text'][name='leave_request[#{field}]']" \
                         "[placeholder='ДД.ММ.ГГГГ'][pattern='[0-9]{2}[.][0-9]{2}[.][0-9]{4}']"
-          assert_select "input[type='date'][data-date-picker]" \
-                        "[min='#{year}-01-01'][max='#{year}-12-31']", count: 2
+          assert_select "dialog[data-date-dialog][data-calendar-first-year='2025']" \
+                        "[data-calendar-min='#{year}-06-01'][data-calendar-max='#{year}-12-31']", count: 2
         end
       end
     end
@@ -120,6 +120,21 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_select "input[name='leave_request[starts_on]'][value='31.02.2026']"
+  end
+
+  test "rejects a sick leave notification for a past date" do
+    sick = LeaveType.create!(name: "Sick leave", code: "SICK")
+
+    travel_to Date.new(2026, 10, 28) do
+      assert_no_difference("LeaveRequest.count") do
+        post leave_requests_path, params: { leave_request: {
+          leave_type_id: sick.id, starts_on: "03.01.2026", ends_on: "04.01.2026"
+        } }
+      end
+
+      assert_response :unprocessable_entity
+      assert_select ".error-summary", /раньше сегодняшнего дня/
+    end
   end
 
   test "rejects numeric JSON request fields without creating a request" do

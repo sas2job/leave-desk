@@ -8,6 +8,7 @@ class FederalCalendarConcurrencyTest < ActiveSupport::TestCase
   NEXT_YEAR = YEAR + 1
 
   setup do
+    travel_to Date.new(2026, 1, 1)
     @suffix = SecureRandom.hex(6)
     FederalCalendar.where(year: [ YEAR, NEXT_YEAR ]).delete_all
     @manager = create_user("manager-#{@suffix}@example.test", role: :manager)

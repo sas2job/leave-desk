@@ -4,6 +4,7 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
   include DateIterationBudgetHelper
 
   setup do
+    travel_to Date.new(2026, 10, 1)
     @manager = create_user("manager@example.test", role: :manager)
     @employee = create_user("employee@example.test", manager: @manager,
       birthday_on: Date.new(1990, 10, 9))

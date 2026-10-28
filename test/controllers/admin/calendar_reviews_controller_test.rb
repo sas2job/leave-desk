@@ -3,6 +3,7 @@ require "test_helper"
 module Admin
   class CalendarReviewsControllerTest < ActionDispatch::IntegrationTest
     setup do
+      travel_to Date.new(2026, 1, 1)
       @administrator = User.create!(name: "Administrator", email_address: "admin@example.test",
         password: "test-password", role: :administrator)
       @employee = User.create!(name: "Employee", email_address: "employee@example.test",

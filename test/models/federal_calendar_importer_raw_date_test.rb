@@ -4,6 +4,10 @@ require "stringio"
 class FederalCalendarImporterRawDateTest < ActiveSupport::TestCase
   INVALID_DATES = [ "infinity", "-infinity", "2026-02-30", "2026-1-01" ].freeze
 
+  setup do
+    travel_to Date.new(2026, 1, 1)
+  end
+
   test "rejects raw holiday dates before PostgreSQL array coercion" do
     INVALID_DATES.each do |value|
       error = assert_raises(FederalCalendarImporter::InvalidFile) do

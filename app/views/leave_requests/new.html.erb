@@ -39,12 +39,20 @@
                 autocomplete: "off", maxlength: 10, placeholder: "ДД.ММ.ГГГГ",
                 pattern: "[0-9]{2}[.][0-9]{2}[.][0-9]{4}",
                 value: @date_inputs&.dig(field) || @leave_request.public_send(field)&.strftime("%d.%m.%Y") %>
-              <%= tag.input type: "date", class: "date-entry__picker",
-                min: Date.current.beginning_of_year.iso8601,
-                max: Date.current.end_of_year.iso8601,
-                tabindex: "-1", "aria-hidden": "true", data: { date_picker: true } %>
               <button type="button" class="date-entry__button" data-date-picker-button hidden
                 aria-label="Выбрать <%= field == :starts_on ? "дату начала" : "дату окончания" %>">📅</button>
+              <dialog class="date-entry__dialog" data-date-dialog
+                data-calendar-first-year="2025"
+                data-calendar-min="<%= Date.current.iso8601 %>"
+                data-calendar-max="<%= Date.current.end_of_year.iso8601 %>"
+                aria-label="Выбор <%= field == :starts_on ? "даты начала" : "даты окончания" %>">
+                <div class="date-entry__controls">
+                  <label>Месяц <select data-calendar-month></select></label>
+                  <label>Год <select data-calendar-year></select></label>
+                </div>
+                <div class="date-entry__days" data-calendar-days></div>
+                <button type="button" class="button button--secondary" data-calendar-close>Закрыть</button>
+              </dialog>
             </div>
           </div>
         <% end %>

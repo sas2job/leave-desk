@@ -20,8 +20,8 @@ class SeedsTest < ActiveSupport::TestCase
     sick.update!(holiday_handling: :exclude_public_holidays)
     employee = User.create!(name: "Example Employee", email_address: "seed-employee@example.test",
       password: "test-password")
-    LeaveRequest.create!(employee:, leave_type: sick, starts_on: Date.new(2026, 10, 20),
-      ends_on: Date.new(2026, 10, 20))
+    LeaveRequest.create!(employee:, leave_type: sick, starts_on: Date.current,
+      ends_on: Date.current)
 
     2.times { load Rails.root.join("db/seeds.rb") }
 

@@ -21,6 +21,7 @@ class LeaveRequest < ApplicationRecord
   validates :review_comment, length: { maximum: COMMENT_MAX_LENGTH }, if: :will_save_change_to_review_comment?
   validate :dates_are_supported
   validate :dates_are_in_current_year, on: :create
+  validate :starts_on_is_not_in_the_past, on: :create
   validate :ends_on_is_not_before_starts_on
   validate :reviewer_is_not_employee
   validate :leave_type_is_active, on: :create
@@ -176,6 +177,13 @@ class LeaveRequest < ApplicationRecord
     return if starts_on.year == Date.current.year && ends_on.year == Date.current.year
 
     errors.add(:base, "Оформить отсутствие можно только в текущем календарном году")
+  end
+
+  def starts_on_is_not_in_the_past
+    return unless supported_date?(starts_on)
+    return if starts_on >= Date.current
+
+    errors.add(:starts_on, "не может быть раньше сегодняшнего дня")
   end
 
   def calculation_inputs_are_unchanged
