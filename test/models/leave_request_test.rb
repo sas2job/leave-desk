@@ -549,9 +549,13 @@ class LeaveRequestTest < ActiveSupport::TestCase
     birthday_type = LeaveType.find_by(code: "BIRTHDAY") || LeaveType.create!(name: "Birthday", code: "BIRTHDAY")
     date = Date.new(2026, 10, 12)
     partial = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
-      starts_on: date, ends_on: date, start_time: "09:00", end_time: "18:00")
+      starts_on: date, ends_on: date, start_time: "09:00", end_time: "17:45")
     assert_not partial.valid?
     assert_includes partial.errors[:base], "Выходной в день рождения можно оформить только на один полный день"
+
+    full_workday = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: date, ends_on: date, start_time: "09:00", end_time: "18:00")
+    assert full_workday.valid?
 
     full_day = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
       starts_on: date, ends_on: date, start_time: "00:00", end_time: "24:00")
