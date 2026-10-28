@@ -58,12 +58,20 @@
         <% end %>
       <div class="field">
         <%= form.label :start_time, "Время начала" %>
-        <%= form.select :start_time, LeaveRequest::START_TIME_OPTIONS, {}, required: true %>
+        <%= form.select :start_time, LeaveRequest::START_TIME_OPTIONS,
+          { selected: form.object.start_time }, required: true, data: { workday_start: true } %>
       </div>
       <div class="field">
         <%= form.label :end_time, "Время окончания" %>
-        <%= form.select :end_time, LeaveRequest::END_TIME_OPTIONS, {}, required: true %>
-        <p class="field-hint">Время выбирается с шагом 15 минут. Для полного календарного дня выберите 00:00–24:00.</p>
+        <%= form.select :end_time, LeaveRequest::END_TIME_OPTIONS,
+          { selected: form.object.end_time }, required: true, data: { workday_end: true } %>
+      </div>
+      <div class="field">
+        <%= label_tag :workday_preset, "Быстрый выбор" %>
+        <%= select_tag :workday_preset,
+          options_for_select([["Выбрать интервал", ""], ["Весь рабочий день (09:00–18:00)", "full"]]),
+          data: { workday_preset: true } %>
+        <p class="field-hint">Время указано по часовому поясу города сотрудника. Доступен интервал 09:00–18:00 с шагом 15 минут.</p>
       </div>
 
         <div class="field field--full">

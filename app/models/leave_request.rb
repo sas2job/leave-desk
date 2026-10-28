@@ -2,11 +2,16 @@ class LeaveRequest < ApplicationRecord
   COMMENT_MAX_LENGTH = 2_000
   MINUTES_PER_DAY = 1_440
   HALF_DAY_MINUTES = 720
-  START_TIME_OPTIONS = (0...MINUTES_PER_DAY).step(15).map do |minute|
+  WORKDAY_START_MINUTE = 9 * 60
+  WORKDAY_END_MINUTE = 18 * 60
+  START_TIME_OPTIONS = (WORKDAY_START_MINUTE...WORKDAY_END_MINUTE).step(15).map do |minute|
     value = format("%02d:%02d", *minute.divmod(60))
     [ value, value ]
   end.freeze
-  END_TIME_OPTIONS = (START_TIME_OPTIONS + [ [ "24:00", "24:00" ] ]).freeze
+  END_TIME_OPTIONS = ((WORKDAY_START_MINUTE + 15)..WORKDAY_END_MINUTE).step(15).map do |minute|
+    value = format("%02d:%02d", *minute.divmod(60))
+    [ value, value ]
+  end.freeze
 
   attr_accessor :start_time, :end_time
 
@@ -367,7 +372,9 @@ class LeaveRequest < ApplicationRecord
     return unless leave_type&.code == "BIRTHDAY"
     return unless dates_supported? && ends_on >= starts_on
     if precise_time?
-      return if starts_on == ends_on && start_minute.zero? && end_minute == MINUTES_PER_DAY
+      return unless starts_on == ends_on
+      return if start_minute.zero? && end_minute == MINUTES_PER_DAY
+      return if start_minute == WORKDAY_START_MINUTE && end_minute == WORKDAY_END_MINUTE
 
       errors.add(:base, "Выходной в день рождения можно оформить только на один полный день")
       return

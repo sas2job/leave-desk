@@ -1,4 +1,23 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const workdayPreset = document.querySelector("[data-workday-preset]");
+  const workdayStart = document.querySelector("[data-workday-start]");
+  const workdayEnd = document.querySelector("[data-workday-end]");
+
+  if (workdayPreset && workdayStart && workdayEnd) {
+    workdayPreset.addEventListener("change", () => {
+      if (workdayPreset.value === "full") {
+        workdayStart.value = "09:00";
+        workdayEnd.value = "18:00";
+      }
+    });
+
+    [workdayStart, workdayEnd].forEach((field) => {
+      field.addEventListener("change", () => {
+        workdayPreset.value = "";
+      });
+    });
+  }
+
   document.querySelectorAll("[data-date-entry]").forEach((entry) => {
     const text = entry.querySelector("input[type='text']");
     const button = entry.querySelector("[data-date-picker-button]");

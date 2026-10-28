@@ -9,8 +9,8 @@ class LeaveRequestsController < ApplicationController
 
   def new
     @leave_request = Current.user.leave_requests.new
-    @leave_request.start_time = "00:00"
-    @leave_request.end_time = "24:00"
+    @leave_request.start_time = "09:00"
+    @leave_request.end_time = "18:00"
     @leave_types = LeaveType.where(active: true).order(:name)
   end
 
