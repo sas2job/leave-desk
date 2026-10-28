@@ -1,12 +1,13 @@
 class CalendarWindow
   FIRST_YEAR = 2025
-  YEARS = FIRST_YEAR..SupportedCalendarPeriod::YEARS.end
+  LAST_YEAR = 2050
+  YEARS = FIRST_YEAR..LAST_YEAR
 
   attr_reader :year, :month, :dates
 
   def initialize(year:, month:, today: Date.current)
     @year = parse_decimal(year) || today.year
-    @year = today.year unless YEARS.cover?(@year)
+    @year = today.year.clamp(FIRST_YEAR, LAST_YEAR) unless YEARS.cover?(@year)
 
     if month == "all"
       @month = nil

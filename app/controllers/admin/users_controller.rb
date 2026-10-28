@@ -51,10 +51,10 @@ module Admin
     end
 
     def user_params
-      attributes = params.expect(user: %i[name email_address birthday_on password password_confirmation role manager_id active])
+      attributes = params.expect(user: %i[name email_address city birthday_on password password_confirmation role manager_id active])
       require_string_fields!(
         attributes,
-        :name, :email_address, :birthday_on, :password, :password_confirmation, :role
+        :name, :email_address, :city, :birthday_on, :password, :password_confirmation, :role
       )
       require_identifier_fields!(attributes, :manager_id)
     end

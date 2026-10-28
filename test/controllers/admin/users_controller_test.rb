@@ -231,6 +231,26 @@ module Admin
       assert @employee.authenticate("test-password")
     end
 
+    test "administrator selects employee city and time zone follows it" do
+      sign_in_as(@administrator)
+
+      patch admin_user_path(@employee), params: { user: {
+        city: "Братск", time_zone: "Europe/Moscow"
+      } }
+
+      assert_response :redirect
+      assert_equal "Братск", @employee.reload.city
+      assert_equal "Asia/Irkutsk", @employee.time_zone
+
+      patch admin_user_path(@employee), params: { user: { city: "Минск" } }
+      assert_response :redirect
+      assert_equal "Europe/Minsk", @employee.reload.time_zone
+
+      patch admin_user_path(@employee), params: { user: { city: "Неизвестный город" } }
+      assert_response :unprocessable_entity
+      assert_equal "Минск", @employee.reload.city
+    end
+
     private
 
     def create_user(email_address, role: :employee)

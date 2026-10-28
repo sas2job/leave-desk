@@ -1,5 +1,29 @@
 class User < ApplicationRecord
   MINIMUM_PASSWORD_LENGTH = 12
+  CITY_TIME_ZONES = {
+    "Калининград" => "Europe/Kaliningrad",
+    "Москва" => "Europe/Moscow",
+    "Санкт-Петербург" => "Europe/Moscow",
+    "Казань" => "Europe/Moscow",
+    "Минск" => "Europe/Minsk",
+    "Самара" => "Europe/Samara",
+    "Екатеринбург" => "Asia/Yekaterinburg",
+    "Пермь" => "Asia/Yekaterinburg",
+    "Уфа" => "Asia/Yekaterinburg",
+    "Омск" => "Asia/Omsk",
+    "Новосибирск" => "Asia/Novosibirsk",
+    "Барнаул" => "Asia/Barnaul",
+    "Красноярск" => "Asia/Krasnoyarsk",
+    "Иркутск" => "Asia/Irkutsk",
+    "Братск" => "Asia/Irkutsk",
+    "Якутск" => "Asia/Yakutsk",
+    "Владивосток" => "Asia/Vladivostok",
+    "Хабаровск" => "Asia/Vladivostok",
+    "Магадан" => "Asia/Magadan",
+    "Петропавловск-Камчатский" => "Asia/Kamchatka"
+  }.freeze
+
+  before_validation :set_time_zone_from_city
 
   has_secure_password
 
@@ -20,6 +44,9 @@ class User < ApplicationRecord
 
   validates :name, presence: true
   validates :name, length: { maximum: 100 }, if: :will_save_change_to_name?
+  validates :city, length: { maximum: 100 }, if: :will_save_change_to_city?
+  validates :city, inclusion: { in: CITY_TIME_ZONES.keys }, allow_blank: true
+  validates :time_zone, inclusion: { in: CITY_TIME_ZONES.values }
   validates :email_address, presence: true, uniqueness: { case_sensitive: false },
     format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :email_address, length: { maximum: 254 }, if: :will_save_change_to_email_address?
@@ -60,6 +87,10 @@ class User < ApplicationRecord
   end
 
   private
+
+  def set_time_zone_from_city
+    self.time_zone = CITY_TIME_ZONES[city] if CITY_TIME_ZONES.key?(city)
+  end
 
   def password_has_no_nul
     errors.add(:password, "содержит недопустимый символ") if @password_with_nul

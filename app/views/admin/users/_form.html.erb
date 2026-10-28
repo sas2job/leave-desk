@@ -21,6 +21,10 @@
         <%= form.email_field :email_address, required: true, maxlength: 254, autocomplete: "email" %>
       </div>
       <div class="field">
+        <%= form.label :city, "Город проживания" %>
+        <%= form.select :city, User::CITY_TIME_ZONES.keys, { include_blank: "Выберите город" }, required: true %>
+      </div>
+      <div class="field">
         <%= form.label :birthday_on, "День рождения" %>
         <%= form.date_field :birthday_on, value: user.birthday_on.is_a?(Date) ? user.birthday_on.iso8601 : nil %>
       </div>

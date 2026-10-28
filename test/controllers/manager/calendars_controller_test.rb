@@ -130,13 +130,13 @@ module Manager
     test "accepts supported boundary years and rejects years outside them" do
       sign_in_as(@manager)
 
-      [ 2025, 2100 ].each do |year|
+    [ 2025, 2050 ].each do |year|
         get manager_calendar_path(year:, month: 10)
         assert_response :success
         assert_select "h1", text: /октябрь #{year}/
       end
 
-      [ 1976, 2024, 2101 ].each do |year|
+    [ 1976, 2024, 2051, 2100 ].each do |year|
         get manager_calendar_path(year:, month: 10)
         assert_response :success
         assert_select "h1", text: /октябрь 2026/
@@ -153,6 +153,18 @@ module Manager
       get manager_calendar_path(year: 2025, month: "all")
       assert_response :success
       assert_select "a[href='#{manager_calendar_path(year: 2024, month: "all")}']", count: 0
+    end
+
+    test "navigation stops at December 2050" do
+      sign_in_as(@manager)
+
+      get manager_calendar_path(year: 2050, month: 12)
+      assert_response :success
+      assert_select "a[href='#{manager_calendar_path(year: 2051, month: 1)}']", count: 0
+
+      get manager_calendar_path(year: 2050, month: "all")
+      assert_response :success
+      assert_select "a[href='#{manager_calendar_path(year: 2051, month: "all")}']", count: 0
     end
 
     test "parses years only as decimal" do

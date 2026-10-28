@@ -1,6 +1,22 @@
 require "test_helper"
 
 class SeedsTest < ActiveSupport::TestCase
+  test "development demo cities keep administrator changes on rerun" do
+    load Rails.root.join("db/seeds.rb")
+    load Rails.root.join("db/seeds/development.rb")
+
+      assert_equal [ "Москва", "Europe/Moscow" ],
+        User.find_by!(email_address: "employee1@leave-desk.test").attributes.values_at("city", "time_zone")
+      assert_equal [ "Минск", "Europe/Minsk" ],
+        User.find_by!(email_address: "employee2@leave-desk.test").attributes.values_at("city", "time_zone")
+      bratsk = User.find_by!(email_address: "employee3@leave-desk.test")
+      assert_equal [ "Братск", "Asia/Irkutsk" ], bratsk.attributes.values_at("city", "time_zone")
+
+      bratsk.update!(city: "Омск", time_zone: "Asia/Omsk")
+      load Rails.root.join("db/seeds/development.rb")
+      assert_equal [ "Омск", "Asia/Omsk" ], bratsk.reload.attributes.values_at("city", "time_zone")
+  end
+
   test "creates reference leave types idempotently" do
     2.times { load Rails.root.join("db/seeds.rb") }
 

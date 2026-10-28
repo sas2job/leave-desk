@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_210324) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_215617) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -122,6 +122,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_210324) do
     t.datetime "updated_at", null: false
     t.string "password_digest", null: false
     t.date "birthday_on"
+    t.string "city"
+    t.string "time_zone", default: "Europe/Moscow", null: false
     t.index "lower((email_address)::text)", name: "index_users_on_lower_email_address", unique: true
     t.index ["manager_id"], name: "index_users_on_manager_id"
     t.check_constraint "birthday_on IS NULL OR isfinite(birthday_on)", name: "users_finite_birthday"

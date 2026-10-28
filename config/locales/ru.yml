@@ -97,6 +97,8 @@ ru:
       user:
         name: "Имя"
         email_address: "Электронная почта"
+        city: "Город проживания"
+        time_zone: "Часовой пояс"
         birthday_on: "День рождения"
         password: "Пароль"
         password_confirmation: "Подтверждение пароля"
