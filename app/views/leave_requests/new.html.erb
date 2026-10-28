@@ -7,7 +7,7 @@
     <div>
       <p class="eyebrow">Новая заявка</p>
       <h1>Запланировать отпуск</h1>
-      <p class="lede">Укажите вид отпуска и желаемые даты.</p>
+      <p class="lede">Укажите вид отсутствия, даты и точное время.</p>
     </div>
   </header>
 
@@ -57,12 +57,15 @@
           </div>
         <% end %>
       <div class="field">
-        <%= form.label :start_part, "Начало периода" %>
-        <%= form.select :start_part, [["С утра", "morning"], ["После полудня", "afternoon"]] %>
+        <%= form.label :start_time, "Время начала (ЧЧ:ММ)" %>
+        <%= form.text_field :start_time, required: true, inputmode: "numeric",
+          pattern: "(?:[01][0-9]|2[0-3]):[0-5][0-9]", placeholder: "00:00" %>
       </div>
       <div class="field">
-        <%= form.label :end_part, "Окончание периода" %>
-        <%= form.select :end_part, [["До полудня", "morning"], ["До конца дня", "afternoon"]] %>
+        <%= form.label :end_time, "Время окончания (ЧЧ:ММ)" %>
+        <%= form.text_field :end_time, required: true, inputmode: "numeric",
+          pattern: "(?:(?:[01][0-9]|2[0-3]):[0-5][0-9]|24:00)", placeholder: "24:00" %>
+        <p class="field-hint">Для полного дня укажите 00:00–24:00. Для части дня укажите точные часы.</p>
       </div>
 
         <div class="field field--full">

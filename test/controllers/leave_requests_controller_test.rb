@@ -252,16 +252,16 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".error-summary", text: /Ends on/, count: 0
   end
 
-  test "shows required leave type and invalid day parts in Russian" do
+  test "shows required leave type and invalid times in Russian" do
     post leave_requests_path, params: { leave_request: {
       leave_type_id: "", starts_on: "2026-11-10", ends_on: "2026-11-12",
-      start_part: "unknown", end_part: "unknown"
+      start_time: "25:00", end_time: "12:99"
     } }
 
     assert_response :unprocessable_entity
     assert_select ".error-summary li", text: "Вид отсутствия: обязательное поле"
-    assert_select ".error-summary li", text: "Начало периода: недопустимое значение"
-    assert_select ".error-summary li", text: "Окончание периода: недопустимое значение"
+    assert_select ".error-summary li", text: "Время начала: укажите в формате ЧЧ:ММ"
+    assert_select ".error-summary li", text: "Время окончания: укажите в формате ЧЧ:ММ"
     assert_select ".error-summary", text: /Translation missing/, count: 0
   end
 
@@ -283,6 +283,22 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :not_found
     assert_predicate leave_request.reload, :pending?
+  end
+
+  test "creates a request with exact times shown in the history" do
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "10.11.2026", ends_on: "10.11.2026",
+        start_time: "09:15", end_time: "11:45"
+      } }
+    end
+
+    request = LeaveRequest.order(:id).last
+    assert_equal 150, request.duration_minutes
+    follow_redirect!
+    assert_select ".meta-value", text: /09:15/
+    assert_select ".meta-value", text: /11:45/
+    assert_select ".meta-value", text: /2 ч 30 мин/
   end
 
   private

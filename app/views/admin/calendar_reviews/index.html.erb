@@ -17,11 +17,11 @@
           </div>
           <p><%= request.employee.name %> — <%= request.leave_type.name %></p>
           <p><%= format_date(request.starts_on) %>–<%= format_date(request.ends_on) %></p>
-          <p>Сохранено: <%= format_duration(request.duration_in_days) %> дн.</p>
+          <p>Сохранено: <%= format_leave_duration(request) %></p>
           <% missing_years = request.calendar_years.reject { |year| @configured_years.include?(year) } %>
           <% if missing_years.empty? %>
             <% new_duration = request.calendar_duration_in_days %>
-            <p>По внесённому календарю: <%= format_duration(new_duration) %> дн.</p>
+            <p>По внесённому календарю: <%= format_calendar_duration(request) %></p>
             <% if new_duration&.positive? %>
               <%= button_to "Подтвердить расчёт", admin_calendar_review_path(request), method: :patch %>
             <% else %>

@@ -1,5 +1,9 @@
 class LeaveRequest < ApplicationRecord
   COMMENT_MAX_LENGTH = 2_000
+  MINUTES_PER_DAY = 1_440
+  HALF_DAY_MINUTES = 720
+
+  attr_accessor :start_time, :end_time
 
   class InvalidTransition < StandardError; end
   class ReviewNotAuthorized < StandardError; end
@@ -31,6 +35,7 @@ class LeaveRequest < ApplicationRecord
   validate :duration_is_positive
   validate :leave_type_id_has_valid_syntax
   validate :calculation_inputs_are_unchanged, on: :update
+  before_validation :parse_precise_times, on: :create
   before_validation :store_duration, on: :create
   after_create :record_created_event
   after_create :record_calendar_unverified_event, if: :calendar_unverified?
@@ -62,6 +67,8 @@ class LeaveRequest < ApplicationRecord
   end
 
   def duration_in_days
+    return duration_minutes / MINUTES_PER_DAY.to_f if persisted? && duration_minutes
+
     if persisted? && duration_half_days
       return duration_half_days.even? ? duration_half_days / 2 : duration_half_days / 2.0
     end
@@ -72,11 +79,44 @@ class LeaveRequest < ApplicationRecord
   def calendar_duration_in_days
     return if leave_type.blank? || !dates_supported? || ends_on < starts_on
 
+    return calendar_duration_in_minutes / MINUTES_PER_DAY.to_f if precise_time?
+
     days = ends_on.jd - starts_on.jd + 1
     days -= RussianFederalHoliday.count_between(starts_on, ends_on) if leave_type.exclude_public_holidays?
     days -= 0.5 if starts_afternoon? && counted_calendar_date?(starts_on)
     days -= 0.5 if ends_morning? && counted_calendar_date?(ends_on)
     days
+  end
+
+  def calendar_duration_in_minutes
+    return unless leave_type && dates_supported? && ends_on >= starts_on && precise_time?
+
+    days = ends_on.jd - starts_on.jd + 1
+    days -= RussianFederalHoliday.count_between(starts_on, ends_on) if leave_type.exclude_public_holidays?
+    minutes = days * MINUTES_PER_DAY
+    minutes -= start_minute if counted_calendar_date?(starts_on)
+    minutes -= MINUTES_PER_DAY - end_minute if counted_calendar_date?(ends_on)
+    minutes
+  end
+
+  def precise_time?
+    !start_minute.nil? && !end_minute.nil?
+  end
+
+  def period_start_minute
+    starts_on.jd * MINUTES_PER_DAY + (start_minute || (starts_afternoon? ? HALF_DAY_MINUTES : 0))
+  end
+
+  def period_end_minute
+    ends_on.jd * MINUTES_PER_DAY + (end_minute || (ends_morning? ? HALF_DAY_MINUTES : MINUTES_PER_DAY))
+  end
+
+  def start_time_label
+    precise_time? ? format("%02d:%02d", *start_minute.divmod(60)) : (starts_afternoon? ? "после полудня" : "с утра")
+  end
+
+  def end_time_label
+    precise_time? ? format("%02d:%02d", *end_minute.divmod(60)) : (ends_morning? ? "до полудня" : "до конца дня")
   end
 
   def calendar_years
@@ -100,10 +140,17 @@ class LeaveRequest < ApplicationRecord
           new_duration = calendar_duration_in_days
           raise InvalidTransition, "Новый расчёт не даёт положительной длительности" unless new_duration&.positive?
 
-          previous_duration = duration_in_days
-          update!(duration_half_days: (new_duration * 2).to_i, calendar_unverified: false)
+          if precise_time?
+            previous_duration = duration_minutes
+            update!(duration_minutes: calendar_duration_in_minutes, calendar_unverified: false)
+            comment = "Продолжительность: #{previous_duration} → #{duration_minutes} мин."
+          else
+            previous_duration = duration_in_days
+            update!(duration_half_days: (new_duration * 2).to_i, calendar_unverified: false)
+            comment = "Продолжительность: #{previous_duration} → #{new_duration} дн."
+          end
           record_event!(:calendar_reconciled, by:, from_status: status,
-            comment: "Продолжительность: #{previous_duration} → #{new_duration} дн.")
+            comment:)
         end
       end
     end
@@ -187,16 +234,39 @@ class LeaveRequest < ApplicationRecord
   end
 
   def calculation_inputs_are_unchanged
-    fields = %i[leave_type_id starts_on ends_on start_part end_part]
+    fields = %i[leave_type_id starts_on ends_on start_part end_part start_minute end_minute]
     return unless fields.any? { |field| will_save_change_to_attribute?(field) }
 
     errors.add(:base, "Даты и способ расчёта сохранённой заявки нельзя изменить; отмените её и создайте новую")
   end
 
+  def parse_precise_times
+    return if start_time.nil? && end_time.nil?
+
+    self.start_minute = parse_time_of_day(start_time, allow_end_of_day: false)
+    self.end_minute = parse_time_of_day(end_time, allow_end_of_day: true)
+    errors.add(:start_time, "укажите в формате ЧЧ:ММ") if start_minute.nil?
+    errors.add(:end_time, "укажите в формате ЧЧ:ММ") if end_minute.nil?
+  end
+
+  def parse_time_of_day(value, allow_end_of_day:)
+    return MINUTES_PER_DAY if allow_end_of_day && value == "24:00"
+    return if allow_end_of_day && value == "00:00"
+    return unless value.is_a?(String) && value.match?(/\A(?:[01]\d|2[0-3]):[0-5]\d\z/)
+
+    hours, minutes = value.split(":").map!(&:to_i)
+    hours * 60 + minutes
+  end
+
   def store_duration
     FederalCalendar.uncached do
-      calculated_duration = duration_in_days
-      self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
+      if precise_time?
+        self.duration_minutes = calendar_duration_in_minutes
+        self.duration_half_days = nil
+      else
+        calculated_duration = duration_in_days
+        self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
+      end
       years = calendar_years
       self.calendar_unverified = FederalCalendar.where(year: years).count != years.size if years.any?
     end
@@ -260,7 +330,13 @@ class LeaveRequest < ApplicationRecord
   def period_boundaries_are_in_order
     return unless dates_supported?
     return if starts_on < ends_on
-    return unless starts_on == ends_on && starts_afternoon? && ends_morning?
+    return unless starts_on == ends_on
+
+    if precise_time?
+      errors.add(:base, "Время окончания должно быть позже времени начала") if start_minute >= end_minute
+      return
+    end
+    return unless starts_afternoon? && ends_morning?
 
     errors.add(:base, "Период отсутствия не может начаться после полудня и закончиться " \
       "до полудня того же дня. Выберите окончание «До конца дня» или укажите следующую дату")
@@ -269,6 +345,12 @@ class LeaveRequest < ApplicationRecord
   def birthday_leave_is_one_full_day
     return unless leave_type&.code == "BIRTHDAY"
     return unless dates_supported? && ends_on >= starts_on
+    if precise_time?
+      return if starts_on == ends_on && start_minute.zero? && end_minute == MINUTES_PER_DAY
+
+      errors.add(:base, "Выходной в день рождения можно оформить только на один полный день")
+      return
+    end
     return if start_part.nil? || end_part.nil?
     return if starts_on == ends_on && starts_morning? && ends_afternoon?
 
@@ -278,10 +360,17 @@ class LeaveRequest < ApplicationRecord
   def duration_is_positive
     return if leave_type.blank? || !dates_supported?
     return if ends_on < starts_on
+    return if precise_time? && starts_on == ends_on && start_minute >= end_minute
     return if starts_on == ends_on && starts_afternoon? && ends_morning?
     return unless leave_type.exclude_public_holidays?
 
-    duration = new_record? ? duration_half_days && duration_half_days / 2.0 : duration_in_days
+    duration = if new_record? && precise_time?
+      duration_minutes
+    elsif new_record?
+      duration_half_days
+    else
+      duration_in_days
+    end
     return if duration.nil? || duration.positive?
 
     errors.add(:base, "На эти даты оформить «#{leave_type.name}» не получится: " \
@@ -291,16 +380,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def time_slots_overlap?(other)
-    period_start_slot(self) < period_end_slot(other) &&
-      period_start_slot(other) < period_end_slot(self)
-  end
-
-  def period_start_slot(request)
-    request.starts_on.jd * 2 + (request.starts_afternoon? ? 1 : 0)
-  end
-
-  def period_end_slot(request)
-    request.ends_on.jd * 2 + (request.ends_morning? ? 1 : 2)
+    period_start_minute < other.period_end_minute && other.period_start_minute < period_end_minute
   end
 
   def counted_calendar_date?(date)

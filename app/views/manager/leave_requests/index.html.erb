@@ -36,11 +36,11 @@
             </div>
             <div>
               <div class="meta-label">Границы периода</div>
-              <div class="meta-value"><%= leave_request.starts_afternoon? ? "После полудня" : "С утра" %> — <%= leave_request.ends_morning? ? "до полудня" : "до конца дня" %></div>
+              <div class="meta-value"><%= leave_request.start_time_label %> — <%= leave_request.end_time_label %></div>
             </div>
             <div>
               <div class="meta-label">Продолжительность</div>
-              <div class="meta-value"><%= format_duration(leave_request.duration_in_days) %> дн.</div>
+              <div class="meta-value"><%= format_leave_duration(leave_request) %></div>
             </div>
             <% if leave_request.calendar_unverified? %>
               <p role="status">Календарь года ещё не подтверждён. Расчёт ожидает проверки администратора.</p>

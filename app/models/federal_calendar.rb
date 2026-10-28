@@ -105,7 +105,11 @@ class FederalCalendar < ApplicationRecord
     LeaveRequest.where(status: %i[pending approved], calendar_unverified: false)
       .where("starts_on <= ? AND ends_on >= ?", year_dates.end, year_dates.begin)
       .includes(:leave_type).find_each do |request|
-      next if (request.calendar_duration_in_days * 2).to_i == request.duration_half_days
+      if request.precise_time?
+        next if request.calendar_duration_in_minutes == request.duration_minutes
+      else
+        next if (request.calendar_duration_in_days * 2).to_i == request.duration_half_days
+      end
 
       request.flag_calendar_for_review!
     end

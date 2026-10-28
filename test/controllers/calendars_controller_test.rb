@@ -84,6 +84,40 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "precise requests occupy matching calendar halves and show their hours" do
+    date = Date.new(2026, 10, 20)
+    morning = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "09:00", end_time: "10:00")
+    morning.approve!(by: @manager)
+    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "14:00", end_time: "15:00")
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: 10)
+
+    assert_response :success
+    assert_select ".team-calendar td.leave-split[title*='09:00–10:00'][title*='14:00–15:00']" do
+      assert_select ".calendar-half--morning.calendar-half--approved"
+      assert_select ".calendar-half--afternoon.calendar-half--pending"
+    end
+  end
+
+  test "calendar shows both adjacent requests within one half day" do
+    date = Date.new(2026, 10, 20)
+    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "09:00", end_time: "10:00")
+    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "10:00", end_time: "11:00")
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: 10)
+
+    assert_response :success
+    assert_select ".team-calendar td.leave-split[title*='09:00–10:00'][title*='10:00–11:00']" do
+      assert_select ".calendar-half--morning", count: 2
+    end
+  end
+
   test "shows adjacent requests that share a boundary date" do
     first = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
       starts_on: Date.new(2026, 10, 19), ends_on: Date.new(2026, 10, 20),

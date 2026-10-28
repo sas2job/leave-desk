@@ -26,6 +26,28 @@ module ApplicationHelper
     days.to_s.tr(".", ",")
   end
 
+  def format_leave_duration(request)
+    return "#{format_duration(request.duration_in_days)} дн." unless request.precise_time?
+
+    format_duration_minutes(request.duration_minutes)
+  end
+
+  def format_calendar_duration(request)
+    return "#{format_duration(request.calendar_duration_in_days)} дн." unless request.precise_time?
+
+    format_duration_minutes(request.calendar_duration_in_minutes)
+  end
+
+  def format_duration_minutes(total_minutes)
+    days, remaining = total_minutes.divmod(LeaveRequest::MINUTES_PER_DAY)
+    hours, minutes = remaining.divmod(60)
+    parts = []
+    parts << "#{days} дн." if days.positive?
+    parts << "#{hours} ч" if hours.positive?
+    parts << "#{minutes} мин" if minutes.positive?
+    parts.empty? ? "0 мин" : parts.join(" ")
+  end
+
   def leave_request_event_label(event)
     LEAVE_REQUEST_EVENT_LABELS.fetch(event.event_type)
   end

@@ -9,6 +9,8 @@ class LeaveRequestsController < ApplicationController
 
   def new
     @leave_request = Current.user.leave_requests.new
+    @leave_request.start_time = "00:00"
+    @leave_request.end_time = "24:00"
     @leave_types = LeaveType.where(active: true).order(:name)
   end
 
@@ -41,10 +43,15 @@ class LeaveRequestsController < ApplicationController
   end
 
   def leave_request_params
-    attributes = params.expect(leave_request: %i[leave_type_id starts_on start_part ends_on end_part employee_comment])
+    attributes = params.expect(leave_request: %i[leave_type_id starts_on ends_on start_time end_time employee_comment])
+    if params[:leave_request].key?(:start_part) || params[:leave_request].key?(:end_part)
+      raise ActionController::BadRequest, "Use exact start and end times"
+    end
+    attributes[:start_time] = "00:00" unless attributes.key?(:start_time)
+    attributes[:end_time] = "24:00" unless attributes.key?(:end_time)
     require_string_fields!(
       attributes,
-      :starts_on, :start_part, :ends_on, :end_part, :employee_comment
+      :starts_on, :ends_on, :start_time, :end_time, :employee_comment
     )
     require_identifier_fields!(attributes, :leave_type_id)
     @date_inputs = attributes.slice(:starts_on, :ends_on)

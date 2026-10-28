@@ -482,6 +482,104 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_equal 1, request.errors[:base].size
   end
 
+  test "precise time records the exact interval and duration" do
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 12), ends_on: Date.new(2026, 10, 12),
+      start_time: "09:15", end_time: "11:45")
+
+    assert_equal 150, request.reload.duration_minutes
+    assert_nil request.duration_half_days
+    assert_equal "09:15", request.start_time_label
+    assert_equal "11:45", request.end_time_label
+  end
+
+  test "precise adjacent intervals are allowed and overlapping minutes are rejected" do
+    date = Date.new(2026, 10, 12)
+    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "09:00", end_time: "10:00")
+    adjacent = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "10:00", end_time: "11:00")
+    assert adjacent.save!
+
+    overlapping = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "09:59", end_time: "10:01")
+    assert_not overlapping.valid?
+    assert_includes overlapping.errors[:base], "Период пересекается с другой активной заявкой"
+  end
+
+  test "precise duration excludes only counted holiday dates" do
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 5, 9), ends_on: Date.new(2026, 5, 10),
+      start_time: "12:00", end_time: "10:30")
+
+    assert_equal 630, request.duration_minutes
+  end
+
+  test "calendar reconciliation preserves minute precision" do
+    administrator = User.create!(name: "Administrator", email_address: "admin-precise@example.test",
+      password: "test-password", role: :administrator)
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 5, 9), ends_on: Date.new(2026, 5, 10),
+      start_time: "12:00", end_time: "10:30")
+    assert_equal 630, request.duration_minutes
+
+    FederalCalendar.create!(year: 2026, legal_basis: "Updated holiday calendar",
+      public_holidays: [ Date.new(2026, 1, 1) ])
+    request.reconcile_calendar!(by: administrator)
+
+    assert_equal 1_350, request.reload.duration_minutes
+    assert_nil request.duration_half_days
+    assert_includes request.events.last.comment, "630 → 1350 мин."
+  end
+
+  test "end of a date is 24:00 rather than 00:00" do
+    request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 12), ends_on: Date.new(2026, 10, 13),
+      start_time: "09:00", end_time: "00:00")
+
+    assert_not request.valid?
+    assert_predicate request.errors[:end_time], :present?
+  end
+
+  test "birthday leave still requires one complete day with precise times" do
+    birthday_type = LeaveType.create!(name: "Birthday", code: "BIRTHDAY")
+    date = Date.new(2026, 10, 12)
+    partial = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: date, ends_on: date, start_time: "09:00", end_time: "18:00")
+    assert_not partial.valid?
+    assert_includes partial.errors[:base], "Выходной в день рождения можно оформить только на один полный день"
+
+    full_day = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: date, ends_on: date, start_time: "00:00", end_time: "24:00")
+    assert full_day.valid?
+  end
+
+  test "database rejects overlapping precise intervals without model validation" do
+    date = Date.new(2026, 10, 12)
+    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "09:00", end_time: "10:00")
+    assert_raises(ActiveRecord::StatementInvalid) do
+      LeaveRequest.transaction(requires_new: true) do
+        LeaveRequest.insert_all!([ { employee_id: @employee.id, leave_type_id: @leave_type.id,
+          starts_on: date, ends_on: date, start_minute: 599, end_minute: 660,
+          duration_minutes: 61, duration_half_days: nil, status: LeaveRequest.statuses.fetch(:pending),
+          created_at: Time.current, updated_at: Time.current } ])
+      end
+    end
+  end
+
+  test "legacy half-day request keeps its original label" do
+    request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 10, 12), ends_on: Date.new(2026, 10, 12),
+      start_part: :afternoon, end_part: :afternoon)
+
+    assert_nil request.reload.start_minute
+    assert_equal "после полудня", request.start_time_label
+    assert_equal "до конца дня", request.end_time_label
+  end
+
   private
 
   def create_request

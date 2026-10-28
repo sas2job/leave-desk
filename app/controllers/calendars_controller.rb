@@ -15,10 +15,15 @@ class CalendarsController < ApplicationController
 
       visible_dates.each do |date|
         slots = (requests_by_date[date] ||= {})
-        start_slot = request.starts_on.jd * 2 + (request.starts_afternoon? ? 1 : 0)
-        end_slot = request.ends_on.jd * 2 + (request.ends_morning? ? 1 : 2)
-        slots[:morning] = request if start_slot <= date.jd * 2 && end_slot > date.jd * 2
-        slots[:afternoon] = request if start_slot <= date.jd * 2 + 1 && end_slot > date.jd * 2 + 1
+        day_start = date.jd * LeaveRequest::MINUTES_PER_DAY
+        if request.period_start_minute < day_start + LeaveRequest::HALF_DAY_MINUTES &&
+            request.period_end_minute > day_start
+          (slots[:morning] ||= []) << request
+        end
+        if request.period_start_minute < day_start + LeaveRequest::MINUTES_PER_DAY &&
+            request.period_end_minute > day_start + LeaveRequest::HALF_DAY_MINUTES
+          (slots[:afternoon] ||= []) << request
+        end
       end
     end
     @birthday = birthday_in_year

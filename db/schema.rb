@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_153545) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_210324) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -56,22 +56,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_153545) do
     t.datetime "updated_at", null: false
     t.integer "start_part", default: 0, null: false
     t.integer "end_part", default: 1, null: false
-    t.integer "duration_half_days", null: false
+    t.integer "duration_half_days"
     t.boolean "calendar_unverified", default: false, null: false
+    t.integer "start_minute"
+    t.integer "end_minute"
+    t.integer "duration_minutes"
     t.index ["employee_id", "id"], name: "index_leave_requests_on_employee_id_and_id"
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
     t.index ["leave_type_id"], name: "index_leave_requests_on_leave_type_id"
     t.index ["reviewer_id"], name: "index_leave_requests_on_reviewer_id"
-    t.check_constraint "duration_half_days > 0", name: "leave_requests_positive_duration"
+    t.check_constraint "duration_half_days > 0 AND duration_minutes IS NULL OR duration_minutes > 0 AND duration_half_days IS NULL", name: "leave_requests_positive_duration"
+    t.check_constraint "end_minute >= 1 AND end_minute <= 1440", name: "leave_requests_valid_end_minute"
     t.check_constraint "end_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_end_part"
     t.check_constraint "ends_on >= starts_on", name: "leave_requests_dates_in_order"
     t.check_constraint "isfinite(ends_on) AND ends_on >= '2000-01-01'::date AND ends_on <= '2100-12-31'::date", name: "leave_requests_supported_end_date"
     t.check_constraint "isfinite(starts_on) AND starts_on >= '2000-01-01'::date AND starts_on <= '2100-12-31'::date", name: "leave_requests_supported_start_date"
     t.check_constraint "reviewer_id IS NULL OR reviewer_id <> employee_id", name: "leave_requests_reviewer_is_not_employee"
+    t.check_constraint "start_minute >= 0 AND start_minute <= 1439", name: "leave_requests_valid_start_minute"
+    t.check_constraint "start_minute IS NULL AND end_minute IS NULL AND duration_minutes IS NULL AND duration_half_days IS NOT NULL OR start_minute IS NOT NULL AND end_minute IS NOT NULL AND duration_minutes IS NOT NULL AND duration_half_days IS NULL", name: "leave_requests_consistent_time_precision"
     t.check_constraint "start_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_start_part"
-    t.check_constraint "starts_on < ends_on OR start_part <= end_part", name: "leave_requests_period_boundaries_in_order"
+    t.check_constraint "starts_on < ends_on OR start_minute IS NULL AND start_part <= end_part OR start_minute IS NOT NULL AND start_minute < end_minute", name: "leave_requests_period_boundaries_in_order"
     t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3])", name: "leave_requests_valid_status"
-    t.exclusion_constraint "employee_id WITH =, tsrange((starts_on +\nCASE\n    WHEN (start_part = 1) THEN 'PT12H'::interval\n    ELSE 'PT0S'::interval\nEND), (ends_on +\nCASE\n    WHEN (end_part = 0) THEN 'PT12H'::interval\n    ELSE 'P1D'::interval\nEND), '[)'::text) WITH &&", where: "status = ANY (ARRAY[0, 1])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
+    t.exclusion_constraint "employee_id WITH =, tsrange((starts_on + ((COALESCE(start_minute, (start_part * 720)))::double precision * 'PT1M'::interval)), (ends_on + ((COALESCE(end_minute, ((end_part + 1) * 720)))::double precision * 'PT1M'::interval)), '[)'::text) WITH &&", where: "status = ANY (ARRAY[0, 1])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
   end
 
   create_table "leave_types", force: :cascade do |t|

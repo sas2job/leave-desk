@@ -59,22 +59,28 @@
           <th scope="row">Мои заявки</th>
           <% @dates.each do |date| %>
             <% day_slots = @leave_requests_by_date[date] || {} %>
-            <% slots = { morning: day_slots[:morning], afternoon: day_slots[:afternoon] }.compact %>
-            <% requests = slots.values.uniq %>
+            <% slots = { morning: day_slots.fetch(:morning, []), afternoon: day_slots.fetch(:afternoon, []) } %>
+            <% requests = slots.values.flatten.uniq %>
             <% classes = [] %>
             <% classes << "weekend" if @calendar_off_days.include?(date) %>
             <% classes << (requests.first.approved? ? "leave" : "leave-pending") if requests.one? %>
-            <% classes << "leave-split" if requests.size == 2 %>
+            <% classes << "leave-split" if requests.size > 1 %>
             <% classes << "birthday" if @birthday == date && requests.empty? %>
             <% labels = [format_date(date)] %>
-            <% slots.each do |part, request| %>
-              <% labels << "#{part == :morning ? "Утро" : "После полудня"}: #{request.leave_type.name}, #{request.approved? ? "Согласовано" : "На рассмотрении"}" %>
+            <% slots.each do |part, part_requests| %>
+              <% part_requests.each do |request| %>
+                <% time_label = "#{request.start_time_label}–#{request.end_time_label}, " if request.precise_time? %>
+                <% labels << "#{part == :morning ? "Утро" : "После полудня"}: #{request.leave_type.name}, " \
+                  "#{time_label}#{request.approved? ? "Согласовано" : "На рассмотрении"}" %>
+              <% end %>
             <% end %>
             <% labels << "День рождения" if @birthday == date %>
             <td class="<%= classes.join(" ") %>" title="<%= labels.join(" — ") %>" aria-label="<%= labels.join(" — ") %>">
-              <% if requests.size == 2 %>
-                <% slots.each do |part, request| %>
-                  <span class="calendar-half calendar-half--<%= part %> <%= request.approved? ? "calendar-half--approved" : "calendar-half--pending" %>"><%= request.approved? ? "С" : "Р" %></span>
+              <% if requests.size > 1 %>
+                <% slots.each do |part, part_requests| %>
+                  <% part_requests.each do |request| %>
+                    <span class="calendar-half calendar-half--<%= part %> <%= request.approved? ? "calendar-half--approved" : "calendar-half--pending" %>"><%= request.approved? ? "С" : "Р" %></span>
+                  <% end %>
                 <% end %>
               <% elsif requests.one? %>
                 <%= requests.first.approved? ? "С" : "Р" %>
