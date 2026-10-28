@@ -123,7 +123,7 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "rejects a sick leave notification for a past date" do
-    sick = LeaveType.create!(name: "Sick leave", code: "SICK")
+    sick = LeaveType.find_or_create_by!(code: "SICK") { |type| type.name = "Sick leave" }
 
     travel_to Date.new(2026, 10, 28) do
       assert_no_difference("LeaveRequest.count") do
