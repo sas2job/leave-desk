@@ -209,7 +209,7 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "does not create overlapping request" do
-    create_request(@employee)
+    existing = create_request(@employee)
 
     assert_no_difference("@employee.leave_requests.count") do
       post leave_requests_path, params: {
@@ -222,7 +222,27 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :unprocessable_entity
-    assert_select ".error-summary", text: /Период пересекается/
+    assert_select ".error-summary", text: /заявкой №#{existing.id}/
+    assert_select ".error-summary", text: /Annual leave/
+    assert_select ".error-summary", text: /01\.11\.2026 с утра — 02\.11\.2026 до конца дня/
+  end
+
+  test "overlap error names the precise conflicting request" do
+    existing = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: Date.new(2026, 11, 10), ends_on: Date.new(2026, 11, 10),
+      start_time: "09:00", end_time: "10:00")
+
+    assert_no_difference("LeaveRequest.count") do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "10.11.2026", ends_on: "10.11.2026",
+        start_time: "09:30", end_time: "10:30"
+      } }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".error-summary", text: /заявкой №#{existing.id} «Annual leave»/
+    assert_select ".error-summary", text: /на рассмотрении/
+    assert_select ".error-summary", text: /10\.11\.2026 09:00 — 10\.11\.2026 10:00/
   end
 
   test "cancels own request" do

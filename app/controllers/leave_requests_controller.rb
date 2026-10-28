@@ -25,7 +25,8 @@ class LeaveRequestsController < ApplicationController
   rescue ActiveRecord::StatementInvalid => error
     raise unless error.cause.is_a?(PG::ExclusionViolation)
 
-    @leave_request.errors.add(:base, "Период пересекается с другой активной заявкой")
+    conflict = @leave_request.overlapping_active_request
+    @leave_request.errors.add(:base, LeaveRequest.overlap_error_message(conflict))
     render_new_with_errors
   end
 

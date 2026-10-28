@@ -147,12 +147,13 @@ class LeaveRequestTest < ActiveSupport::TestCase
   end
 
   test "active requests cannot overlap including period boundaries" do
-    create_request
+    existing = create_request
     request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
       starts_on: Date.new(2026, 10, 14), ends_on: Date.new(2026, 10, 16))
 
     assert_not request.valid?
-    assert_includes request.errors[:base], "Период пересекается с другой активной заявкой"
+    assert_includes request.errors[:base], LeaveRequest.overlap_error_message(existing)
+    assert_includes request.errors.full_messages.join, "№#{existing.id}"
   end
 
   test "cancelled request does not block same period" do
@@ -495,7 +496,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
   test "precise adjacent intervals are allowed and overlapping minutes are rejected" do
     date = Date.new(2026, 10, 12)
-    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+    existing = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
       starts_on: date, ends_on: date, start_time: "09:00", end_time: "10:00")
     adjacent = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
       starts_on: date, ends_on: date, start_time: "10:00", end_time: "11:00")
@@ -504,7 +505,8 @@ class LeaveRequestTest < ActiveSupport::TestCase
     overlapping = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
       starts_on: date, ends_on: date, start_time: "09:59", end_time: "10:01")
     assert_not overlapping.valid?
-    assert_includes overlapping.errors[:base], "Период пересекается с другой активной заявкой"
+    assert_includes overlapping.errors[:base], LeaveRequest.overlap_error_message(existing)
+    assert_includes overlapping.errors.full_messages.join, "09:00 — #{date.strftime('%d.%m.%Y')} 10:00"
   end
 
   test "precise duration excludes only counted holiday dates" do

@@ -119,6 +119,24 @@ class LeaveRequest < ApplicationRecord
     precise_time? ? format("%02d:%02d", *end_minute.divmod(60)) : (ends_morning? ? "до полудня" : "до конца дня")
   end
 
+  def overlapping_active_request
+    return if employee_id.blank? || !dates_supported?
+
+    self.class.where(employee_id:, status: %i[pending approved])
+      .where.not(id:).where("starts_on <= ? AND ends_on >= ?", ends_on, starts_on)
+      .includes(:leave_type).order(:starts_on, :id)
+      .detect { |request| time_slots_overlap?(request) }
+  end
+
+  def self.overlap_error_message(other)
+    return "Период пересекается с другой активной заявкой; обновите список заявок" unless other
+
+    status_label = other.pending? ? "на рассмотрении" : "одобрена"
+    "Период пересекается с заявкой №#{other.id} «#{other.leave_type.name}» " \
+      "(#{status_label}): #{other.starts_on.strftime('%d.%m.%Y')} #{other.start_time_label} — " \
+      "#{other.ends_on.strftime('%d.%m.%Y')} #{other.end_time_label}"
+  end
+
   def calendar_years
     return [] unless dates_supported? && ends_on >= starts_on
 
@@ -321,10 +339,8 @@ class LeaveRequest < ApplicationRecord
     return if employee_id.blank? || !dates_supported?
     return unless pending? || approved?
 
-    overlapping_request = self.class.where(employee_id:, status: %i[pending approved])
-      .where.not(id:).where("starts_on <= ? AND ends_on >= ?", ends_on, starts_on)
-      .any? { |request| time_slots_overlap?(request) }
-    errors.add(:base, "Период пересекается с другой активной заявкой") if overlapping_request
+    conflict = overlapping_active_request
+    errors.add(:base, self.class.overlap_error_message(conflict)) if conflict
   end
 
   def period_boundaries_are_in_order
