@@ -1,0 +1,10 @@
+[Unit]
+Description=Prune expired Leave Desk sessions daily
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=leave-desk-session-prune.service
+
+[Install]
+WantedBy=timers.target

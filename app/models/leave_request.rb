@@ -1,7 +1,8 @@
 class LeaveRequest < ApplicationRecord
-  class InvalidTransition < StandardError; end
+  COMMENT_MAX_LENGTH = 2_000
 
-  SUPPORTED_DATES = Date.new(2000, 1, 1)..Date.new(2100, 12, 31)
+  class InvalidTransition < StandardError; end
+  class ReviewNotAuthorized < StandardError; end
 
   enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3 }
   enum :start_part, { morning: 0, afternoon: 1 }, prefix: :starts,
@@ -16,13 +17,17 @@ class LeaveRequest < ApplicationRecord
   has_many :events, class_name: "LeaveRequestEvent", dependent: :restrict_with_exception
 
   validates :starts_on, :ends_on, presence: true
+  validates :employee_comment, length: { maximum: COMMENT_MAX_LENGTH }, if: :will_save_change_to_employee_comment?
+  validates :review_comment, length: { maximum: COMMENT_MAX_LENGTH }, if: :will_save_change_to_review_comment?
   validate :dates_are_supported
   validate :dates_are_in_current_year, on: :create
+  validate :starts_on_is_not_in_the_past, on: :create
   validate :ends_on_is_not_before_starts_on
   validate :reviewer_is_not_employee
   validate :leave_type_is_active, on: :create
   validate :period_does_not_overlap_active_request
   validate :period_boundaries_are_in_order
+  validate :birthday_leave_is_one_full_day, on: :create
   validate :duration_is_positive
   validate :leave_type_id_has_valid_syntax
   validate :calculation_inputs_are_unchanged, on: :update
@@ -31,11 +36,11 @@ class LeaveRequest < ApplicationRecord
   after_create :record_calendar_unverified_event, if: :calendar_unverified?
 
   def save(**options)
-    with_leave_type_lock { super }
+    with_persistence_locks { super }
   end
 
   def save!(**options)
-    with_leave_type_lock { super }
+    with_persistence_locks { super }
   end
 
   def approve!(by:, comment: nil)
@@ -74,29 +79,39 @@ class LeaveRequest < ApplicationRecord
     days
   end
 
+  def calendar_years
+    return [] unless dates_supported? && ends_on >= starts_on
+
+    (starts_on.year..ends_on.year).to_a
+  end
+
   def reconcile_calendar!(by:)
     raise InvalidTransition, "Проверить календарь может только администратор" unless by&.administrator?
 
-    self.class.transaction do
-      calendar = FederalCalendar.where(year: starts_on.year).lock("FOR UPDATE").first
-      raise InvalidTransition, "Календарь года ещё не внесён" unless calendar
+    FederalCalendar.with_year_locks(calendar_years) do
+      FederalCalendar.uncached do
+        calendars = FederalCalendar.where(year: calendar_years).order(:year).lock("FOR UPDATE").load
+        missing_years = calendar_years - calendars.map(&:year)
+        raise InvalidTransition, missing_calendars_message(missing_years) if missing_years.any?
 
-      with_lock do
-        raise InvalidTransition, "Календарь заявки уже проверен" unless calendar_unverified?
+        with_lock do
+          raise InvalidTransition, "Календарь заявки уже проверен" unless calendar_unverified?
 
-        new_duration = calendar_duration_in_days
-        raise InvalidTransition, "Новый расчёт не даёт положительной длительности" unless new_duration&.positive?
+          new_duration = calendar_duration_in_days
+          raise InvalidTransition, "Новый расчёт не даёт положительной длительности" unless new_duration&.positive?
 
-        previous_duration = duration_in_days
-        update!(duration_half_days: (new_duration * 2).to_i, calendar_unverified: false)
-        record_event!(:calendar_reconciled, by:, from_status: status,
-          comment: "Продолжительность: #{previous_duration} → #{new_duration} дн.")
+          previous_duration = duration_in_days
+          update!(duration_half_days: (new_duration * 2).to_i, calendar_unverified: false)
+          record_event!(:calendar_reconciled, by:, from_status: status,
+            comment: "Продолжительность: #{previous_duration} → #{new_duration} дн.")
+        end
       end
     end
   end
 
   def flag_calendar_for_review!
     with_lock do
+      return unless pending? || approved?
       return if calendar_unverified?
 
       update!(calendar_unverified: true)
@@ -107,7 +122,7 @@ class LeaveRequest < ApplicationRecord
 
   private
 
-  def with_leave_type_lock
+  def with_persistence_locks
     return yield unless leave_type_id.present? && (new_record? || will_save_change_to_leave_type_id?)
 
     self.class.transaction do
@@ -115,9 +130,33 @@ class LeaveRequest < ApplicationRecord
         LeaveType.where(id: leave_type_id).lock("FOR UPDATE").first
       end
       association(:leave_type).target = locked_type
-      FederalCalendar.where(year: starts_on.year).lock("FOR UPDATE").first if new_record? && dates_supported?
-      yield
+      if new_record?
+        with_calendar_locks do
+          lock_employee_for_creation
+          yield
+        end
+      else
+        yield
+      end
     end
+  end
+
+  def with_calendar_locks
+    return yield if calendar_years.empty?
+
+    FederalCalendar.with_year_locks(calendar_years) do
+      FederalCalendar.uncached do
+        FederalCalendar.where(year: calendar_years).order(:year).lock("FOR UPDATE").load
+        yield
+      end
+    end
+  end
+
+  def lock_employee_for_creation
+    locked_employee = User.uncached do
+      User.where(id: employee_id).lock("FOR UPDATE").first
+    end
+    association(:employee).target = locked_employee
   end
 
   def leave_type_id_has_valid_syntax
@@ -129,8 +168,8 @@ class LeaveRequest < ApplicationRecord
   end
 
   def dates_are_supported
-    errors.add(:starts_on, "должна быть между 01.01.2000 и 31.12.2100") if starts_on && !supported_date?(starts_on)
-    errors.add(:ends_on, "должна быть между 01.01.2000 и 31.12.2100") if ends_on && !supported_date?(ends_on)
+    errors.add(:starts_on, SupportedCalendarPeriod.date_error) if starts_on && !supported_date?(starts_on)
+    errors.add(:ends_on, SupportedCalendarPeriod.date_error) if ends_on && !supported_date?(ends_on)
   end
 
   def dates_are_in_current_year
@@ -138,6 +177,13 @@ class LeaveRequest < ApplicationRecord
     return if starts_on.year == Date.current.year && ends_on.year == Date.current.year
 
     errors.add(:base, "Оформить отсутствие можно только в текущем календарном году")
+  end
+
+  def starts_on_is_not_in_the_past
+    return unless supported_date?(starts_on)
+    return if starts_on >= Date.current
+
+    errors.add(:starts_on, "не может быть раньше сегодняшнего дня")
   end
 
   def calculation_inputs_are_unchanged
@@ -148,9 +194,18 @@ class LeaveRequest < ApplicationRecord
   end
 
   def store_duration
-    calculated_duration = duration_in_days
-    self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
-    self.calendar_unverified = !FederalCalendar.exists?(year: starts_on.year) if dates_supported?
+    FederalCalendar.uncached do
+      calculated_duration = duration_in_days
+      self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
+      years = calendar_years
+      self.calendar_unverified = FederalCalendar.where(year: years).count != years.size if years.any?
+    end
+  end
+
+  def missing_calendars_message(years)
+    return "Календарь #{years.first} года ещё не внесён" if years.one?
+
+    "Календари #{years.join(', ')} годов ещё не внесены"
   end
 
   def dates_supported?
@@ -158,13 +213,17 @@ class LeaveRequest < ApplicationRecord
   end
 
   def supported_date?(date)
-    date.is_a?(Date) && SUPPORTED_DATES.cover?(date)
+    date.is_a?(Date) && SupportedCalendarPeriod::DATES.cover?(date)
   end
 
   def review!(new_status:, by:, comment:)
     with_lock do
+      raise InvalidTransition, "Сотрудник не может согласовать собственную заявку" if by&.id == employee_id
+      current_employee = User.uncached do
+        User.where(id: employee_id).lock("FOR UPDATE").first
+      end
+      raise ReviewNotAuthorized unless by && current_employee&.manager_id == by.id
       raise InvalidTransition, "Рассмотреть можно только заявку на рассмотрении" unless pending?
-      raise InvalidTransition, "Сотрудник не может согласовать собственную заявку" if by == employee
 
       previous_status = status
       update!(status: new_status, reviewer: by, reviewed_at: Time.current,
@@ -205,6 +264,15 @@ class LeaveRequest < ApplicationRecord
 
     errors.add(:base, "Период отсутствия не может начаться после полудня и закончиться " \
       "до полудня того же дня. Выберите окончание «До конца дня» или укажите следующую дату")
+  end
+
+  def birthday_leave_is_one_full_day
+    return unless leave_type&.code == "BIRTHDAY"
+    return unless dates_supported? && ends_on >= starts_on
+    return if start_part.nil? || end_part.nil?
+    return if starts_on == ends_on && starts_morning? && ends_afternoon?
+
+    errors.add(:base, "Выходной в день рождения можно оформить только на один полный день")
   end
 
   def duration_is_positive

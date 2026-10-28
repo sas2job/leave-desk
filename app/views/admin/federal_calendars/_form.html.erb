@@ -17,12 +17,13 @@
         <% if calendar.persisted? %>
           <%= form.number_field :year, value: calendar.year, disabled: true %>
         <% else %>
-          <%= form.number_field :year, min: 2000, max: 2100, required: true %>
+          <%= form.number_field :year, min: SupportedCalendarPeriod::YEARS.first,
+            max: SupportedCalendarPeriod::YEARS.last, required: true %>
         <% end %>
       </div>
       <div class="field field--full">
         <%= form.label :legal_basis, "Нормативное основание" %>
-        <%= form.text_area :legal_basis, required: true, rows: 3,
+        <%= form.text_area :legal_basis, required: true, maxlength: 1_000, rows: 3,
           placeholder: "Статья 112 ТК РФ; Постановление Правительства РФ от ... № ..." %>
       </div>
       <div class="field field--full">

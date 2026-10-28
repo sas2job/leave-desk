@@ -5,6 +5,7 @@ class LeaveTypePolicyConcurrencyTest < ActiveSupport::TestCase
   self.use_transactional_tests = false
 
   setup do
+    travel_to Date.new(2026, 1, 1)
     suffix = SecureRandom.hex(6)
     @employee = User.create!(name: "Employee", email_address: "employee-#{suffix}@example.test",
       password: "test-password")

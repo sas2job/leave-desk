@@ -1,4 +1,6 @@
 class LeaveType < ApplicationRecord
+  BIRTHDAY_CODE = "BIRTHDAY"
+
   enum :holiday_handling, {
     include_public_holidays: 0,
     exclude_public_holidays: 1
@@ -9,8 +11,11 @@ class LeaveType < ApplicationRecord
   normalizes :code, with: ->(code) { code.strip.upcase }
 
   validates :name, :code, presence: true
+  validates :name, length: { maximum: 100 }, if: :will_save_change_to_name?
+  validates :code, length: { maximum: 40 }, if: :will_save_change_to_code?
   validates :code, uniqueness: true
   validate :active_has_boolean_input
+  validate :birthday_code_is_unchanged
   validate :holiday_handling_is_unchanged_when_used
 
   def save(**options)
@@ -37,6 +42,13 @@ class LeaveType < ApplicationRecord
     return if [ true, false, 1, 0, "1", "0", "true", "false" ].include?(raw_active)
 
     errors.add(:active, "должна быть указана как да или нет")
+  end
+
+  def birthday_code_is_unchanged
+    return unless persisted? && will_save_change_to_code?
+    return unless code_in_database == BIRTHDAY_CODE
+
+    errors.add(:code, "нельзя изменить для системного вида отпуска")
   end
 
   def holiday_handling_is_unchanged_when_used

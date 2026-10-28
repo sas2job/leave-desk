@@ -5,7 +5,8 @@ module Admin
     def index
       @requests = LeaveRequest.where(calendar_unverified: true)
         .includes(:employee, :leave_type).order(:starts_on, :id)
-      @configured_years = FederalCalendar.where(year: @requests.map { |request| request.starts_on.year })
+      request_years = @requests.flat_map(&:calendar_years).uniq
+      @configured_years = FederalCalendar.where(year: request_years)
         .pluck(:year).to_set
     end
 

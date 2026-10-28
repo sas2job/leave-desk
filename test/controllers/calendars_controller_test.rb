@@ -1,7 +1,10 @@
 require "test_helper"
 
 class CalendarsControllerTest < ActionDispatch::IntegrationTest
+  include DateIterationBudgetHelper
+
   setup do
+    travel_to Date.new(2026, 10, 1)
     @manager = create_user("manager@example.test", role: :manager)
     @employee = create_user("employee@example.test", manager: @manager,
       birthday_on: Date.new(1990, 10, 9))
@@ -53,10 +56,13 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     request.approve!(by: @manager)
     sign_in_as(@employee)
 
-    get calendar_path(year: 2026, month: 10)
+    successor_calls = count_date_successors do
+      get calendar_path(year: 2026, month: 10)
+    end
 
     assert_response :success
     assert_select ".team-calendar td.leave", count: 31
+    assert_operator successor_calls, :<=, 200
   end
 
   test "shows approved morning and pending afternoon on the same date" do
@@ -113,6 +119,34 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
         assert_select "h1", text: "Мой календарь — октябрь 2026"
       end
     end
+  end
+
+  test "accepts supported boundary years and rejects years outside them" do
+    sign_in_as(@employee)
+
+    [ 2025, 2100 ].each do |year|
+      get calendar_path(year:, month: 10)
+      assert_response :success
+      assert_select "h1", text: /октябрь #{year}/
+    end
+
+    [ 1976, 2024, 2101 ].each do |year|
+      get calendar_path(year:, month: 10)
+      assert_response :success
+      assert_select "h1", text: /октябрь 2026/
+    end
+  end
+
+  test "navigation stops at January 2025" do
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2025, month: 1)
+    assert_response :success
+    assert_select "a[href='#{calendar_path(year: 2024, month: 12)}']", count: 0
+
+    get calendar_path(year: 2025, month: "all")
+    assert_response :success
+    assert_select "a[href='#{calendar_path(year: 2024, month: "all")}']", count: 0
   end
 
   test "parses years only as decimal" do

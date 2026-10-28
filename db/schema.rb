@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_14_151621) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_153545) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -58,6 +58,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_151621) do
     t.integer "end_part", default: 1, null: false
     t.integer "duration_half_days", null: false
     t.boolean "calendar_unverified", default: false, null: false
+    t.index ["employee_id", "id"], name: "index_leave_requests_on_employee_id_and_id"
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
     t.index ["leave_type_id"], name: "index_leave_requests_on_leave_type_id"
     t.index ["reviewer_id"], name: "index_leave_requests_on_reviewer_id"
@@ -91,6 +92,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_151621) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["leave_request_event_id", "recipient_id"], name: "index_notifications_on_event_and_recipient", unique: true
+    t.index ["recipient_id", "id"], name: "index_notifications_on_recipient_id_and_id"
     t.index ["recipient_id"], name: "index_notifications_on_recipient_id"
   end
 
@@ -100,6 +102,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_151621) do
     t.string "user_agent"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_sessions_on_created_at"
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
@@ -115,6 +118,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_151621) do
     t.date "birthday_on"
     t.index "lower((email_address)::text)", name: "index_users_on_lower_email_address", unique: true
     t.index ["manager_id"], name: "index_users_on_manager_id"
+    t.check_constraint "birthday_on IS NULL OR isfinite(birthday_on)", name: "users_finite_birthday"
     t.check_constraint "manager_id IS NULL OR manager_id <> id", name: "users_manager_is_not_self"
     t.check_constraint "role = ANY (ARRAY[0, 1, 2])", name: "users_valid_role"
   end

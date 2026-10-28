@@ -1,5 +1,41 @@
 class FederalCalendar < ApplicationRecord
   DATE_PATTERN = /\A\d{4}-\d{2}-\d{2}\z/
+  MAX_DATE_ENTRIES = 366
+  YEAR_LOCK_NAMESPACE = 0x4c445943
+
+  def self.with_year_lock(year, &block)
+    with_year_locks([ year ], &block)
+  end
+
+  def self.parse_iso_date(value)
+    return unless value.is_a?(String) && value.match?(DATE_PATTERN)
+
+    Date.iso8601(value)
+  rescue Date::Error
+    nil
+  end
+
+  def self.with_year_locks(years)
+    lock_years = years.map { |year| Integer(year) }.uniq.sort
+    unless lock_years.all? { |year| SupportedCalendarPeriod::YEARS.cover?(year) }
+      raise ArgumentError, "unsupported calendar year"
+    end
+
+    transaction do
+      integer_type = ActiveRecord::Type::Integer.new
+      lock_years.each do |lock_year|
+        binds = [
+          ActiveRecord::Relation::QueryAttribute.new("namespace", YEAR_LOCK_NAMESPACE, integer_type),
+          ActiveRecord::Relation::QueryAttribute.new("year", lock_year, integer_type)
+        ]
+        connection.exec_query(
+          "SELECT pg_advisory_xact_lock($1, $2) IS NULL AS lock_acquired",
+          "Federal calendar year lock", binds
+        )
+      end
+      yield
+    end
+  end
 
   def self.nonworking_dates(dates)
     return Set.new if dates.empty?
@@ -11,13 +47,22 @@ class FederalCalendar < ApplicationRecord
     end.to_set
   end
 
-  validates :year, numericality: { only_integer: true, in: 2000..2100 }, uniqueness: true
+  validates :year, numericality: { only_integer: true, in: SupportedCalendarPeriod::YEARS }, uniqueness: true
   validates :legal_basis, presence: true
+  validates :legal_basis, length: { maximum: 1_000 }, if: :will_save_change_to_legal_basis?
   validate :year_has_valid_syntax
   validate :year_is_unchanged, on: :update
   validate :parse_form_dates
   validate :calendar_dates_are_valid
   after_update :flag_requests_with_changed_duration, if: :saved_change_to_public_holidays?
+
+  def save(**options)
+    with_year_lock_for_save { super }
+  end
+
+  def save!(**options)
+    with_year_lock_for_save { super }
+  end
 
   def public_holidays_input
     @public_holidays_input ||= public_holidays.map(&:iso8601).join("\n")
@@ -49,9 +94,16 @@ class FederalCalendar < ApplicationRecord
 
   private
 
+  def with_year_lock_for_save
+    return yield unless SupportedCalendarPeriod::YEARS.cover?(year)
+
+    self.class.with_year_lock(year) { yield }
+  end
+
   def flag_requests_with_changed_duration
     year_dates = Date.new(year, 1, 1)..Date.new(year, 12, 31)
-    LeaveRequest.where(starts_on: year_dates, status: %i[pending approved], calendar_unverified: false)
+    LeaveRequest.where(status: %i[pending approved], calendar_unverified: false)
+      .where("starts_on <= ? AND ends_on >= ?", year_dates.end, year_dates.begin)
       .includes(:leave_type).find_each do |request|
       next if (request.calendar_duration_in_days * 2).to_i == request.duration_half_days
 
@@ -72,6 +124,16 @@ class FederalCalendar < ApplicationRecord
   end
 
   def parse_form_dates
+    if instance_variable_defined?(:@public_holidays_input) &&
+        @public_holidays_input.to_s.each_line.take(MAX_DATE_ENTRIES + 1).size > MAX_DATE_ENTRIES
+      errors.add(:public_holidays_input, "не могут содержать более #{MAX_DATE_ENTRIES} строк")
+    end
+    if instance_variable_defined?(:@transfers_input) &&
+        @transfers_input.to_s.each_line.take(MAX_DATE_ENTRIES + 1).size > MAX_DATE_ENTRIES
+      errors.add(:transfers_input, "не могут содержать более #{MAX_DATE_ENTRIES} строк")
+    end
+    return if errors[:public_holidays_input].any? || errors[:transfers_input].any?
+
     if instance_variable_defined?(:@public_holidays_input)
       self.public_holidays = parse_date_lines(@public_holidays_input, :public_holidays)
     end
@@ -104,14 +166,19 @@ class FederalCalendar < ApplicationRecord
   end
 
   def date_from_input(text)
-    return unless text&.match?(DATE_PATTERN)
-
-    Date.iso8601(text)
-  rescue Date::Error
-    nil
+    self.class.parse_iso_date(text)
   end
 
   def calendar_dates_are_valid
+    if public_holidays.size > MAX_DATE_ENTRIES
+      errors.add(:public_holidays, "не могут содержать более #{MAX_DATE_ENTRIES} дат")
+    end
+    if transfers.size > MAX_DATE_ENTRIES
+      errors.add(:transfers, "не могут содержать более #{MAX_DATE_ENTRIES} переносов")
+    end
+    return if errors[:public_holidays_input].any? || errors[:transfers_input].any? ||
+      errors[:public_holidays].any? || errors[:transfers].any?
+
     holidays = public_holidays.filter_map { |value| normalize_date(value, :public_holidays) }
     errors.add(:public_holidays, "должны быть указаны") if holidays.empty?
     errors.add(:public_holidays, "не могут повторяться") if holidays.uniq.size != holidays.size
@@ -129,7 +196,10 @@ class FederalCalendar < ApplicationRecord
     errors.add(:transfers, "должны относиться к выбранному году") if pairs.flatten.any? { |date| date.year != year }
     errors.add(:transfers, "не могут переносить день на сам себя") if pairs.any? { |from, to| from == to }
     errors.add(:transfers, "не могут повторять исходные или новые даты") if pairs.map(&:first).uniq.size != pairs.size || pairs.map(&:last).uniq.size != pairs.size
-    errors.add(:transfers, "не могут переносить выходной на праздник") if pairs.any? { |_from, to| holidays.include?(to) }
+    return if errors[:public_holidays].any? || errors[:transfers].any?
+
+    holiday_set = holidays.to_set
+    errors.add(:transfers, "не могут переносить выходной на праздник") if pairs.any? { |_from, to| holiday_set.include?(to) }
   end
 
   def normalize_date(value, field)

@@ -2,13 +2,13 @@
   <header class="page-header">
     <div><p class="eyebrow">События</p><h1>Уведомления</h1></div>
     <%= button_to "Отметить все прочитанными", mark_all_read_notifications_path,
-      method: :patch, class: "button button--secondary" if @notifications.unread.any? %>
+      method: :patch, class: "button button--secondary" if @has_unread_notifications %>
   </header>
   <% if @notifications.any? %>
     <div class="request-list">
       <% @notifications.each do |notification| %>
         <% event = notification.leave_request_event %>
-        <article class="request-card">
+        <article id="<%= dom_id(notification) %>" class="request-card">
           <div class="request-card__summary">
             <div class="request-card__title">
               <%= link_to leave_request_notification_label(event),
@@ -26,4 +26,5 @@
   <% else %>
     <section class="card empty-state"><h2>Уведомлений пока нет</h2></section>
   <% end %>
+  <%= render "shared/history_pagination", path: notifications_path %>
 </main>

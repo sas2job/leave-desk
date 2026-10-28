@@ -1,6 +1,7 @@
 require_relative "boot"
 
 require "rails/all"
+require_relative "../lib/request_body_limit"
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
@@ -13,6 +14,8 @@ module LeaveDesk
     config.i18n.default_locale = :ru
     config.time_zone = "Europe/Moscow"
     config.action_cable.mount_path = nil
+    config.active_storage.draw_routes = false
+    config.middleware.insert_before Rack::MethodOverride, RequestBodyLimit
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.

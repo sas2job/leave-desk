@@ -2,6 +2,11 @@ services:
   caddy:
     image: caddy:2.11.7-alpine
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       web:
         condition: service_started
@@ -12,13 +17,18 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
 
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_USER: leave_desk
       POSTGRES_PASSWORD: ${LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD}
@@ -48,6 +58,7 @@ services:
       RAILS_MAX_THREADS: 3
       WEB_CONCURRENCY: 1
       LOG_REQUESTS: "false"
+      THRUSTER_MAX_REQUEST_BODY: "1048576"
       PGHOST: db
       LEAVE_DESK_DATABASE_USER: leave_desk_app
       LEAVE_DESK_DATABASE_PASSWORD: ${LEAVE_DESK_RUNTIME_DATABASE_PASSWORD:?Set a separate runtime database password}

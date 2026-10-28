@@ -19,9 +19,12 @@ class User < ApplicationRecord
   normalizes :email_address, with: ->(email) { email.strip.downcase }
 
   validates :name, presence: true
+  validates :name, length: { maximum: 100 }, if: :will_save_change_to_name?
   validates :email_address, presence: true, uniqueness: { case_sensitive: false },
     format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :email_address, length: { maximum: 254 }, if: :will_save_change_to_email_address?
   validates :password, length: { minimum: MINIMUM_PASSWORD_LENGTH }, allow_nil: true
+  validate :password_has_no_nul
   validate :manager_is_active_manager
   validate :role_and_activity_support_direct_reports
   validate :retain_active_administrator
@@ -31,32 +34,62 @@ class User < ApplicationRecord
   after_update :revoke_sessions_after_authentication_change,
     if: -> { saved_change_to_active? || saved_change_to_password_digest? }
 
+  def password=(raw_password)
+    @password_with_nul = raw_password.is_a?(String) && raw_password.include?("\0")
+    if @password_with_nul
+      @password = raw_password
+    else
+      super
+    end
+  end
+
+  def birthday_in_year(year)
+    return unless birthday_on.is_a?(Date)
+
+    Date.new(year, birthday_on.month, birthday_on.day)
+  rescue Date::Error
+    nil
+  end
+
   def save(**options)
-    with_manager_locks { super }
+    with_user_locks { super }
   end
 
   def save!(**options)
-    with_manager_locks { super }
+    with_user_locks { super }
   end
 
   private
 
-  def with_manager_locks
+  def password_has_no_nul
+    errors.add(:password, "содержит недопустимый символ") if @password_with_nul
+  end
+
+  def with_user_locks
+    changing_role_or_activity = persisted? &&
+      (will_save_change_to_role? || will_save_change_to_active?)
     lock_ids = []
-    lock_ids << id if persisted? && (will_save_change_to_role? || will_save_change_to_active?)
+    lock_ids << id if changing_role_or_activity
     assigning_manager = manager_id.present? && (new_record? || will_save_change_to_manager_id?)
     lock_ids << manager_id if assigning_manager
-    removing_administrator = relinquishing_active_administrator?
-    return yield if lock_ids.empty? && !removing_administrator
+    return yield if lock_ids.empty?
+
+    intended_changes = if changing_role_or_activity
+      attributes_before_type_cast.slice(*changed_attribute_names_to_save)
+    end
 
     self.class.transaction do
-      if removing_administrator
+      if changing_role_or_activity
         self.class.uncached do
           self.class.administrator.where(active: true).order(:id).lock("FOR UPDATE").load
         end
       end
       locked_users = self.class.uncached do
         self.class.where(id: lock_ids.uniq).order(:id).lock("FOR UPDATE").index_by(&:id)
+      end
+      if changing_role_or_activity
+        reload
+        assign_attributes(intended_changes)
       end
       association(:manager).target = locked_users[manager_id] if assigning_manager
       yield

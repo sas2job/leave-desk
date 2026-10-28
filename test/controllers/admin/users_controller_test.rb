@@ -181,6 +181,56 @@ module Admin
       assert_empty @administrator.sessions.reload
     end
 
+    test "invalid non-finite birthday shows form errors and can be corrected" do
+      sign_in_as(@administrator)
+
+      [ "infinity", "-infinity" ].each do |invalid_date|
+        patch admin_user_path(@employee), params: { user: { birthday_on: invalid_date } }
+        assert_response :unprocessable_entity
+        assert_select ".error-summary li", text: "День рождения: содержит неверную дату"
+        assert_select "input[name='user[birthday_on]']", count: 1
+        assert_nil @employee.reload.birthday_on
+      end
+
+      patch admin_user_path(@employee), params: { user: { birthday_on: "1980-05-04" } }
+      assert_redirected_to admin_users_path
+      assert_equal Date.new(1980, 5, 4), @employee.reload.birthday_on
+    end
+
+    test "edit form renders a persisted employee with a legacy non-finite birthday" do
+      employee = @employee
+      employee.birthday_on = "infinity"
+      html = ApplicationController.render(partial: "admin/users/form",
+        locals: { user: employee }, assigns: { manager_options: [] })
+
+      assert_includes html, 'name="user[birthday_on]"'
+    end
+
+    test "administrator receives a field error for NUL-containing passwords without account changes" do
+      sign_in_as(@administrator)
+      invalid_password = "invalid\0password"
+      json_headers = { "CONTENT_TYPE" => "application/json", "ACCEPT" => "text/html" }
+
+      assert_no_difference("User.count") do
+        post admin_users_path, params: { user: {
+          name: "New Employee", email_address: "new@example.test", password: invalid_password,
+          password_confirmation: invalid_password, role: "employee", active: true
+        } }.to_json, headers: json_headers
+      end
+      assert_response :unprocessable_entity
+      assert_select ".error-summary li", text: "Пароль: содержит недопустимый символ"
+
+      original_digest = @employee.password_digest
+      patch admin_user_path(@employee), params: { user: {
+        name: "Changed Employee", password: invalid_password, password_confirmation: invalid_password
+      } }.to_json, headers: json_headers
+      assert_response :unprocessable_entity
+      assert_select ".error-summary li", text: "Пароль: содержит недопустимый символ"
+      assert_equal original_digest, @employee.reload.password_digest
+      assert_not_equal "Changed Employee", @employee.name
+      assert @employee.authenticate("test-password")
+    end
+
     private
 
     def create_user(email_address, role: :employee)

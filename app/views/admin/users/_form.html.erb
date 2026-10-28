@@ -14,15 +14,15 @@
     <div class="form-grid">
       <div class="field">
         <%= form.label :name, "Имя" %>
-        <%= form.text_field :name, required: true, autocomplete: "name" %>
+        <%= form.text_field :name, required: true, maxlength: 100, autocomplete: "name" %>
       </div>
       <div class="field">
         <%= form.label :email_address, "Email" %>
-        <%= form.email_field :email_address, required: true, autocomplete: "email" %>
+        <%= form.email_field :email_address, required: true, maxlength: 254, autocomplete: "email" %>
       </div>
       <div class="field">
         <%= form.label :birthday_on, "День рождения" %>
-        <%= form.date_field :birthday_on %>
+        <%= form.date_field :birthday_on, value: user.birthday_on.is_a?(Date) ? user.birthday_on.iso8601 : nil %>
       </div>
       <div class="field">
         <%= form.label :role, "Роль" %>

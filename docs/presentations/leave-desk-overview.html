@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Leave Desk — обзор основного функционала</title>
+  <style>
+    :root {
+      --ink: #17211c;
+      --muted: #68766f;
+      --line: #dfe7e2;
+      --paper: #f5f7f6;
+      --card: #ffffff;
+      --green: #196244;
+      --green-dark: #104c34;
+      --green-soft: #e3f1ea;
+      --mint: #b9dfcb;
+      --amber: #d6922f;
+      --amber-soft: #faefd9;
+      --red: #b33a3a;
+      --red-soft: #fae9e8;
+      --blue: #3e6b88;
+      --shadow: 0 18px 50px rgba(31, 49, 40, .10);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      color: var(--ink);
+      background: #dfe5e1;
+      font-family: "DejaVu Sans", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    @page { size: 13.333in 7.5in; margin: 0; }
+
+    .slide {
+      position: relative;
+      width: 13.333in;
+      height: 7.5in;
+      padding: .52in .64in .48in;
+      overflow: hidden;
+      page-break-after: always;
+      background:
+        radial-gradient(circle at 7% 0%, rgba(25, 98, 68, .10), transparent 3.2in),
+        var(--paper);
+    }
+
+    .slide:last-child { page-break-after: auto; }
+
+    .slide::after {
+      position: absolute;
+      right: -.65in;
+      bottom: -.95in;
+      width: 2.4in;
+      height: 2.4in;
+      border: 1px solid rgba(25, 98, 68, .12);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .topline, .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .topline { height: .35in; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .11in;
+      font-size: 11pt;
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: .3in;
+      height: .3in;
+      place-items: center;
+      border-radius: .09in;
+      color: #fff;
+      background: var(--green);
+      font-size: 9pt;
+      letter-spacing: .02em;
+    }
+
+    .section-tag {
+      color: var(--green);
+      font-size: 9pt;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .page-no {
+      color: var(--muted);
+      font-size: 8.5pt;
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      max-width: 8.2in;
+      font-size: 42pt;
+      line-height: 1.03;
+      letter-spacing: -.045em;
+    }
+
+    h2 {
+      font-size: 27pt;
+      line-height: 1.08;
+      letter-spacing: -.035em;
+    }
+
+    h3 {
+      font-size: 14pt;
+      line-height: 1.25;
+      letter-spacing: -.02em;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 14pt;
+      line-height: 1.46;
+    }
+
+    .footer {
+      position: absolute;
+      right: .64in;
+      bottom: .25in;
+      left: .64in;
+      z-index: 2;
+      color: var(--muted);
+      font-size: 7.5pt;
+    }
+
+    .footer-line {
+      width: 1.2in;
+      height: 2px;
+      background: var(--green);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: .55in;
+      align-items: center;
+      height: 5.85in;
+    }
+
+    .hero-copy { padding: .1in 0 .3in; }
+
+    .eyebrow {
+      margin-bottom: .23in;
+      color: var(--green);
+      font-size: 10pt;
+      font-weight: 800;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    .hero .lead { max-width: 6.2in; margin-top: .28in; }
+
+    .pill-row { display: flex; gap: .1in; margin-top: .34in; }
+
+    .pill {
+      padding: .08in .14in;
+      border: 1px solid #c9ddd2;
+      border-radius: 999px;
+      color: var(--green-dark);
+      background: rgba(255, 255, 255, .75);
+      font-size: 8.5pt;
+      font-weight: 700;
+    }
+
+    .hero-visual {
+      position: relative;
+      height: 4.9in;
+    }
+
+    .hero-panel {
+      position: absolute;
+      inset: .22in .18in .2in .2in;
+      padding: .27in;
+      border: 1px solid rgba(25, 98, 68, .14);
+      border-radius: .28in;
+      background: rgba(255, 255, 255, .88);
+      box-shadow: var(--shadow);
+      transform: rotate(-1.2deg);
+    }
+
+    .hero-panel::before {
+      position: absolute;
+      top: -.18in;
+      right: -.14in;
+      width: .78in;
+      height: .78in;
+      border-radius: .22in;
+      background: var(--green);
+      box-shadow: 0 12px 26px rgba(25, 98, 68, .24);
+      content: "";
+      transform: rotate(8deg);
+    }
+
+    .mini-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: .18in;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mini-title { font-size: 12pt; font-weight: 800; }
+
+    .avatar {
+      display: grid;
+      width: .34in;
+      height: .34in;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--green-dark);
+      background: var(--green-soft);
+      font-size: 8pt;
+      font-weight: 800;
+    }
+
+    .request-preview {
+      margin-top: .22in;
+      padding: .22in;
+      border: 1px solid var(--line);
+      border-radius: .16in;
+      background: var(--card);
+    }
+
+    .request-preview + .request-preview { margin-top: .12in; }
+
+    .request-top { display: flex; align-items: center; justify-content: space-between; }
+
+    .request-name { font-size: 11pt; font-weight: 800; }
+
+    .request-meta { margin-top: .08in; color: var(--muted); font-size: 8.5pt; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: .05in;
+      padding: .05in .1in;
+      border-radius: 999px;
+      font-size: 7.5pt;
+      font-weight: 800;
+    }
+
+    .status::before { width: .06in; height: .06in; border-radius: 50%; content: ""; }
+    .status.pending { color: #805319; background: var(--amber-soft); }
+    .status.pending::before { background: var(--amber); }
+    .status.approved { color: var(--green-dark); background: var(--green-soft); }
+    .status.approved::before { background: var(--green); }
+    .status.rejected { color: #8d3030; background: var(--red-soft); }
+    .status.rejected::before { background: var(--red); }
+
+    .progress {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: .08in;
+      margin-top: .18in;
+    }
+
+    .progress span { height: .055in; border-radius: 999px; background: var(--line); }
+    .progress span.on { background: var(--green); }
+
+    .slide-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: .4in;
+      margin-top: .22in;
+    }
+
+    .slide-head .lead { max-width: 4.8in; font-size: 11.5pt; }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1.03fr .97fr;
+      gap: .3in;
+      margin-top: .34in;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: .18in;
+      background: rgba(255, 255, 255, .92);
+      box-shadow: 0 10px 28px rgba(31, 49, 40, .06);
+    }
+
+    .card-pad { padding: .24in; }
+
+    .card-kicker {
+      margin-bottom: .06in;
+      color: var(--green);
+      font-size: 7.5pt;
+      font-weight: 800;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .feature-list { display: grid; gap: .13in; margin-top: .18in; }
+
+    .feature {
+      display: grid;
+      grid-template-columns: .34in 1fr;
+      gap: .12in;
+      align-items: start;
+    }
+
+    .feature-icon {
+      display: grid;
+      width: .31in;
+      height: .31in;
+      place-items: center;
+      border-radius: .09in;
+      color: var(--green-dark);
+      background: var(--green-soft);
+      font-size: 10pt;
+      font-weight: 800;
+    }
+
+    .feature strong { display: block; font-size: 9.5pt; }
+    .feature p { margin-top: .025in; color: var(--muted); font-size: 8pt; line-height: 1.35; }
+
+    .form-card { padding: .25in; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .1in; }
+    .field { margin-top: .12in; }
+    .field label { display: block; margin-bottom: .05in; color: var(--muted); font-size: 7pt; font-weight: 700; }
+    .input {
+      min-height: .39in;
+      padding: .1in .12in;
+      border: 1px solid var(--line);
+      border-radius: .09in;
+      background: #fbfcfb;
+      font-size: 8pt;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: .15in;
+      padding: .1in .16in;
+      border-radius: .09in;
+      color: #fff;
+      background: var(--green);
+      font-size: 8pt;
+      font-weight: 800;
+    }
+
+    .calendar { margin-top: .17in; }
+    .calendar-head, .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .045in; }
+    .calendar-head span { color: var(--muted); font-size: 6.5pt; text-align: center; }
+    .calendar-grid { margin-top: .06in; }
+    .day {
+      position: relative;
+      display: grid;
+      height: .35in;
+      place-items: center;
+      border-radius: .07in;
+      color: #46534d;
+      background: #f1f4f2;
+      font-size: 7pt;
+    }
+    .day.leave { color: var(--green-dark); background: var(--green-soft); font-weight: 800; }
+    .day.pending-day { color: #805319; background: var(--amber-soft); font-weight: 800; }
+    .day.birthday::after {
+      position: absolute;
+      right: .035in;
+      bottom: .025in;
+      width: .055in;
+      height: .055in;
+      border-radius: 50%;
+      background: #b15bb5;
+      content: "";
+    }
+
+    .decision-card { padding: .22in; }
+    .person-line { display: flex; align-items: center; gap: .1in; }
+    .person-line .avatar { width: .38in; height: .38in; }
+    .person-name { font-size: 9.5pt; font-weight: 800; }
+    .person-sub { color: var(--muted); font-size: 7.5pt; }
+    .decision-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: .08in; margin-top: .17in; }
+    .metric { padding: .1in; border-radius: .08in; background: var(--paper); }
+    .metric span { display: block; color: var(--muted); font-size: 6.5pt; }
+    .metric strong { display: block; margin-top: .025in; font-size: 8pt; }
+    .decision-actions { display: flex; gap: .08in; margin-top: .15in; }
+    .decision-actions .button { margin: 0; }
+    .decision-actions .button.reject { color: var(--red); background: var(--red-soft); }
+
+    .team-board { padding: .22in; }
+    .team-row {
+      display: grid;
+      grid-template-columns: 1.25in repeat(10, 1fr);
+      gap: .035in;
+      align-items: center;
+      margin-top: .07in;
+    }
+    .team-row:first-of-type { margin-top: .16in; }
+    .team-name { overflow: hidden; font-size: 7pt; font-weight: 700; white-space: nowrap; }
+    .team-cell { height: .26in; border-radius: .045in; background: #eff3f1; }
+    .team-cell.on { background: var(--green-soft); border: 1px solid #c7dfd2; }
+    .team-cell.pending-cell { background: var(--amber-soft); }
+
+    .guardrail {
+      display: flex;
+      gap: .1in;
+      align-items: center;
+      margin-top: .14in;
+      padding: .12in .14in;
+      border: 1px solid #c9ddd2;
+      border-radius: .1in;
+      color: var(--green-dark);
+      background: rgba(227, 241, 234, .7);
+      font-size: 8pt;
+      font-weight: 700;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .18in;
+      margin-top: .35in;
+    }
+
+    .admin-card { min-height: 3.75in; padding: .23in; }
+    .admin-icon {
+      display: grid;
+      width: .42in;
+      height: .42in;
+      place-items: center;
+      border-radius: .12in;
+      color: #fff;
+      background: var(--green);
+      font-size: 12pt;
+      font-weight: 800;
+    }
+    .admin-card h3 { margin-top: .15in; }
+    .admin-card > p { margin-top: .07in; color: var(--muted); font-size: 8pt; line-height: 1.4; }
+
+    .admin-ui { margin-top: .2in; padding-top: .15in; border-top: 1px solid var(--line); }
+    .admin-ui-row { display: flex; align-items: center; justify-content: space-between; margin-top: .1in; font-size: 7.5pt; }
+    .admin-ui-row:first-child { margin-top: 0; }
+    .role { padding: .035in .07in; border-radius: 999px; color: var(--green-dark); background: var(--green-soft); font-size: 6.5pt; font-weight: 800; }
+    .toggle { width: .29in; height: .16in; padding: .025in; border-radius: 999px; background: var(--green); }
+    .toggle::after { display: block; width: .11in; height: .11in; margin-left: .13in; border-radius: 50%; background: white; content: ""; }
+    .leave-type { margin-top: .09in; padding: .09in; border: 1px solid var(--line); border-radius: .08in; }
+    .leave-type strong { display: block; font-size: 7.5pt; }
+    .leave-type span { color: var(--muted); font-size: 6.5pt; }
+    .calendar-strip { display: grid; grid-template-columns: repeat(8, 1fr); gap: .04in; margin-top: .13in; }
+    .calendar-strip span { height: .31in; border-radius: .05in; background: #edf2ef; }
+    .calendar-strip .holiday { background: var(--red-soft); border: 1px solid #edc7c4; }
+    .notice { margin-top: .13in; padding: .1in; border-radius: .08in; color: #805319; background: var(--amber-soft); font-size: 7pt; font-weight: 700; }
+
+    .flow-wrap {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: .28in;
+      margin-top: .36in;
+    }
+
+    .flow-card { padding: .26in; }
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr .26in 1fr;
+      gap: .08in;
+      align-items: center;
+      margin-top: .21in;
+    }
+    .state { padding: .14in; border-radius: .11in; border: 1px solid var(--line); background: var(--card); }
+    .state strong { display: block; font-size: 9pt; }
+    .state span { display: block; margin-top: .035in; color: var(--muted); font-size: 6.8pt; }
+    .state.pending-state { border-color: #ead6ad; background: var(--amber-soft); }
+    .state.approved-state { border-color: #bfdbc9; background: var(--green-soft); }
+    .state.rejected-state { border-color: #edc7c4; background: var(--red-soft); }
+    .arrow { color: var(--green); font-size: 17pt; text-align: center; }
+    .branch { display: grid; gap: .08in; }
+    .cancel-line { display: flex; align-items: center; gap: .08in; margin-top: .15in; color: var(--muted); font-size: 7.5pt; }
+    .cancel-line::before { width: .33in; height: 1px; background: var(--line); content: ""; }
+
+    .value-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .12in; }
+    .value { min-height: 1.42in; padding: .17in; }
+    .value strong { display: block; margin-top: .08in; font-size: 10pt; }
+    .value p { margin-top: .045in; color: var(--muted); font-size: 7.3pt; line-height: 1.35; }
+    .value .feature-icon { width: .28in; height: .28in; }
+
+    .closing {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: .22in;
+      padding: .18in .21in;
+      border-radius: .14in;
+      color: #fff;
+      background: var(--green-dark);
+    }
+    .closing strong { font-size: 11pt; }
+    .closing span { color: #cfe4d9; font-size: 8pt; }
+  </style>
+</head>
+<body>
+  <section class="slide">
+    <div class="topline">
+      <div class="brand"><span class="brand-mark">LD</span> Leave Desk</div>
+      <div class="page-no">01 / 05</div>
+    </div>
+    <div class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">Управление отсутствиями без хаоса</div>
+        <h1>От заявки сотрудника до прозрачного решения</h1>
+        <p class="lead">Единое адаптивное приложение для создания, согласования и отслеживания отпусков — с календарями, уведомлениями и полной историей.</p>
+        <div class="pill-row">
+          <span class="pill">Сотрудник</span>
+          <span class="pill">Руководитель</span>
+          <span class="pill">Администратор</span>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-panel">
+          <div class="mini-header">
+            <div class="mini-title">Мои заявки</div>
+            <div class="avatar">Я</div>
+          </div>
+          <div class="request-preview">
+            <div class="request-top">
+              <div class="request-name">Ежегодный отпуск</div>
+              <span class="status approved">Согласовано</span>
+            </div>
+            <div class="request-meta">14–25 сентября · 10 рабочих дней</div>
+            <div class="progress"><span class="on"></span><span class="on"></span><span class="on"></span></div>
+          </div>
+          <div class="request-preview">
+            <div class="request-top">
+              <div class="request-name">Отпуск без содержания</div>
+              <span class="status pending">На рассмотрении</span>
+            </div>
+            <div class="request-meta">6 октября · 1 день</div>
+            <div class="progress"><span class="on"></span><span class="on"></span><span></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span class="footer-line"></span><span>Обзор основного функционала · 2026</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline">
+      <div class="brand"><span class="brand-mark">LD</span> Leave Desk</div>
+      <div class="page-no">02 / 05</div>
+    </div>
+    <div class="slide-head">
+      <div><div class="section-tag">Сотрудник</div><h2>Подать заявку — и видеть весь путь</h2></div>
+      <p class="lead">Понятная форма, актуальный статус и личный календарь в одном интерфейсе.</p>
+    </div>
+    <div class="content-grid">
+      <div class="card form-card">
+        <div class="card-kicker">Новая заявка</div>
+        <h3>Параметры отсутствия</h3>
+        <div class="field"><label>Вид отпуска</label><div class="input">Ежегодный отпуск</div></div>
+        <div class="form-row">
+          <div class="field"><label>Дата начала</label><div class="input">14.09.2026</div></div>
+          <div class="field"><label>Дата окончания</label><div class="input">25.09.2026</div></div>
+        </div>
+        <div class="field"><label>Комментарий — необязательно</label><div class="input">Плановый отпуск</div></div>
+        <div class="button">Отправить на согласование</div>
+        <div class="guardrail">✓ Пересекающиеся ожидающие и согласованные заявки не создаются</div>
+      </div>
+      <div>
+        <div class="card card-pad">
+          <div class="card-kicker">Личный календарь</div>
+          <h3>Сентябрь 2026</h3>
+          <div class="calendar">
+            <div class="calendar-head"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
+            <div class="calendar-grid">
+              <span class="day">1</span><span class="day">2</span><span class="day">3</span><span class="day">4</span><span class="day">5</span><span class="day">6</span><span class="day">7</span>
+              <span class="day">8</span><span class="day birthday">9</span><span class="day">10</span><span class="day">11</span><span class="day">12</span><span class="day">13</span><span class="day leave">14</span>
+              <span class="day leave">15</span><span class="day leave">16</span><span class="day leave">17</span><span class="day leave">18</span><span class="day leave">19</span><span class="day leave">20</span><span class="day leave">21</span>
+              <span class="day leave">22</span><span class="day leave">23</span><span class="day leave">24</span><span class="day leave">25</span><span class="day">26</span><span class="day">27</span><span class="day pending-day">28</span>
+            </div>
+          </div>
+        </div>
+        <div class="feature-list">
+          <div class="feature"><span class="feature-icon">↻</span><div><strong>Статусы без догадок</strong><p>На рассмотрении, согласовано, отклонено или отменено.</p></div></div>
+          <div class="feature"><span class="feature-icon">×</span><div><strong>Отмена без удаления</strong><p>Ожидающую или согласованную заявку можно отменить, сохранив историю.</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span class="footer-line"></span><span>Основной сценарий сотрудника</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline">
+      <div class="brand"><span class="brand-mark">LD</span> Leave Desk</div>
+      <div class="page-no">03 / 05</div>
+    </div>
+    <div class="slide-head">
+      <div><div class="section-tag">Руководитель</div><h2>Решения в контексте команды</h2></div>
+      <p class="lead">Очередь заявок показывает детали, а календарь помогает увидеть пересечения до решения.</p>
+    </div>
+    <div class="content-grid">
+      <div class="card decision-card">
+        <div class="card-kicker">Заявка на рассмотрении</div>
+        <div class="person-line">
+          <div class="avatar">С</div>
+          <div><div class="person-name">Сотрудник команды</div><div class="person-sub">Ежегодный отпуск</div></div>
+          <span class="status pending" style="margin-left:auto">На рассмотрении</span>
+        </div>
+        <div class="decision-meta">
+          <div class="metric"><span>Период</span><strong>14–25 сен</strong></div>
+          <div class="metric"><span>Длительность</span><strong>10 дней</strong></div>
+          <div class="metric"><span>Создана</span><strong>сегодня</strong></div>
+        </div>
+        <div class="field"><label>Комментарий к решению</label><div class="input">Добавить пояснение…</div></div>
+        <div class="decision-actions"><div class="button">Согласовать</div><div class="button reject">Отклонить</div></div>
+        <div class="guardrail">✓ Согласовать собственную заявку невозможно</div>
+      </div>
+      <div class="card team-board">
+        <div class="card-kicker">Календарь команды</div>
+        <h3>Сентябрь · ближайшие дни</h3>
+        <div class="team-row"><span class="team-name">Сотрудник 1</span><span class="team-cell"></span><span class="team-cell on"></span><span class="team-cell on"></span><span class="team-cell on"></span><span class="team-cell on"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span></div>
+        <div class="team-row"><span class="team-name">Сотрудник 2</span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell pending-cell"></span><span class="team-cell pending-cell"></span><span class="team-cell pending-cell"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span></div>
+        <div class="team-row"><span class="team-name">Сотрудник 3</span><span class="team-cell on"></span><span class="team-cell on"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell"></span><span class="team-cell on"></span><span class="team-cell on"></span><span class="team-cell on"></span></div>
+        <div class="feature-list" style="margin-top:.25in">
+          <div class="feature"><span class="feature-icon">✓</span><div><strong>Явное решение</strong><p>Проверяющий и время согласования сохраняются автоматически.</p></div></div>
+          <div class="feature"><span class="feature-icon">●</span><div><strong>Уведомления</strong><p>Участники видят новые заявки и изменения статуса.</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span class="footer-line"></span><span>Согласование и обзор команды</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline">
+      <div class="brand"><span class="brand-mark">LD</span> Leave Desk</div>
+      <div class="page-no">04 / 05</div>
+    </div>
+    <div class="slide-head">
+      <div><div class="section-tag">Администратор</div><h2>Настройка правил и структуры</h2></div>
+      <p class="lead">Справочники и производственный календарь управляются без изменения кода приложения.</p>
+    </div>
+    <div class="admin-grid">
+      <div class="card admin-card">
+        <div class="admin-icon">01</div>
+        <h3>Сотрудники и роли</h3>
+        <p>Учётные записи, активность, роли и назначение непосредственного руководителя.</p>
+        <div class="admin-ui">
+          <div class="admin-ui-row"><span>Сотрудник</span><span class="role">employee</span></div>
+          <div class="admin-ui-row"><span>Руководитель</span><span class="role">manager</span></div>
+          <div class="admin-ui-row"><span>Учётная запись активна</span><span class="toggle"></span></div>
+        </div>
+      </div>
+      <div class="card admin-card">
+        <div class="admin-icon">02</div>
+        <h3>Виды отсутствий</h3>
+        <p>Ежегодный, неоплачиваемый, больничный и корпоративный выходной в день рождения.</p>
+        <div class="admin-ui">
+          <div class="leave-type"><strong>Ежегодный отпуск</strong><span>Учитывать праздники</span></div>
+          <div class="leave-type"><strong>День рождения</strong><span>Один полный день</span></div>
+          <div class="leave-type"><strong>Без содержания</strong><span>Настраиваемая политика</span></div>
+        </div>
+      </div>
+      <div class="card admin-card">
+        <div class="admin-icon">03</div>
+        <h3>Федеральный календарь</h3>
+        <p>Праздники и переносы по годам с пересчётом длительности заявок.</p>
+        <div class="admin-ui">
+          <div class="calendar-strip"><span></span><span class="holiday"></span><span></span><span></span><span class="holiday"></span><span></span><span></span><span></span></div>
+          <div class="notice">2 заявки требуют проверки после изменения календаря</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span class="footer-line"></span><span>Администрирование продукта</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline">
+      <div class="brand"><span class="brand-mark">LD</span> Leave Desk</div>
+      <div class="page-no">05 / 05</div>
+    </div>
+    <div class="slide-head">
+      <div><div class="section-tag">Сквозной процесс</div><h2>История сохраняется на каждом шаге</h2></div>
+      <p class="lead">Статусы меняются явно — данные не исчезают и остаются понятными всем участникам.</p>
+    </div>
+    <div class="flow-wrap">
+      <div class="card flow-card">
+        <div class="card-kicker">Жизненный цикл заявки</div>
+        <div class="flow">
+          <div class="state pending-state"><strong>На рассмотрении</strong><span>Новая заявка сотрудника</span></div>
+          <div class="arrow">→</div>
+          <div class="branch">
+            <div class="state approved-state"><strong>Согласовано</strong><span>Руководитель и время решения</span></div>
+            <div class="state rejected-state"><strong>Отклонено</strong><span>Причина остаётся в истории</span></div>
+          </div>
+        </div>
+        <div class="cancel-line">Ожидающую или согласованную заявку можно отменить без удаления истории</div>
+        <div class="feature-list" style="margin-top:.22in">
+          <div class="feature"><span class="feature-icon">↕</span><div><strong>Защита от пересечений</strong><p>Активные заявки одного сотрудника не накладываются друг на друга.</p></div></div>
+          <div class="feature"><span class="feature-icon">◷</span><div><strong>Аудит событий</strong><p>Создание, решение, отмена и проверка календаря фиксируются последовательно.</p></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="value-grid">
+          <div class="card value"><span class="feature-icon">◎</span><strong>Прозрачно</strong><p>Один источник статуса для сотрудника и руководителя.</p></div>
+          <div class="card value"><span class="feature-icon">▦</span><strong>Наглядно</strong><p>Личный и командный календари для планирования.</p></div>
+          <div class="card value"><span class="feature-icon">●</span><strong>Своевременно</strong><p>Встроенные уведомления о значимых событиях.</p></div>
+          <div class="card value"><span class="feature-icon">◇</span><strong>Адаптивно</strong><p>Работа с компьютера и мобильного устройства.</p></div>
+        </div>
+        <div class="closing"><div><strong>Leave Desk</strong><br><span>От заявки до решения — в одном процессе</span></div><div class="brand-mark" style="background:#fff;color:var(--green-dark)">LD</div></div>
+      </div>
+    </div>
+    <div class="footer"><span class="footer-line"></span><span>leave-desk · основной функционал</span></div>
+  </section>
+</body>
+</html>

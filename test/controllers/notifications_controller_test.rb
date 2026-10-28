@@ -17,9 +17,9 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
     get notifications_path
     assert_response :success
     assert_select "body", text: /Заявка №#{@leave_request.id} создана/
-    assert_select "a[href='#{manager_leave_requests_path(anchor: "leave_request_#{@leave_request.id}")}']",
+    assert_select "a[href='#{manager_leave_requests_path(before: @leave_request.id + 1, anchor: "leave_request_#{@leave_request.id}")}']",
       text: "Заявка №#{@leave_request.id} создана"
-    get manager_leave_requests_path(anchor: "leave_request_#{@leave_request.id}")
+    get manager_leave_requests_path(before: @leave_request.id + 1, anchor: "leave_request_#{@leave_request.id}")
     assert_response :success
     assert_select "#leave_request_#{@leave_request.id}"
     patch notification_path(notification)

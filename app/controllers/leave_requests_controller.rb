@@ -1,9 +1,10 @@
 class LeaveRequestsController < ApplicationController
+  include HistoryPagination
+
   before_action :set_leave_request, only: :destroy
 
   def index
-    @leave_requests = Current.user.leave_requests.includes(:leave_type, events: :actor)
-      .order(created_at: :desc)
+    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, events: :actor))
   end
 
   def new
@@ -46,10 +47,23 @@ class LeaveRequestsController < ApplicationController
       :starts_on, :start_part, :ends_on, :end_part, :employee_comment
     )
     require_identifier_fields!(attributes, :leave_type_id)
+    @date_inputs = attributes.slice(:starts_on, :ends_on)
+    %i[starts_on ends_on].each do |field|
+      value = attributes[field]
+      next unless value.match?(/\A\d{2}\.\d{2}\.\d{4}\z/)
+
+      attributes[field] = Date.strptime(value, "%d.%m.%Y").iso8601
+    rescue Date::Error
+      attributes[field] = ""
+    end
+    attributes
   end
 
   def render_new_with_errors
     @leave_types = LeaveType.where(active: true).order(:name)
-    render :new, status: :unprocessable_entity
+    respond_to do |format|
+      format.html { render :new, status: :unprocessable_entity }
+      format.json { render json: { errors: @leave_request.errors.full_messages }, status: :unprocessable_entity }
+    end
   end
 end

@@ -55,6 +55,7 @@
                   for: "review_comment_#{leave_request.id}" %>
                 <%= form.text_area :review_comment,
                   id: "review_comment_#{leave_request.id}",
+                  maxlength: LeaveRequest::COMMENT_MAX_LENGTH,
                   placeholder: "Необязательно: поясните решение" %>
               </div>
               <div class="review-card__actions">
@@ -84,4 +85,5 @@
       <p>Новые заявки сотрудников появятся здесь.</p>
     </section>
   <% end %>
+  <%= render "shared/history_pagination", path: manager_leave_requests_path %>
 </main>

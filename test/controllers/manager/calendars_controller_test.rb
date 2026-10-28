@@ -2,7 +2,10 @@ require "test_helper"
 
 module Manager
   class CalendarsControllerTest < ActionDispatch::IntegrationTest
+    include DateIterationBudgetHelper
+
     setup do
+      travel_to Date.new(2026, 10, 1)
       @manager = create_user("manager@example.test", role: :manager)
       @employee = create_user("employee@example.test", manager: @manager,
         birthday_on: Date.new(1990, 5, 12))
@@ -10,8 +13,10 @@ module Manager
     end
 
     test "manager sees direct report annual calendar" do
-      request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
-        starts_on: Date.new(2026, 6, 10), ends_on: Date.new(2026, 6, 12))
+      request = travel_to Date.new(2026, 5, 1) do
+        LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+          starts_on: Date.new(2026, 6, 10), ends_on: Date.new(2026, 6, 12))
+      end
       request.approve!(by: @manager)
       sign_in_as(@manager)
 
@@ -30,10 +35,13 @@ module Manager
       request.approve!(by: @manager)
       sign_in_as(@manager)
 
-      get manager_calendar_path(year: 2026, month: 10)
+      successor_calls = count_date_successors do
+        get manager_calendar_path(year: 2026, month: 10)
+      end
 
       assert_response :success
       assert_select ".team-calendar td.leave", count: 31
+      assert_operator successor_calls, :<=, 200
     end
 
     test "loads only approved requests overlapping the visible month" do
@@ -45,7 +53,7 @@ module Manager
         [ @employee, Date.new(2026, 10, 15), @manager ],
         [ @employee, Date.new(2027, 10, 15), @manager ],
         [ outsider, Date.new(2026, 10, 17), other_manager ] ].each do |employee, date, reviewer|
-      temporary_date = date.year == 2026 ? date : Date.new(2026, date.year == 2025 ? 9 : 11, date.day)
+        temporary_date = date.year == 2026 ? date : Date.new(2026, date.year == 2025 ? 11 : 12, date.day)
       request = LeaveRequest.create!(employee:, leave_type: @leave_type,
         starts_on: temporary_date, ends_on: temporary_date)
       request.update_columns(starts_on: date, ends_on: date) unless date.year == 2026
@@ -73,8 +81,10 @@ module Manager
     end
 
     test "shows approved leave and birthday on the same day" do
-      request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
-        starts_on: Date.new(2026, 5, 12), ends_on: Date.new(2026, 5, 12))
+      request = travel_to Date.new(2026, 5, 1) do
+        LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+          starts_on: Date.new(2026, 5, 12), ends_on: Date.new(2026, 5, 12))
+      end
       request.approve!(by: @manager)
       sign_in_as(@manager)
 
@@ -115,6 +125,34 @@ module Manager
         assert_response :success
         assert_select "h1", text: "Календарь октябрь 2026"
       end
+    end
+
+    test "accepts supported boundary years and rejects years outside them" do
+      sign_in_as(@manager)
+
+      [ 2025, 2100 ].each do |year|
+        get manager_calendar_path(year:, month: 10)
+        assert_response :success
+        assert_select "h1", text: /октябрь #{year}/
+      end
+
+      [ 1976, 2024, 2101 ].each do |year|
+        get manager_calendar_path(year:, month: 10)
+        assert_response :success
+        assert_select "h1", text: /октябрь 2026/
+      end
+    end
+
+    test "navigation stops at January 2025" do
+      sign_in_as(@manager)
+
+      get manager_calendar_path(year: 2025, month: 1)
+      assert_response :success
+      assert_select "a[href='#{manager_calendar_path(year: 2024, month: 12)}']", count: 0
+
+      get manager_calendar_path(year: 2025, month: "all")
+      assert_response :success
+      assert_select "a[href='#{manager_calendar_path(year: 2024, month: "all")}']", count: 0
     end
 
     test "parses years only as decimal" do

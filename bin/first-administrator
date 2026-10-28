@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+
+require_relative "../config/environment"
+require_relative "../lib/first_administrator"
+require "io/console"
+
+terminal = IO.console
+abort "An interactive terminal is required." unless terminal
+
+if User.administrator.exists?
+  terminal.puts "An administrator already exists; no changes made."
+  exit
+end
+
+if User.exists?
+  abort "Users exist without an administrator; investigate before bootstrapping."
+end
+
+terminal.print "Administrator name: "
+name = terminal.gets&.strip
+terminal.print "Administrator email: "
+email_address = terminal.gets&.strip
+password = terminal.getpass("Password: ")
+confirmation = terminal.getpass("Confirm password: ")
+abort "Passwords do not match; no changes made." unless password == confirmation
+
+begin
+  case FirstAdministrator.create!(name:, email_address:, password:)
+  when :created
+    terminal.puts "Administrator created."
+  when :already_exists
+    terminal.puts "An administrator already exists; no changes made."
+  end
+rescue FirstAdministrator::ExistingUsers
+  abort "Users exist without an administrator; investigate before bootstrapping."
+rescue ActiveRecord::RecordInvalid => error
+  abort FirstAdministrator.validation_failure_message(error.record)
+end

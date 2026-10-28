@@ -1,0 +1,10 @@
+[Unit]
+Description=Prune expired Leave Desk sessions
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/projects/leave-desk
+ExecStart=/root/projects/leave-desk/current/compose.sh exec -T web bin/rails runner Session.prune_expired!

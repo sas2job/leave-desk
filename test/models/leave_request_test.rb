@@ -2,6 +2,7 @@ require "test_helper"
 
 class LeaveRequestTest < ActiveSupport::TestCase
   setup do
+    travel_to Date.new(2026, 1, 1)
     @manager = User.create!(name: "Review Manager", email_address: "manager@example.test",
       password: "test-password", role: :manager)
     @employee = User.create!(name: "Example Employee", email_address: "employee@example.test",
@@ -14,6 +15,16 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
     assert_predicate request, :pending?
     assert_predicate request.events.first, :created?
+  end
+
+  test "historical oversized comment does not block a later decision" do
+    request = create_request
+    request.update_columns(employee_comment: "🌿" * (LeaveRequest::COMMENT_MAX_LENGTH + 1))
+
+    request.approve!(by: @manager, comment: "Approved")
+
+    assert_predicate request.reload, :approved?
+    assert_equal LeaveRequest::COMMENT_MAX_LENGTH + 1, request.employee_comment.length
   end
 
   test "end date cannot precede start date" do
@@ -265,6 +276,28 @@ class LeaveRequestTest < ActiveSupport::TestCase
     assert_predicate administrator.notifications.last.leave_request_event, :calendar_unverified?
   end
 
+  test "calendar flagging rechecks status after a selected request becomes inactive" do
+    User.create!(name: "Administrator", email_address: "administrator@example.test",
+      password: "test-password", role: :administrator)
+    FederalCalendar.create!(year: 2026, legal_basis: "НПА",
+      public_holidays: RussianFederalHoliday.fixed_dates_for(2026))
+
+    %i[cancel reject].each do |decision|
+      request = create_request
+      assert_not_predicate request, :calendar_unverified?
+      selected_request = LeaveRequest.find(request.id)
+      decision == :cancel ? request.cancel! : request.reject!(by: @manager)
+      event_count = LeaveRequestEvent.count
+      notification_count = Notification.count
+
+      selected_request.flag_calendar_for_review!
+
+      assert_not_predicate request.reload, :calendar_unverified?
+      assert_equal event_count, LeaveRequestEvent.count
+      assert_equal notification_count, Notification.count
+    end
+  end
+
   test "transferred day off remains in annual leave duration" do
     @leave_type.update!(holiday_handling: :exclude_public_holidays)
     FederalCalendar.create!(year: 2026, legal_basis: "Статья 112 ТК РФ; постановление о переносах",
@@ -284,6 +317,19 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
     travel_to Date.new(2027, 1, 1) do
       request.starts_on = Date.new(2027, 1, 1)
+      assert request.valid?
+    end
+  end
+
+  test "new request may start today but not yesterday" do
+    travel_to Date.new(2026, 10, 28) do
+      request = LeaveRequest.new(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2026, 10, 27), ends_on: Date.new(2026, 10, 29))
+
+      assert_not request.valid?
+      assert_includes request.errors[:starts_on], "не может быть раньше сегодняшнего дня"
+
+      request.starts_on = Date.new(2026, 10, 28)
       assert request.valid?
     end
   end
@@ -344,6 +390,30 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
     assert request.valid?
     assert_equal 8, request.duration_in_days
+  end
+
+  test "birthday leave is one full calendar day" do
+    birthday_type = LeaveType.find_or_create_by!(code: "BIRTHDAY") do |leave_type|
+      leave_type.name = "Выходной в день рождения"
+    end
+    long_request = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: Date.new(2026, 10, 17), ends_on: Date.new(2026, 11, 2))
+
+    assert_no_difference([ "LeaveRequest.count", "LeaveRequestEvent.count" ]) do
+      assert_not long_request.save
+    end
+    assert_includes long_request.errors[:base],
+      "Выходной в день рождения можно оформить только на один полный день"
+
+    half_day = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: Date.new(2026, 10, 17), ends_on: Date.new(2026, 10, 17),
+      end_part: :morning)
+    assert_not half_day.valid?
+
+    full_day = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
+      starts_on: Date.new(2026, 10, 17), ends_on: Date.new(2026, 10, 17))
+    assert full_day.valid?
+    assert_equal 1, full_day.duration_in_days
   end
 
   test "duration includes federal holidays when leave type requires it" do

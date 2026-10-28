@@ -12,6 +12,7 @@ class FederalCalendarImporter
 
     data = JSON.parse(content)
     validate_structure!(data)
+    data = normalize_dates!(data)
 
     FederalCalendar.transaction do
       calendar = FederalCalendar.lock("FOR UPDATE").find_by(year: data.fetch("year"))
@@ -35,6 +36,10 @@ class FederalCalendarImporter
     unless data.is_a?(Hash) && data.keys.sort == FIELDS.sort
       raise InvalidFile, "Ожидаются поля: #{FIELDS.join(', ')}"
     end
+    if (data["public_holidays"].is_a?(Array) && data["public_holidays"].size > FederalCalendar::MAX_DATE_ENTRIES) ||
+        (data["transfers"].is_a?(Array) && data["transfers"].size > FederalCalendar::MAX_DATE_ENTRIES)
+      raise InvalidFile, "Слишком много праздничных дат или переносов (максимум #{FederalCalendar::MAX_DATE_ENTRIES})"
+    end
     unless data["year"].is_a?(Integer) && data["legal_basis"].is_a?(String) &&
         data["public_holidays"].is_a?(Array) && data["public_holidays"].all? { |date| date.is_a?(String) } &&
         data["transfers"].is_a?(Array) && data["transfers"].all? { |pair| valid_pair?(pair) }
@@ -46,5 +51,23 @@ class FederalCalendarImporter
     pair.is_a?(Hash) && pair.keys.sort == %w[from to] && pair.values.all? { |date| date.is_a?(String) }
   end
 
-  private_class_method :validate_structure!, :valid_pair?
+  def self.normalize_dates!(data)
+    public_holidays = data.fetch("public_holidays").map do |value|
+      parse_date!(value, "Праздничные даты")
+    end
+    transfers = data.fetch("transfers").map do |pair|
+      {
+        "from" => parse_date!(pair.fetch("from"), "Даты переносов").iso8601,
+        "to" => parse_date!(pair.fetch("to"), "Даты переносов").iso8601
+      }
+    end
+    data.merge("public_holidays" => public_holidays, "transfers" => transfers)
+  end
+
+  def self.parse_date!(value, field_name)
+    FederalCalendar.parse_iso_date(value) ||
+      raise(InvalidFile, "#{field_name} должны быть в формате ГГГГ-ММ-ДД")
+  end
+
+  private_class_method :validate_structure!, :valid_pair?, :normalize_dates!, :parse_date!
 end

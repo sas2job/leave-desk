@@ -15,6 +15,17 @@ if [[ "${ALLOW_DATABASE_RESTORE:-}" != "yes" ]]; then
   exit 1
 fi
 
+if (( BASH_VERSINFO[0] < 4 )) || ! type -t mapfile >/dev/null; then
+  echo "bin/restore requires Bash 4 or newer" >&2
+  exit 1
+fi
+for prerequisite in dirname basename sha256sum pg_restore; do
+  if ! command -v "$prerequisite" >/dev/null; then
+    echo "bin/restore requires $prerequisite in PATH" >&2
+    exit 1
+  fi
+done
+
 checksum="$archive.sha256"
 if [[ ! -f "$checksum" ]]; then
   echo "Checksum file is missing: $checksum" >&2
@@ -22,7 +33,17 @@ if [[ ! -f "$checksum" ]]; then
 fi
 archive_directory="$(dirname "$archive")"
 archive_name="$(basename "$archive")"
-(cd "$archive_directory" && sha256sum --check "$archive_name.sha256")
+mapfile -t checksum_entries < "$checksum"
+if [[ "${#checksum_entries[@]}" -ne 1 ||
+      ! "${checksum_entries[0]}" =~ ^([[:xdigit:]]{64})[[:space:]][[:space:]](.+)$ ||
+      "${BASH_REMATCH[2]}" != "$archive_name" ]]; then
+  echo "Checksum file must contain one entry for the selected archive" >&2
+  exit 1
+fi
+if ! (cd "$archive_directory" && sha256sum --check --status -- "$archive_name.sha256"); then
+  echo "Archive checksum does not match" >&2
+  exit 1
+fi
 
 pg_restore --exit-on-error --single-transaction --no-owner --no-privileges \
   --dbname="$RESTORE_DATABASE_URL" "$archive"

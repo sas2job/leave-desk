@@ -1,26 +1,37 @@
 module Manager
   class LeaveRequestsController < ApplicationController
+    include HistoryPagination
+
     before_action :require_manager
     before_action :set_leave_request, only: %i[approve reject]
     before_action :validate_review_comment, only: %i[approve reject]
 
     def index
-      @leave_requests = managed_leave_requests.includes(:employee, :leave_type, events: :actor)
-        .order(created_at: :desc)
+      @leave_requests = paginate_history(
+        managed_leave_requests.includes(:employee, :leave_type, events: :actor)
+      )
     end
 
     def approve
       @leave_request.approve!(by: Current.user, comment: params[:review_comment])
       redirect_to manager_leave_requests_path, notice: "Заявка одобрена."
+    rescue LeaveRequest::ReviewNotAuthorized
+      head :not_found
     rescue LeaveRequest::InvalidTransition => error
       redirect_to manager_leave_requests_path, alert: error.message
+    rescue ActiveRecord::RecordInvalid => error
+      render_review_errors(error)
     end
 
     def reject
       @leave_request.reject!(by: Current.user, comment: params[:review_comment])
       redirect_to manager_leave_requests_path, notice: "Заявка отклонена."
+    rescue LeaveRequest::ReviewNotAuthorized
+      head :not_found
     rescue LeaveRequest::InvalidTransition => error
       redirect_to manager_leave_requests_path, alert: error.message
+    rescue ActiveRecord::RecordInvalid => error
+      render_review_errors(error)
     end
 
     private
@@ -39,6 +50,18 @@ module Manager
 
     def validate_review_comment
       head :bad_request unless params[:review_comment].nil? || params[:review_comment].is_a?(String)
+    end
+
+    def render_review_errors(error)
+      messages = error.record.errors.full_messages
+      respond_to do |format|
+        format.html do
+          flash.now[:alert] = messages.to_sentence
+          index
+          render :index, status: :unprocessable_entity
+        end
+        format.json { render json: { errors: messages }, status: :unprocessable_entity }
+      end
     end
   end
 end

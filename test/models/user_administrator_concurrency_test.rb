@@ -56,4 +56,39 @@ class UserAdministratorConcurrencyTest < ActiveSupport::TestCase
     first_thread&.join(5)
     second_thread&.join(5)
   end
+
+  test "stale employee cannot be deactivated after becoming the sole administrator" do
+    employee = User.create!(name: "Employee", email_address: "employee-#{SecureRandom.hex(6)}@example.test",
+      password: "test-password")
+    stale_employee = User.find(employee.id)
+
+    employee.update!(role: :administrator)
+    @first.update!(active: false)
+    @second.update!(active: false)
+
+    assert_not stale_employee.update(active: false)
+    assert_includes stale_employee.errors[:base], "Нельзя удалить последнего активного администратора"
+    assert employee.reload.active?
+    assert employee.administrator?
+  ensure
+    employee&.delete
+  end
+
+  test "stale inactive administrator cannot be demoted after becoming the sole active administrator" do
+    administrator = User.create!(name: "Inactive Administrator",
+      email_address: "inactive-#{SecureRandom.hex(6)}@example.test", password: "test-password",
+      role: :administrator, active: false)
+    stale_administrator = User.find(administrator.id)
+
+    administrator.update!(active: true)
+    @first.update!(role: :employee)
+    @second.update!(role: :employee)
+
+    assert_not stale_administrator.update(role: :employee)
+    assert_includes stale_administrator.errors[:base], "Нельзя удалить последнего активного администратора"
+    assert administrator.reload.active?
+    assert administrator.administrator?
+  ensure
+    administrator&.delete
+  end
 end

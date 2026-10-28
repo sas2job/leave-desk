@@ -5,6 +5,7 @@ class LeaveRequestEvent < ApplicationRecord
   belongs_to :actor, class_name: "User", optional: true
   has_many :notifications, dependent: :restrict_with_exception
   validates :occurred_at, :to_status, presence: true
+  validates :comment, length: { maximum: LeaveRequest::COMMENT_MAX_LENGTH }
   validates :actor, presence: true, unless: :calendar_unverified?
   before_update :prevent_change
   before_destroy :prevent_change

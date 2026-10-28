@@ -1,0 +1,6 @@
+<% if @history_cursor || @history_next_cursor %>
+  <nav class="history-pagination" aria-label="Страницы истории">
+    <%= link_to "К новым записям", path, class: "button button--secondary" if @history_cursor %>
+    <%= link_to "Более ранние записи", "#{path}?before=#{@history_next_cursor}", class: "button button--secondary" if @history_next_cursor %>
+  </nav>
+<% end %>

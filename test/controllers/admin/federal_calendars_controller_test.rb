@@ -9,6 +9,15 @@ module Admin
         password: "test-password")
     end
 
+    test "calendar year form uses supported period" do
+      sign_in_as(@administrator)
+
+      get new_admin_federal_calendar_path
+
+      assert_response :success
+      assert_select "input[name='federal_calendar[year]'][min='2000'][max='2100']"
+    end
+
     test "only administrators can manage calendars" do
       sign_in_as(@employee)
       get admin_federal_calendars_path
@@ -37,6 +46,20 @@ module Admin
       assert_equal "Новое постановление", calendar.reload.legal_basis
       assert_equal 2, calendar.public_holidays.size
       assert_empty calendar.transfers
+    end
+
+    test "large duplicate form collections are rejected without creating a calendar" do
+      sign_in_as(@administrator)
+      attributes = calendar_attributes.merge(
+        public_holidays_input: "2026-01-01\n" * 10_000,
+        transfers_input: "2026-02-01 -> 2026-02-02\n" * 10_000
+      )
+
+      assert_no_difference("FederalCalendar.count") do
+        post admin_federal_calendars_path, params: { federal_calendar: attributes }
+      end
+      assert_response :unprocessable_entity
+      assert_select ".error-summary", text: /366 строк/
     end
 
     test "invalid dates leave published calendar unchanged" do
@@ -89,6 +112,28 @@ module Admin
       sign_in_as(@employee)
       post import_admin_federal_calendars_path
       assert_response :forbidden
+    end
+
+    test "invalid calendar years show complete Russian numericality errors" do
+      sign_in_as(@administrator)
+      expected_errors = {
+        "" => "Год: значение должно быть числом",
+        "year" => "Год: значение должно быть числом",
+        "2026.5" => "Год: значение должно быть целым числом",
+        "1999" => "Год: значение должно входить в диапазон 2000..2100"
+      }
+
+      expected_errors.each do |year, message|
+        assert_no_difference("FederalCalendar.count") do
+          post admin_federal_calendars_path, params: {
+            federal_calendar: calendar_attributes.merge(year:)
+          }
+        end
+
+        assert_response :unprocessable_entity
+        assert_select ".error-summary li", text: message
+        assert_no_match(/Translation missing/i, response.body)
+      end
     end
 
     private

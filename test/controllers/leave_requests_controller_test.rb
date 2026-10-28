@@ -19,6 +19,124 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(@employee)
   end
 
+  test "form accepts 2000 Unicode comment characters and rejects one more" do
+    comment = "🌿" * LeaveRequest::COMMENT_MAX_LENGTH
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-10", ends_on: "2026-11-10",
+        employee_comment: comment
+      } }
+    end
+    assert_response :redirect
+    assert_equal comment, LeaveRequest.last.events.created.first.comment
+
+    assert_no_difference([ "LeaveRequest.count", "LeaveRequestEvent.count" ]) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-20", ends_on: "2026-11-20",
+        employee_comment: comment + "🌿"
+      } }
+    end
+    assert_response :unprocessable_entity
+    assert_select ".error-summary", /2000/
+  end
+
+  test "JSON comment length violation returns validation errors without partial records" do
+    comment = "я" * LeaveRequest::COMMENT_MAX_LENGTH
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-10", ends_on: "2026-11-10",
+        employee_comment: comment
+      } }, as: :json
+    end
+    assert_response :redirect
+
+    assert_no_difference([ "LeaveRequest.count", "LeaveRequestEvent.count" ]) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-20", ends_on: "2026-11-20",
+        employee_comment: comment + "я"
+      } }, as: :json
+    end
+    assert_response :unprocessable_entity
+    assert_match(/2000/, response.parsed_body.fetch("errors").join)
+  end
+
+  test "oversized JSON body is rejected before parsing or persistence" do
+    invalid_json = "x" * (RequestBodyLimit::MAX_BYTES + 1)
+    assert_no_difference([ "LeaveRequest.count", "LeaveRequestEvent.count" ]) do
+      post leave_requests_path, params: invalid_json,
+        headers: { "CONTENT_TYPE" => "application/json", "ACCEPT" => "application/json" }
+    end
+    assert_response 413
+  end
+
+  test "JSON body at the byte limit reaches application parsing" do
+    payload = { leave_request: {
+      leave_type_id: @leave_type.id, starts_on: "2026-11-10", ends_on: "2026-11-10"
+    } }.to_json
+    payload = payload.ljust(RequestBodyLimit::MAX_BYTES)
+
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: payload,
+        headers: { "CONTENT_TYPE" => "application/json", "ACCEPT" => "application/json" }
+    end
+    assert_response :redirect
+  end
+
+  test "new request form shows Russian date format and bounds the picker" do
+    [ 2025, 2100 ].each do |year|
+      travel_to Date.new(year, 6, 1) do
+        sign_in_as(@employee)
+        get new_leave_request_path
+
+        assert_response :success
+        %w[starts_on ends_on].each do |field|
+          assert_select "input[type='text'][name='leave_request[#{field}]']" \
+                        "[placeholder='ДД.ММ.ГГГГ'][pattern='[0-9]{2}[.][0-9]{2}[.][0-9]{4}']"
+          assert_select "dialog[data-date-dialog][data-calendar-first-year='2025']" \
+                        "[data-calendar-min='#{year}-06-01'][data-calendar-max='#{year}-12-31']", count: 2
+        end
+      end
+    end
+  end
+
+  test "creates a request from day month year dates" do
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "10.11.2026", ends_on: "12.11.2026"
+      } }
+    end
+
+    assert_redirected_to leave_requests_path
+    assert_equal Date.new(2026, 11, 10), LeaveRequest.last.starts_on
+    assert_equal Date.new(2026, 11, 12), LeaveRequest.last.ends_on
+  end
+
+  test "rejects an impossible day month year date and preserves the input" do
+    assert_no_difference("LeaveRequest.count") do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "31.02.2026", ends_on: "12.11.2026"
+      } }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select "input[name='leave_request[starts_on]'][value='31.02.2026']"
+  end
+
+  test "rejects a sick leave notification for a past date" do
+    sick = LeaveType.find_or_create_by!(code: "SICK") { |type| type.name = "Sick leave" }
+
+    travel_to Date.new(2026, 10, 28) do
+      assert_no_difference("LeaveRequest.count") do
+        post leave_requests_path, params: { leave_request: {
+          leave_type_id: sick.id, starts_on: "03.01.2026", ends_on: "04.01.2026"
+        } }
+      end
+
+      assert_response :unprocessable_entity
+      assert_select ".error-summary", /раньше сегодняшнего дня/
+    end
+  end
+
   test "rejects numeric JSON request fields without creating a request" do
     attributes = { leave_type_id: @leave_type.id, starts_on: "2026-11-10",
       ends_on: "2026-11-12", start_part: "morning", end_part: "afternoon",
