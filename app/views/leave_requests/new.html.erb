@@ -57,15 +57,13 @@
           </div>
         <% end %>
       <div class="field">
-        <%= form.label :start_time, "Время начала (ЧЧ:ММ)" %>
-        <%= form.text_field :start_time, required: true, inputmode: "numeric",
-          pattern: "(?:[01][0-9]|2[0-3]):[0-5][0-9]", placeholder: "00:00" %>
+        <%= form.label :start_time, "Время начала" %>
+        <%= form.select :start_time, LeaveRequest::START_TIME_OPTIONS, {}, required: true %>
       </div>
       <div class="field">
-        <%= form.label :end_time, "Время окончания (ЧЧ:ММ)" %>
-        <%= form.text_field :end_time, required: true, inputmode: "numeric",
-          pattern: "(?:(?:[01][0-9]|2[0-3]):[0-5][0-9]|24:00)", placeholder: "24:00" %>
-        <p class="field-hint">Для полного дня укажите 00:00–24:00. Для части дня укажите точные часы.</p>
+        <%= form.label :end_time, "Время окончания" %>
+        <%= form.select :end_time, LeaveRequest::END_TIME_OPTIONS, {}, required: true %>
+        <p class="field-hint">Время выбирается с шагом 15 минут. Для полного календарного дня выберите 00:00–24:00.</p>
       </div>
 
         <div class="field field--full">

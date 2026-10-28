@@ -2,6 +2,11 @@ class LeaveRequest < ApplicationRecord
   COMMENT_MAX_LENGTH = 2_000
   MINUTES_PER_DAY = 1_440
   HALF_DAY_MINUTES = 720
+  START_TIME_OPTIONS = (0...MINUTES_PER_DAY).step(15).map do |minute|
+    value = format("%02d:%02d", *minute.divmod(60))
+    [ value, value ]
+  end.freeze
+  END_TIME_OPTIONS = (START_TIME_OPTIONS + [ [ "24:00", "24:00" ] ]).freeze
 
   attr_accessor :start_time, :end_time
 
