@@ -1,3 +1,7 @@
+<% content_for :head do %>
+  <%= javascript_include_tag "leave_request_dates", defer: true %>
+<% end %>
+
 <main class="page page--narrow">
   <header class="page-header">
     <div>
@@ -27,21 +31,23 @@
             { prompt: "Выберите вид отпуска" }, required: true %>
         </div>
 
-        <div class="field">
-          <%= form.label :starts_on, "Дата начала" %>
-        <%= form.date_field :starts_on, required: true,
-            min: Date.current.beginning_of_year.iso8601,
-            max: Date.current.end_of_year.iso8601,
-          value: @leave_request.starts_on.is_a?(Date) ? @leave_request.starts_on : nil %>
-        </div>
-
-        <div class="field">
-          <%= form.label :ends_on, "Дата окончания" %>
-        <%= form.date_field :ends_on, required: true,
-            min: Date.current.beginning_of_year.iso8601,
-            max: Date.current.end_of_year.iso8601,
-          value: @leave_request.ends_on.is_a?(Date) ? @leave_request.ends_on : nil %>
-        </div>
+        <% %i[starts_on ends_on].each do |field| %>
+          <div class="field">
+            <%= form.label field, field == :starts_on ? "Дата начала" : "Дата окончания" %>
+            <div class="date-entry" data-date-entry>
+              <%= form.text_field field, required: true, inputmode: "numeric",
+                autocomplete: "off", maxlength: 10, placeholder: "ДД.ММ.ГГГГ",
+                pattern: "[0-9]{2}[.][0-9]{2}[.][0-9]{4}",
+                value: @date_inputs&.dig(field) || @leave_request.public_send(field)&.strftime("%d.%m.%Y") %>
+              <%= tag.input type: "date", class: "date-entry__picker",
+                min: Date.current.beginning_of_year.iso8601,
+                max: Date.current.end_of_year.iso8601,
+                tabindex: "-1", "aria-hidden": "true", data: { date_picker: true } %>
+              <button type="button" class="date-entry__button" data-date-picker-button hidden
+                aria-label="Выбрать <%= field == :starts_on ? "дату начала" : "дату окончания" %>">📅</button>
+            </div>
+          </div>
+        <% end %>
       <div class="field">
         <%= form.label :start_part, "Начало периода" %>
         <%= form.select :start_part, [["С утра", "morning"], ["После полудня", "afternoon"]] %>

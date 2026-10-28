@@ -82,7 +82,7 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
-  test "new request form uses current-year dates at supported boundaries" do
+  test "new request form shows Russian date format and bounds the picker" do
     [ 2000, 2100 ].each do |year|
       travel_to Date.new(year, 6, 1) do
         sign_in_as(@employee)
@@ -90,11 +90,36 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
 
         assert_response :success
         %w[starts_on ends_on].each do |field|
-          assert_select "input[name='leave_request[#{field}]']" \
-                        "[min='#{year}-01-01'][max='#{year}-12-31']"
+          assert_select "input[type='text'][name='leave_request[#{field}]']" \
+                        "[placeholder='ДД.ММ.ГГГГ'][pattern='[0-9]{2}[.][0-9]{2}[.][0-9]{4}']"
+          assert_select "input[type='date'][data-date-picker]" \
+                        "[min='#{year}-01-01'][max='#{year}-12-31']", count: 2
         end
       end
     end
+  end
+
+  test "creates a request from day month year dates" do
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "10.11.2026", ends_on: "12.11.2026"
+      } }
+    end
+
+    assert_redirected_to leave_requests_path
+    assert_equal Date.new(2026, 11, 10), LeaveRequest.last.starts_on
+    assert_equal Date.new(2026, 11, 12), LeaveRequest.last.ends_on
+  end
+
+  test "rejects an impossible day month year date and preserves the input" do
+    assert_no_difference("LeaveRequest.count") do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "31.02.2026", ends_on: "12.11.2026"
+      } }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select "input[name='leave_request[starts_on]'][value='31.02.2026']"
   end
 
   test "rejects numeric JSON request fields without creating a request" do
