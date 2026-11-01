@@ -20,6 +20,10 @@
         <% end %>
         <%= link_to "Весь год", manager_calendar_path(year: @year, month: "all"),
           class: "button button--secondary" %>
+        <% if CalendarWindow::YEARS.cover?(Date.current.year) %>
+          <%= link_to "Сегодня", manager_calendar_path(year: Date.current.year, month: Date.current.month),
+            class: "button button--secondary" %>
+        <% end %>
       <% else %>
         <% if @year > CalendarWindow::FIRST_YEAR %>
           <%= link_to "← #{@year - 1}", manager_calendar_path(year: @year - 1, month: "all"),
@@ -34,10 +38,55 @@
       <% end %>
     </div>
   </header>
-  <div class="calendar-legend">
-    <span class="calendar-legend__item"><span class="calendar-key calendar-key--leave"></span> Согласованный отпуск</span>
+  <div class="calendar-legend" aria-label="Обозначения календаря">
+    <% if @month %>
+      <% @leave_types.each do |leave_type| %>
+        <span class="calendar-legend__item"><span class="calendar-key timeline-color--<%= @type_colors.fetch(leave_type.id) %>"></span> <%= leave_type.name %></span>
+      <% end %>
+    <% else %>
+      <span class="calendar-legend__item"><span class="calendar-key calendar-key--leave"></span> Согласованный отпуск</span>
+    <% end %>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--birthday"></span> День рождения</span>
+    <% if @month %>
+      <span class="calendar-legend__item"><span class="calendar-key calendar-key--overlap"></span> Два и более отсутствующих</span>
+    <% end %>
   </div>
+  <% if @month %>
+    <p class="calendar-hint">Прокрутите календарь по горизонтали. Подробности заявки доступны при наведении на полосу и в её доступном описании.</p>
+    <div class="team-timeline-wrap" aria-label="Календарь команды за <%= I18n.l(Date.new(@year, @month, 1), format: "%B %Y") %>">
+      <div class="team-timeline" style="--days: <%= @dates.size %>; --timeline-width: <%= @dates.size * Manager::CalendarsHelper::DAY_WIDTH %>px">
+        <div class="team-timeline__heading">Сотрудник</div>
+        <div class="team-timeline__dates">
+          <% @dates.each do |date| %>
+            <time datetime="<%= date.iso8601 %>" class="team-timeline__date <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %>" title="<%= format_date(date) %>">
+              <strong><%= date.day %></strong><small><%= I18n.l(date, format: "%a") %></small>
+            </time>
+          <% end %>
+        </div>
+        <div class="team-timeline__heading team-timeline__heading--coverage">Отсутствуют</div>
+        <div class="team-timeline__coverage">
+          <% @dates.each do |date| %>
+            <% count = @coverage.fetch(date) %>
+            <span class="team-timeline__count <%= "is-overlap" if count >= 2 %>" title="<%= format_date(date) %>: отсутствуют <%= count %>" aria-label="<%= format_date(date) %>: отсутствуют <%= count %>"><%= count if count.positive? %></span>
+          <% end %>
+        </div>
+        <% @rows.each do |row| %>
+          <div class="team-timeline__name"><%= row[:employee].name %></div>
+          <div class="team-timeline__track" aria-label="Отсутствия: <%= row[:employee].name %>">
+            <% @dates.each do |date| %>
+              <span class="team-timeline__day <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %>" aria-hidden="true"></span>
+            <% end %>
+            <% row[:requests].each do |request| %>
+              <span class="team-timeline__bar timeline-color--<%= @type_colors.fetch(request.leave_type_id) %>" style="<%= timeline_bar_style(request, @dates) %>" title="<%= timeline_bar_label(request) %>" aria-label="<%= timeline_bar_label(request) %>" tabindex="0"><span class="team-timeline__bar-text"><%= request.leave_type.name %></span></span>
+            <% end %>
+            <% if row[:birthday] && @dates.include?(row[:birthday]) %>
+              <span class="team-timeline__birthday" style="grid-column: <%= (row[:birthday] - @dates.first).to_i + 1 %>" title="<%= format_date(row[:birthday]) %>: день рождения" aria-label="<%= format_date(row[:birthday]) %>: день рождения">ДР</span>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% else %>
   <div class="team-calendar-wrap <%= "team-calendar-wrap--month" if @month %>">
     <table class="team-calendar <%= "team-calendar--month" if @month %>">
       <thead>
@@ -85,4 +134,5 @@
       </tbody>
     </table>
   </div>
+  <% end %>
 </main>

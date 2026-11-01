@@ -14,6 +14,9 @@ class CalendarAccessibilityTest < ActionDispatch::SystemTestCase
     approved.approve!(by: manager)
     LeaveRequest.create!(employee:, leave_type:, starts_on: Date.new(2026, 10, 21),
       ends_on: Date.new(2026, 10, 21))
+    partial = LeaveRequest.create!(employee:, leave_type:, starts_on: Date.new(2026, 10, 22),
+      ends_on: Date.new(2026, 10, 22), start_time: "09:00", end_time: "12:00")
+    partial.approve!(by: manager)
 
     visit new_session_path
     fill_in "Электронная почта", with: employee.email_address
@@ -35,12 +38,12 @@ class CalendarAccessibilityTest < ActionDispatch::SystemTestCase
     assert_button "Выйти"
     visit manager_calendar_path(year: 2026, month: 10)
 
-    assert_selector "td.leave[aria-label*='Отпуск согласован']", text: "О"
-    assert_selector "td.leave.birthday[aria-label*='День рождения'] .calendar-half--approved", text: "О"
-    assert_selector "td.leave.birthday .calendar-birthday", text: "ДР"
-    assert_mobile_calendar_layout
-    assert_operator contrast_ratio(".calendar-half--approved"), :>=, 4.5
-    assert_operator contrast_ratio(".calendar-birthday"), :>=, 4.5
+    assert_selector ".team-timeline__bar[aria-label*='Согласовано']", text: "Test leave"
+    assert_selector ".team-timeline__birthday[aria-label*='день рождения']", text: "ДР"
+    assert_in_delta 5, page.evaluate_script("Array.from(document.querySelectorAll('.team-timeline__bar')).find(bar => bar.getAttribute('aria-label').includes('09:00')).getBoundingClientRect().width"), 1
+    assert_mobile_timeline_layout
+    assert_operator contrast_ratio(".team-timeline__bar"), :>=, 4.5
+    assert_operator contrast_ratio(".team-timeline__birthday"), :>=, 4.5
   end
 
   private
@@ -59,6 +62,21 @@ class CalendarAccessibilityTest < ActionDispatch::SystemTestCase
         "calendar should be horizontally scrollable at #{width}px"
       assert_operator page.evaluate_script("document.documentElement.scrollWidth"), :<=, width,
         "page should not scroll horizontally at #{width}px"
+    end
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
+
+  def assert_mobile_timeline_layout
+    [ 320, 375, 390, 768 ].each do |width|
+      page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+        width:, height: 844, deviceScaleFactor: 1, mobile: false)
+      assert_equal width, page.evaluate_script("window.innerWidth")
+      assert_operator page.evaluate_script("document.querySelector('.team-timeline-wrap').scrollWidth"), :>,
+        page.evaluate_script("document.querySelector('.team-timeline-wrap').clientWidth")
+      assert_equal 40, page.evaluate_script("document.querySelector('.team-timeline__date').getBoundingClientRect().width")
+      assert_operator page.evaluate_script("(() => { const wrap = document.querySelector('.team-timeline-wrap'); wrap.scrollLeft = 100; return wrap.scrollLeft })()"), :>, 0
+      assert_operator page.evaluate_script("document.documentElement.scrollWidth"), :<=, width
     end
   ensure
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")

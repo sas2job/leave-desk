@@ -40,7 +40,7 @@ module Manager
       end
 
       assert_response :success
-      assert_select ".team-calendar td.leave", count: 31
+      assert_select ".team-timeline__bar[style*='span 31']", count: 1
       assert_operator successor_calls, :<=, 200
     end
 
@@ -75,9 +75,9 @@ module Manager
 
       assert_response :success
       assert_equal 1, loaded_requests
-      assert_select ".team-calendar td.leave", count: 1
-      assert_select "tbody th", text: no_leave.name
-      assert_select "tbody th", text: outsider.name, count: 0
+      assert_select ".team-timeline__bar", count: 1
+      assert_select ".team-timeline__name", text: no_leave.name
+      assert_select ".team-timeline__name", text: outsider.name, count: 0
     end
 
     test "shows approved leave and birthday on the same day" do
@@ -91,10 +91,42 @@ module Manager
       get manager_calendar_path(year: 2026, month: 5)
 
       assert_response :success
-      assert_select "td.leave.birthday[aria-label*='Отпуск согласован'][aria-label*='День рождения']" do
-        assert_select ".calendar-half--approved", text: "О"
-        assert_select ".calendar-birthday", text: "ДР"
-      end
+      assert_select ".team-timeline__bar[aria-label*='Annual'][style*='grid-column: 12']", count: 1
+      assert_select ".team-timeline__birthday[style*='grid-column: 12']", text: "ДР"
+    end
+
+    test "timeline shows overlapping employees and the daily coverage" do
+      teammate = create_user("teammate@example.test", manager: @manager, name: "Teammate")
+      other_type = LeaveType.create!(name: "Sick leave", code: "TEST_SICK")
+      first = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2026, 10, 14), ends_on: Date.new(2026, 10, 16))
+      second = LeaveRequest.create!(employee: teammate, leave_type: other_type,
+        starts_on: Date.new(2026, 10, 15), ends_on: Date.new(2026, 10, 17))
+      first.approve!(by: @manager)
+      second.approve!(by: @manager)
+      sign_in_as(@manager)
+
+      get manager_calendar_path(year: 2026, month: 10)
+
+      assert_response :success
+      assert_select ".team-timeline__bar[style*='grid-column: 14 / span 3'][aria-label*='Annual']", count: 1
+      assert_select ".team-timeline__bar[style*='grid-column: 15 / span 3'][aria-label*='Sick leave']", count: 1
+      assert_select ".team-timeline__count.is-overlap", text: "2", count: 2
+      assert_select ".calendar-legend__item", text: /Annual/
+      assert_select ".calendar-legend__item", text: /Sick leave/
+    end
+
+    test "timeline uses the time of a partial-day absence" do
+      request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+        starts_on: Date.new(2026, 10, 20), ends_on: Date.new(2026, 10, 20),
+        start_time: "09:00", end_time: "12:00")
+      request.approve!(by: @manager)
+      sign_in_as(@manager)
+
+      get manager_calendar_path(year: 2026, month: 10)
+
+      assert_response :success
+      assert_select ".team-timeline__bar[style*='margin-left: 15.0px'][style*='margin-right: 20.0px'][aria-label*='09:00–12:00']", count: 1
     end
 
     test "defaults to the current month" do
@@ -106,9 +138,9 @@ module Manager
 
       assert_response :success
       assert_select "h1", text: "Календарь октябрь 2026"
-      assert_select ".team-calendar-wrap.team-calendar-wrap--month"
-      assert_select "table.team-calendar.team-calendar--month"
-      assert_select "tbody td", count: 31
+      assert_select ".team-timeline-wrap"
+      assert_select ".team-timeline__date", count: 31
+      assert_select ".team-timeline__track", count: 1
     end
 
     test "parses zero-padded months as decimal and falls back for invalid input" do
@@ -215,12 +247,12 @@ module Manager
       get manager_calendar_path(year: 2026, month: 10)
 
       assert_response :success
-      assert_select "tbody th", text: "Example User"
-      assert_select "tbody th", text: "Other Employee"
+      assert_select ".team-timeline__name", text: "Example User"
+      assert_select ".team-timeline__name", text: "Other Employee"
       assert_select "details.site-nav__dropdown summary", text: "Календари"
       assert_select "a[href='#{manager_calendar_path}']", text: "Общий календарь"
       assert_select "a[href='#{calendar_path}']", text: "Мой календарь"
-      assert_select "td.birthday", text: "ДР", count: 1
+      assert_select ".team-timeline__birthday", text: "ДР", count: 1
     end
 
     private

@@ -11,9 +11,14 @@ module Manager
 
       employees = calendar_employees.order(:name).to_a
       requests_by_employee = LeaveRequest.where(employee_id: employees.map(&:id), status: :approved)
+        .includes(:leave_type)
         .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)
         .group_by(&:employee_id)
       @rows = employees.map { |employee| calendar_row(employee, requests_by_employee.fetch(employee.id, [])) }
+      @leave_types = @rows.flat_map { |row| row[:requests].map(&:leave_type) }.uniq.sort_by(&:name)
+      @type_colors = @leave_types.each_with_index.to_h { |leave_type, index| [ leave_type.id, index % 5 ] }
+      @coverage = @dates.index_with { 0 }
+      @rows.each { |row| row[:leave_days].each { |date| @coverage[date] += 1 } }
     end
 
     private
@@ -34,7 +39,8 @@ module Manager
 
         visible_dates.each { |date| days << date }
       end
-      { employee:, leave_days:, birthday: birthday_in_year(employee) }
+      { employee:, requests: requests.sort_by(&:period_start_minute), leave_days:,
+        birthday: birthday_in_year(employee) }
     end
 
     def birthday_in_year(employee)
