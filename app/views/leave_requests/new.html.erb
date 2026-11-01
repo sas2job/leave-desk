@@ -7,7 +7,7 @@
     <div>
       <p class="eyebrow">Новая заявка</p>
       <h1>Запланировать отпуск</h1>
-      <p class="lede">Укажите вид отсутствия, даты и точное время.</p>
+      <p class="lede">Выберите даты и при необходимости уточните время крайних дней.</p>
     </div>
   </header>
 
@@ -28,7 +28,10 @@
         <div class="field field--full">
           <%= form.label :leave_type_id, "Вид отпуска" %>
           <%= form.collection_select :leave_type_id, @leave_types, :id, :name,
-            { prompt: "Выберите вид отпуска" }, required: true %>
+            { prompt: "Выберите вид отпуска" },
+            required: true, data: { planner_type: true,
+              annual_type_id: @leave_types.find { |type| type.code == "ANNUAL" }&.id,
+              excluded_holiday_type_ids: @leave_types.select(&:exclude_public_holidays?).map(&:id).join(",") } %>
         </div>
 
         <% %i[starts_on ends_on].each do |field| %>
@@ -56,23 +59,35 @@
             </div>
           </div>
         <% end %>
-      <div class="field">
+      <div class="field field--full leave-full-day">
+        <label class="checkbox-field" for="leave_request_full_day">
+          <%= check_box_tag "leave_request[full_day]", "1", @full_day,
+            id: "leave_request_full_day", data: { full_day: true } %>
+          <span>Весь день <small>Все выбранные календарные даты целиком (00:00–24:00)</small></span>
+        </label>
+      </div>
+      <div class="field" data-time-field>
         <%= form.label :start_time, "Время начала" %>
         <%= form.select :start_time, LeaveRequest::START_TIME_OPTIONS,
           { selected: form.object.start_time }, required: true, data: { workday_start: true } %>
       </div>
-      <div class="field">
+      <div class="field" data-time-field>
         <%= form.label :end_time, "Время окончания" %>
         <%= form.select :end_time, LeaveRequest::END_TIME_OPTIONS,
           { selected: form.object.end_time }, required: true, data: { workday_end: true } %>
       </div>
-      <div class="field">
-        <%= label_tag :workday_preset, "Быстрый выбор" %>
-        <%= select_tag :workday_preset,
-          options_for_select([["Выбрать интервал", ""], ["Весь рабочий день (09:00–18:00)", "full"]]),
-          data: { workday_preset: true } %>
-        <p class="field-hint">Время указано по часовому поясу города сотрудника. Доступен интервал 09:00–18:00 с шагом 15 минут.</p>
-      </div>
+      <p class="field-hint field--full leave-time-hint">Снимите отметку «Весь день», чтобы указать время начала первого и окончания последнего дня с шагом 15 минут в пределах 09:00–18:00. Промежуточные даты входят целиком.</p>
+
+      <section class="leave-planner field--full" data-leave-planner
+        data-public-holidays="<%= @public_holidays.map(&:iso8601).join(",") %>"
+        aria-labelledby="leave-planner-title">
+        <div class="leave-planner__heading">
+          <h2 id="leave-planner-title">План периода</h2>
+          <p data-planner-summary aria-live="polite">Выберите даты начала и окончания.</p>
+        </div>
+        <ol class="leave-planner__days" data-planner-days></ol>
+        <p class="leave-planner__note" data-planner-note>Промежуточные даты входят целиком. Итоговая длительность рассчитывается по правилам выбранного вида отпуска.</p>
+      </section>
 
         <div class="field field--full">
           <%= form.label :employee_comment, "Комментарий" %>

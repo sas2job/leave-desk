@@ -892,3 +892,125 @@ textarea:focus {
     transition-duration: 0.01ms !important;
   }
 }
+
+.leave-full-day {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: #f6f8f6;
+}
+
+.leave-full-day .checkbox-field {
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.leave-full-day input {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.leave-full-day small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+[data-time-field][hidden] {
+  display: none;
+}
+
+.leave-time-hint {
+  margin: -0.25rem 0 0;
+}
+
+.leave-planner {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: #f8faf8;
+}
+
+.leave-planner__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.3rem 1rem;
+}
+
+.leave-planner__heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.leave-planner__heading p {
+  margin: 0;
+  color: var(--primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.leave-planner__days {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 0.45rem;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leave-planner__days:empty {
+  display: none;
+}
+
+.leave-planner__day,
+.leave-planner__more {
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #dce5df;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.leave-planner__day time,
+.leave-planner__day span {
+  display: block;
+}
+
+.leave-planner__day time {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.leave-planner__day span,
+.leave-planner__more {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.leave-planner__day.is-excluded {
+  border-color: #e8d4b4;
+  background: #fff8eb;
+}
+
+.leave-planner__day.is-excluded span {
+  color: #775019;
+}
+
+.leave-planner__more {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+  text-align: center;
+}
+
+.leave-planner__note {
+  margin: 0.8rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}

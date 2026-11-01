@@ -89,6 +89,9 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
         get new_leave_request_path
 
         assert_response :success
+        assert_select "input#leave_request_full_day[type='checkbox'][checked]"
+        assert_select "[data-workday-preset]", count: 0
+        assert_select "[data-leave-planner]"
         %w[starts_on ends_on].each do |field|
           assert_select "input[type='text'][name='leave_request[#{field}]']" \
                         "[placeholder='ДД.ММ.ГГГГ'][pattern='[0-9]{2}[.][0-9]{2}[.][0-9]{4}']"
@@ -97,6 +100,50 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
         end
       end
     end
+  end
+
+  test "full day checkbox creates 28 calendar days excluding a public holiday" do
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "01.11.2026", ends_on: "29.11.2026",
+        start_time: "13:00", end_time: "14:00", full_day: "1"
+      } }
+    end
+
+    request = LeaveRequest.last
+    assert_equal "pending", request.status
+    assert_equal 28, request.duration_in_days
+    assert_equal 0, request.start_minute
+    assert_equal LeaveRequest::MINUTES_PER_DAY, request.end_minute
+  end
+
+  test "planner receives configured public holidays" do
+    FederalCalendar.create!(year: 2026, legal_basis: "Test calendar",
+      public_holidays: [ Date.new(2026, 11, 5) ])
+
+    get new_leave_request_path
+
+    assert_response :success
+    assert_select "[data-leave-planner][data-public-holidays='2026-11-05']"
+  end
+
+  test "partial annual leave keeps exact times at range boundaries" do
+    @leave_type.update!(holiday_handling: :exclude_public_holidays)
+
+    assert_difference("LeaveRequest.count", 1) do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "05.11.2026", ends_on: "07.11.2026",
+        start_time: "13:00", end_time: "18:00"
+      } }
+    end
+
+    request = LeaveRequest.last
+    assert_equal "pending", request.status
+    assert_equal 13 * 60, request.start_minute
+    assert_equal 18 * 60, request.end_minute
+    assert_equal 3180, request.duration_minutes
   end
 
   test "creates a request from day month year dates" do

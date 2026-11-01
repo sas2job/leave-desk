@@ -13,7 +13,8 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
       fill_in "Пароль", with: "test-password"
       click_button "Войти"
       assert_button "Выйти"
-      visit new_leave_request_path
+      visit leave_requests_path
+      click_link "Создать заявку", match: :first
 
       first("[data-date-picker-button]").click
       within "dialog[open]" do
@@ -30,6 +31,44 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
       end
 
       assert_field "Дата начала", with: "28.10.2026"
+    end
+  end
+
+  test "planner explains full annual leave and a partial first day" do
+    travel_to Date.new(2026, 10, 28) do
+      employee = User.create!(name: "Test Employee", email_address: "employee@example.test",
+        password: "test-password")
+      LeaveType.find_by!(code: "ANNUAL")
+
+      visit new_session_path
+      fill_in "Электронная почта", with: employee.email_address
+      fill_in "Пароль", with: "test-password"
+      click_button "Войти"
+      assert_button "Выйти"
+      visit leave_requests_path
+      click_link "Создать заявку", match: :first
+
+      assert_checked_field "leave_request_full_day"
+      assert_no_selector "[data-workday-preset]"
+      select "Ежегодный отпуск", from: "Вид отпуска"
+      fill_in "Дата начала", with: "01.11.2026"
+      fill_in "Дата окончания", with: "29.11.2026"
+      assert_selector "[data-planner-summary]", text: "29 календарных дат · 28 дней отпуска"
+      assert_selector ".leave-planner__day.is-excluded time[datetime='2026-11-04']"
+      assert_no_selector "[data-time-field]", visible: true
+
+      uncheck "leave_request_full_day"
+      select "13:00", from: "Время начала"
+      fill_in "Дата начала", with: "05.11.2026"
+      fill_in "Дата окончания", with: "07.11.2026"
+      assert_selector "[data-planner-summary]", text: /3 календарные даты.*крайние дни/
+      assert_selector ".leave-planner__day:first-child", text: /с 13:00/
+      assert_selector ".leave-planner__day:last-child", text: /до 18:00/
+
+      check "leave_request_full_day"
+      fill_in "Дата окончания", with: "11.11.2026"
+      assert_selector "[data-planner-summary]", text: "7 календарных дат · 7 дней отпуска"
+      assert_selector ".leave-planner__day", count: 7
     end
   end
 end

@@ -11,7 +11,8 @@ class LeaveRequestsController < ApplicationController
     @leave_request = Current.user.leave_requests.new
     @leave_request.start_time = "09:00"
     @leave_request.end_time = "18:00"
-    @leave_types = LeaveType.where(active: true).order(:name)
+    @full_day = true
+    load_form_options
   end
 
   def create
@@ -44,12 +45,21 @@ class LeaveRequestsController < ApplicationController
   end
 
   def leave_request_params
-    attributes = params.expect(leave_request: %i[leave_type_id starts_on ends_on start_time end_time employee_comment])
+    attributes = params.expect(leave_request: %i[leave_type_id starts_on ends_on start_time end_time full_day employee_comment])
     if params[:leave_request].key?(:start_part) || params[:leave_request].key?(:end_part)
       raise ActionController::BadRequest, "Use exact start and end times"
     end
-    attributes[:start_time] = "00:00" unless attributes.key?(:start_time)
-    attributes[:end_time] = "24:00" unless attributes.key?(:end_time)
+    full_day = attributes.delete(:full_day)
+    raise ActionController::BadRequest, "Invalid full day value" unless [ nil, "0", "1" ].include?(full_day)
+
+    @full_day = full_day == "1"
+    if @full_day
+      attributes[:start_time] = "00:00"
+      attributes[:end_time] = "24:00"
+    else
+      attributes[:start_time] = "00:00" unless attributes.key?(:start_time)
+      attributes[:end_time] = "24:00" unless attributes.key?(:end_time)
+    end
     require_string_fields!(
       attributes,
       :starts_on, :ends_on, :start_time, :end_time, :employee_comment
@@ -68,10 +78,16 @@ class LeaveRequestsController < ApplicationController
   end
 
   def render_new_with_errors
-    @leave_types = LeaveType.where(active: true).order(:name)
+    load_form_options
     respond_to do |format|
       format.html { render :new, status: :unprocessable_entity }
       format.json { render json: { errors: @leave_request.errors.full_messages }, status: :unprocessable_entity }
     end
+  end
+
+  def load_form_options
+    @leave_types = LeaveType.where(active: true).order(:name)
+    @public_holidays = FederalCalendar.find_by(year: Date.current.year)&.public_holidays ||
+      RussianFederalHoliday.fixed_dates_for(Date.current.year)
   end
 end
