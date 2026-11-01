@@ -1,5 +1,7 @@
 module Manager
   class CalendarsController < ApplicationController
+    TYPE_TONES = { "ANNUAL" => 0, "SICK" => 1, "UNPAID" => 2, "BIRTHDAY" => 3 }.freeze
+
     before_action :require_calendar_access
 
     def show
@@ -16,9 +18,11 @@ module Manager
         .group_by(&:employee_id)
       @rows = employees.map { |employee| calendar_row(employee, requests_by_employee.fetch(employee.id, [])) }
       @leave_types = @rows.flat_map { |row| row[:requests].map(&:leave_type) }.uniq.sort_by(&:name)
-      @type_colors = @leave_types.each_with_index.to_h { |leave_type, index| [ leave_type.id, index % 5 ] }
+      @type_colors = type_colors_for(@leave_types)
       @coverage = @dates.index_with { 0 }
       @rows.each { |row| row[:leave_days].each { |date| @coverage[date] += 1 } }
+      @focus_date = @coverage.find { |_, count| count >= 2 }&.first ||
+        @coverage.find { |_, count| count.positive? }&.first
     end
 
     private
@@ -41,6 +45,25 @@ module Manager
       end
       { employee:, requests: requests.sort_by(&:period_start_minute), leave_days:,
         birthday: birthday_in_year(employee) }
+    end
+
+    def type_colors_for(leave_types)
+      colors = {}
+      used = Set.new
+      leave_types.each do |leave_type|
+        tone = TYPE_TONES[leave_type.code.split("_").last]
+        next unless tone && used.add?(tone)
+
+        colors[leave_type.id] = tone
+      end
+      leave_types.each do |leave_type|
+        next if colors.key?(leave_type.id)
+
+        tone = (0..4).find { |index| !used.include?(index) } || colors.size % 5
+        colors[leave_type.id] = tone
+        used.add(tone)
+      end
+      colors
     end
 
     def birthday_in_year(employee)

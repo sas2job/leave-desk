@@ -3,6 +3,7 @@
     <div>
       <p class="eyebrow">Команда</p>
       <h1>Календарь <%= @month ? I18n.l(Date.new(@year, @month, 1), format: "%B %Y") : @year %></h1>
+      <p class="calendar-summary">Сотрудников: <%= @rows.size %> · Дней с пересечениями: <%= @coverage.values.count { |count| count >= 2 } %></p>
     </div>
     <div class="calendar-year-nav">
       <% if @month %>
@@ -48,17 +49,27 @@
     <% end %>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--birthday"></span> День рождения</span>
     <% if @month %>
-      <span class="calendar-legend__item"><span class="calendar-key calendar-key--overlap"></span> Два и более отсутствующих</span>
+      <span class="calendar-legend__item"><span class="calendar-key calendar-key--overlap"></span> Пересечения</span>
+      <% if @focus_date %>
+        <%= link_to(@coverage.fetch(@focus_date) >= 2 ? "К пересечению →" : "К первому отсутствию →",
+          "#team-date-#{@focus_date.iso8601}", class: "calendar-focus-link") %>
+      <% end %>
     <% end %>
   </div>
+  <% unless @month %>
+    <nav class="calendar-month-jump" aria-label="Месяцы года">
+      <% @dates.group_by(&:month).each_value do |dates| %>
+        <%= link_to I18n.l(dates.first, format: "%b"), "#team-year-date-#{dates.first.iso8601}" %>
+      <% end %>
+    </nav>
+  <% end %>
   <% if @month %>
-    <p class="calendar-hint">Прокрутите календарь по горизонтали. Подробности заявки доступны при наведении на полосу и в её доступном описании.</p>
     <div class="team-timeline-wrap" aria-label="Календарь команды за <%= I18n.l(Date.new(@year, @month, 1), format: "%B %Y") %>">
       <div class="team-timeline" style="--days: <%= @dates.size %>; --timeline-width: <%= @dates.size * Manager::CalendarsHelper::DAY_WIDTH %>px">
         <div class="team-timeline__heading">Сотрудник</div>
         <div class="team-timeline__dates">
           <% @dates.each do |date| %>
-            <time datetime="<%= date.iso8601 %>" class="team-timeline__date <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %>" title="<%= format_date(date) %>">
+            <time id="team-date-<%= date.iso8601 %>" datetime="<%= date.iso8601 %>" class="team-timeline__date <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %>" title="<%= format_date(date) %>">
               <strong><%= date.day %></strong><small><%= I18n.l(date, format: "%a") %></small>
             </time>
           <% end %>
@@ -98,7 +109,7 @@
         </tr>
         <tr>
           <% @dates.each do |date| %>
-            <th scope="col" class="<%= "weekend" if @calendar_off_days.include?(date) %>">
+            <th id="team-year-date-<%= date.iso8601 %>" scope="col" class="<%= "weekend" if @calendar_off_days.include?(date) %>">
               <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
             </th>
           <% end %>

@@ -3,6 +3,7 @@
     <div>
       <p class="eyebrow">Личный календарь</p>
       <h1>Мой календарь — <%= @month ? I18n.l(Date.new(@year, @month, 1), format: "%B %Y") : @year %></h1>
+      <p class="calendar-summary">Согласовано: <%= @leave_requests.count(&:approved?) %> · На рассмотрении: <%= @leave_requests.count(&:pending?) %></p>
     </div>
     <div class="calendar-year-nav">
       <% if @month %>
@@ -20,6 +21,10 @@
         <% end %>
         <%= link_to "Весь год", calendar_path(year: @year, month: "all"),
           class: "button button--secondary" %>
+        <% if CalendarWindow::YEARS.cover?(Date.current.year) %>
+          <%= link_to "Сегодня", calendar_path(year: Date.current.year, month: Date.current.month),
+            class: "button button--secondary" %>
+        <% end %>
       <% else %>
         <% if @year > CalendarWindow::FIRST_YEAR %>
           <%= link_to "← #{@year - 1}", calendar_path(year: @year - 1, month: "all"),
@@ -35,12 +40,90 @@
     </div>
   </header>
 
-  <div class="calendar-legend">
+  <div class="calendar-legend" aria-label="Обозначения календаря">
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--leave"></span> Согласовано</span>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--pending"></span> На рассмотрении</span>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--birthday"></span> День рождения</span>
   </div>
 
+  <% unless @month %>
+    <nav class="calendar-month-jump" aria-label="Месяцы года">
+      <% @dates.group_by(&:month).each_value do |dates| %>
+        <%= link_to I18n.l(dates.first, format: "%b"), "#personal-year-date-#{dates.first.iso8601}" %>
+      <% end %>
+    </nav>
+  <% end %>
+  <% if @month %>
+    <div class="personal-month" role="table" aria-label="Мой календарь за <%= I18n.l(Date.new(@year, @month, 1), format: "%B %Y") %>">
+      <div class="personal-month__weekdays" role="row">
+        <% 7.times do |day| %>
+          <span role="columnheader"><%= I18n.l(@weeks.first.first + day, format: "%a") %></span>
+        <% end %>
+      </div>
+      <% @weeks.each do |week| %>
+        <div class="personal-month__week" role="row">
+          <% week.each do |date| %>
+            <% if date.month != @month %>
+              <div class="personal-month__day personal-month__day--outside" role="cell" aria-hidden="true"></div>
+            <% else %>
+              <% day_slots = @leave_requests_by_date[date] || {} %>
+              <% slots = { morning: day_slots.fetch(:morning, []), afternoon: day_slots.fetch(:afternoon, []) } %>
+              <% requests = slots.values.flatten.uniq.sort_by(&:period_start_minute) %>
+              <% labels = [format_date(date)] %>
+              <% slots.each do |part, part_requests| %>
+                <% part_requests.each do |request| %>
+                  <% time_label = "#{request.start_time_label}–#{request.end_time_label}, " if request.precise_time? %>
+                  <% labels << "#{part == :morning ? "Утро" : "После полудня"}: #{request.leave_type.name}, " \
+                    "#{time_label}#{request.approved? ? "Согласовано" : "На рассмотрении"}" %>
+                <% end %>
+              <% end %>
+              <% labels << "День рождения" if @birthday == date %>
+              <div class="personal-month__day <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %> <%= "leave" if requests.any?(&:approved?) %> <%= "leave-pending" if requests.any?(&:pending?) %> <%= "leave-split" if requests.size > 1 %> <%= "birthday" if @birthday == date %>" role="cell" data-date="<%= date.iso8601 %>" title="<%= labels.join(" — ") %>" aria-label="<%= labels.join(" — ") %>">
+                <time class="personal-month__date" datetime="<%= date.iso8601 %>"><%= date.day %></time>
+                <div class="personal-month__events">
+                  <% requests.each do |request| %>
+                    <% part = if slots[:morning].include?(request) && slots[:afternoon].include?(request)
+                      :day
+                    elsif slots[:morning].include?(request)
+                      :morning
+                    else
+                      :afternoon
+                    end %>
+                    <span class="calendar-event <%= request.approved? ? "calendar-event--approved calendar-half--approved" : "calendar-event--pending calendar-half--pending" %> calendar-half calendar-half--<%= part %>" title="<%= request.leave_type.name %>, <%= request.approved? ? "Согласовано" : "На рассмотрении" %>">
+                      <span class="calendar-event__short"><%= request.approved? ? "С" : "Р" %></span>
+                      <span class="calendar-event__name"><%= request.leave_type.name %></span>
+                    </span>
+                  <% end %>
+                  <% if @birthday == date %>
+                    <span class="personal-month__birthday" title="День рождения">ДР</span>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    <section class="calendar-agenda" aria-labelledby="calendar-agenda-title">
+      <div class="calendar-agenda__heading">
+        <h2 id="calendar-agenda-title">Заявки за месяц</h2>
+        <%= link_to "Все заявки →", leave_requests_path %>
+      </div>
+      <% if @leave_requests.any? %>
+        <ul class="calendar-agenda__list">
+          <% @leave_requests.each do |request| %>
+            <li>
+              <span class="calendar-agenda__period"><%= format_date(request.starts_on) %><%= " — #{format_date(request.ends_on)}" if request.ends_on != request.starts_on %><%= ", #{request.start_time_label}–#{request.end_time_label}" if request.precise_time? %></span>
+              <strong><%= request.leave_type.name %></strong>
+              <span class="calendar-agenda__status <%= request.approved? ? "is-approved" : "is-pending" %>"><%= request.approved? ? "Согласовано" : "На рассмотрении" %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="calendar-agenda__empty">За этот месяц заявок нет.</p>
+      <% end %>
+    </section>
+  <% else %>
   <div class="team-calendar-wrap <%= "team-calendar-wrap--month" if @month %>">
     <table class="team-calendar <%= "team-calendar--month" if @month %>">
       <thead>
@@ -52,7 +135,7 @@
         </tr>
         <tr>
           <% @dates.each do |date| %>
-            <th scope="col" class="<%= "weekend" if @calendar_off_days.include?(date) %>">
+            <th id="personal-year-date-<%= date.iso8601 %>" scope="col" class="<%= "weekend" if @calendar_off_days.include?(date) %>">
               <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
             </th>
           <% end %>
@@ -96,4 +179,5 @@
       </tbody>
     </table>
   </div>
+  <% end %>
 </main>

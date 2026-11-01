@@ -26,6 +26,8 @@ module Manager
       assert_select "body", text: /Example User/
       assert_select "td.leave", minimum: 3
       assert_select "td.birthday", text: "ДР"
+      assert_select "nav.calendar-month-jump a[href='#team-year-date-2026-10-01']"
+      assert_select "th#team-year-date-2026-10-01"
     end
 
     test "shows only visible dates for a long approved request" do
@@ -109,9 +111,11 @@ module Manager
       get manager_calendar_path(year: 2026, month: 10)
 
       assert_response :success
-      assert_select ".team-timeline__bar[style*='grid-column: 14 / span 3'][aria-label*='Annual']", count: 1
-      assert_select ".team-timeline__bar[style*='grid-column: 15 / span 3'][aria-label*='Sick leave']", count: 1
+      assert_select ".team-timeline__bar.timeline-color--0[style*='grid-column: 14 / span 3'][aria-label*='Annual']", count: 1
+      assert_select ".team-timeline__bar.timeline-color--1[style*='grid-column: 15 / span 3'][aria-label*='Sick leave']", count: 1
       assert_select ".team-timeline__count.is-overlap", text: "2", count: 2
+      assert_select "a.calendar-focus-link[href='#team-date-2026-10-15']", text: "К пересечению →"
+      assert_select "time#team-date-2026-10-15"
       assert_select ".calendar-legend__item", text: /Annual/
       assert_select ".calendar-legend__item", text: /Sick leave/
     end

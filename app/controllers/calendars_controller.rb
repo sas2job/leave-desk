@@ -3,6 +3,7 @@ class CalendarsController < ApplicationController
     require_string_fields!(params, :year, :month)
     window = CalendarWindow.new(year: params[:year], month: params[:month])
     @year, @month, @dates = window.year, window.month, window.dates
+    @weeks = (@dates.first.beginning_of_week(:monday)..@dates.last.end_of_week(:monday)).each_slice(7).to_a if @month
 
     @calendar_off_days = FederalCalendar.nonworking_dates(@dates)
 

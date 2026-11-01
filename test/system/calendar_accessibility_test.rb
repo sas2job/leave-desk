@@ -25,11 +25,15 @@ class CalendarAccessibilityTest < ActionDispatch::SystemTestCase
     assert_button "Выйти"
     visit calendar_path(year: 2026, month: 10)
 
-    assert_selector "td.leave[aria-label*='Согласовано']", text: "С"
-    assert_selector "td.leave-pending[aria-label*='На рассмотрении']", text: "Р"
-    assert_mobile_calendar_layout
-    assert_operator contrast_ratio("td.leave"), :>=, 4.5
-    assert_operator contrast_ratio("td.leave-pending"), :>=, 4.5
+    assert_selector ".personal-month__day.leave[aria-label*='Согласовано'] .calendar-event__short", text: "С"
+    assert_selector ".personal-month__day.leave-pending[aria-label*='На рассмотрении'] .calendar-event__short", text: "Р"
+    assert_mobile_personal_layout
+    assert_operator contrast_ratio(".calendar-event--approved"), :>=, 4.5
+    assert_operator contrast_ratio(".calendar-event--pending"), :>=, 4.5
+
+    visit calendar_path(year: 2026, month: "all")
+    find("nav.calendar-month-jump a[href='#personal-year-date-2026-10-01']").click
+    assert_operator page.evaluate_script("document.querySelector('.team-calendar-wrap').scrollLeft"), :>, 0
 
     click_button "Выйти"
     fill_in "Электронная почта", with: manager.email_address
@@ -42,24 +46,22 @@ class CalendarAccessibilityTest < ActionDispatch::SystemTestCase
     assert_selector ".team-timeline__birthday[aria-label*='день рождения']", text: "ДР"
     assert_in_delta 5, page.evaluate_script("Array.from(document.querySelectorAll('.team-timeline__bar')).find(bar => bar.getAttribute('aria-label').includes('09:00')).getBoundingClientRect().width"), 1
     assert_mobile_timeline_layout
+    click_link "К первому отсутствию →"
+    assert_operator page.evaluate_script("document.querySelector('.team-timeline-wrap').scrollLeft"), :>, 0
     assert_operator contrast_ratio(".team-timeline__bar"), :>=, 4.5
     assert_operator contrast_ratio(".team-timeline__birthday"), :>=, 4.5
   end
 
   private
 
-  def assert_mobile_calendar_layout
+  def assert_mobile_personal_layout
     [ 320, 375, 390, 768 ].each do |width|
       page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
         width:, height: 844, deviceScaleFactor: 1, mobile: false)
 
       assert_equal width, page.evaluate_script("window.innerWidth")
-      assert_operator calendar_scroll_width, :>, calendar_client_width,
-        "calendar should scroll horizontally at #{width}px"
-      assert_operator calendar_day_width, :>=, 30,
-        "calendar days should remain readable at #{width}px"
-      assert_operator scroll_calendar, :>, 0,
-        "calendar should be horizontally scrollable at #{width}px"
+      assert_operator page.evaluate_script("document.querySelector('.personal-month__day[data-date]').getBoundingClientRect().width"), :>=, 40,
+        "personal calendar days should remain readable at #{width}px"
       assert_operator page.evaluate_script("document.documentElement.scrollWidth"), :<=, width,
         "page should not scroll horizontally at #{width}px"
     end
@@ -80,22 +82,6 @@ class CalendarAccessibilityTest < ActionDispatch::SystemTestCase
     end
   ensure
     page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
-  end
-
-  def calendar_scroll_width
-    page.evaluate_script("document.querySelector('.team-calendar-wrap').scrollWidth")
-  end
-
-  def calendar_client_width
-    page.evaluate_script("document.querySelector('.team-calendar-wrap').clientWidth")
-  end
-
-  def calendar_day_width
-    page.evaluate_script("document.querySelector('.team-calendar--month thead tr:last-child th').getBoundingClientRect().width")
-  end
-
-  def scroll_calendar
-    page.evaluate_script("(() => { const wrapper = document.querySelector('.team-calendar-wrap'); wrapper.scrollLeft = 100; return wrapper.scrollLeft })()")
   end
 
   def contrast_ratio(selector)

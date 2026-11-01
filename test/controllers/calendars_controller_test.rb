@@ -26,14 +26,28 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", text: "Мой календарь — октябрь 2026"
-    assert_select ".team-calendar td.leave", count: 2
-    assert_select ".team-calendar td.leave-pending", count: 2
-    assert_select ".team-calendar td.birthday", text: "ДР"
-    assert_select "tbody th", count: 1
+    assert_select ".personal-month__day.leave", count: 2
+    assert_select ".personal-month__day.leave-pending", count: 2
+    assert_select ".personal-month__day.birthday .personal-month__birthday", text: "ДР"
+    assert_select ".personal-month__day[data-date]", count: 31
+    assert_select ".personal-month[role='table'] .personal-month__week[role='row']", count: 5
+    assert_select ".calendar-agenda__list li", count: 2
+    assert_select ".calendar-summary", text: /Согласовано: 1 · На рассмотрении: 1/
     assert_select "a[href='#{calendar_path}']", text: "Мой календарь"
     assert_select "summary", text: "Календари", count: 0
     assert_no_match(/other@example\.test/, response.body)
-    assert_select ".team-calendar td.leave[title*='20.10.2026']", count: 0
+    assert_select ".personal-month__day.leave[title*='20.10.2026']", count: 0
+  end
+
+  test "empty month keeps the weekly grid and names its empty state" do
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: 10)
+
+    assert_response :success
+    assert_select ".personal-month__day[data-date]", count: 31
+    assert_select ".calendar-agenda__empty", text: "За этот месяц заявок нет."
+    assert_select ".calendar-summary", text: /Согласовано: 0 · На рассмотрении: 0/
   end
 
   test "shows transferred day off and working source weekend" do
@@ -45,8 +59,8 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     get calendar_path(year: 2026, month: 10)
 
     assert_response :success
-    assert_select "thead tr:last-child th:nth-child(10):not(.weekend)"
-    assert_select "thead tr:last-child th:nth-child(12).weekend"
+    assert_select ".personal-month__day[data-date='2026-10-10']:not(.is-off)"
+    assert_select ".personal-month__day[data-date='2026-10-12'].is-off"
   end
 
   test "shows only visible dates for a request spanning the supported range" do
@@ -61,7 +75,7 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select ".team-calendar td.leave", count: 31
+    assert_select ".personal-month__day.leave", count: 31
     assert_operator successor_calls, :<=, 200
   end
 
@@ -78,9 +92,9 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     get calendar_path(year: 2026, month: 10)
 
     assert_response :success
-    assert_select ".team-calendar td.leave-split[title*='20.10.2026']" do
-      assert_select ".calendar-half--morning.calendar-half--approved", text: "С"
-      assert_select ".calendar-half--afternoon.calendar-half--pending", text: "Р"
+    assert_select ".personal-month__day.leave-split[title*='20.10.2026']" do
+      assert_select ".calendar-half--morning.calendar-half--approved .calendar-event__short", text: "С"
+      assert_select ".calendar-half--afternoon.calendar-half--pending .calendar-event__short", text: "Р"
     end
   end
 
@@ -96,7 +110,7 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     get calendar_path(year: 2026, month: 10)
 
     assert_response :success
-    assert_select ".team-calendar td.leave-split[title*='09:00–10:00'][title*='14:00–15:00']" do
+    assert_select ".personal-month__day.leave-split[title*='09:00–10:00'][title*='14:00–15:00']" do
       assert_select ".calendar-half--morning.calendar-half--approved"
       assert_select ".calendar-half--afternoon.calendar-half--pending"
     end
@@ -113,7 +127,7 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     get calendar_path(year: 2026, month: 10)
 
     assert_response :success
-    assert_select ".team-calendar td.leave-split[title*='09:00–10:00'][title*='10:00–11:00']" do
+    assert_select ".personal-month__day.leave-split[title*='09:00–10:00'][title*='10:00–11:00']" do
       assert_select ".calendar-half--morning", count: 2
     end
   end
@@ -131,7 +145,7 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     get calendar_path(year: 2026, month: 10)
 
     assert_response :success
-    assert_select ".team-calendar td.leave-split[title*='20.10.2026']" do
+    assert_select ".personal-month__day.leave-split[title*='20.10.2026']" do
       assert_select ".calendar-half--morning.calendar-half--approved"
       assert_select ".calendar-half--afternoon.calendar-half--pending"
     end
@@ -181,6 +195,16 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     get calendar_path(year: 2025, month: "all")
     assert_response :success
     assert_select "a[href='#{calendar_path(year: 2024, month: "all")}']", count: 0
+  end
+
+  test "year overview has month links" do
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: "all")
+
+    assert_response :success
+    assert_select "nav.calendar-month-jump a[href='#personal-year-date-2026-10-01']"
+    assert_select "th#personal-year-date-2026-10-01"
   end
 
   test "navigation stops at December 2050" do
@@ -243,13 +267,13 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     get calendar_path(year: 2026, month: 10)
 
     assert_response :success
-    assert_select ".team-calendar td.leave-split[title*='20.10.2026']" do |cells|
+    assert_select ".personal-month__day.leave-split[title*='20.10.2026']" do |cells|
       cell = cells.first
       parts = cell.css(".calendar-half").map do |half|
         half["class"][/calendar-half--(morning|afternoon)/, 1]
       end
       assert_equal %w[morning afternoon], parts
-      assert_equal "СР", cell.css(".calendar-half").map(&:text).join
+      assert_equal "СР", cell.css(".calendar-event__short").map(&:text).join
       assert_match(/Утро: Ежегодный отпуск, Согласовано.*После полудня: Больничный, На рассмотрении/,
         cell["aria-label"])
       assert_equal cell["aria-label"], cell["title"]
