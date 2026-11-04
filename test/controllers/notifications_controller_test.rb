@@ -28,8 +28,10 @@ class NotificationsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "employee cannot read manager notification" do
+    notification = @manager.notifications.first
     sign_in_as(@employee)
-    patch notification_path(@manager.notifications.first)
+    patch notification_path(notification)
     assert_response :not_found
+    assert_nil notification.reload.read_at
   end
 end

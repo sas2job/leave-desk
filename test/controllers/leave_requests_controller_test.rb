@@ -382,7 +382,9 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
   test "cannot cancel another user request" do
     leave_request = create_request(@other_employee)
 
-    delete leave_request_path(leave_request)
+    assert_no_difference([ "LeaveRequestEvent.count", "Notification.count" ]) do
+      delete leave_request_path(leave_request)
+    end
 
     assert_response :not_found
     assert_predicate leave_request.reload, :pending?

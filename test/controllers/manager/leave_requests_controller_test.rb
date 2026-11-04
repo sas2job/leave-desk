@@ -187,7 +187,9 @@ module Manager
       leave_request = create_request(@other_employee)
       sign_in_as(@manager)
 
-      patch approve_manager_leave_request_path(leave_request)
+      assert_no_difference([ "LeaveRequestEvent.count", "Notification.count" ]) do
+        patch approve_manager_leave_request_path(leave_request)
+      end
 
       assert_response :not_found
       assert_predicate leave_request.reload, :pending?

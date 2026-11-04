@@ -73,6 +73,7 @@ class HistoryPaginationTest < ActionDispatch::IntegrationTest
     patch mark_all_read_notifications_path
     assert_redirected_to notifications_path
     assert_equal 0, @manager.notifications.unread.count
+    assert_nil @other_manager.notifications.first.reload.read_at
   end
 
   test "rejects malformed cursors on every history page" do
