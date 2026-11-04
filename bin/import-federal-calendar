@@ -1,14 +1,34 @@
 #!/usr/bin/env ruby
-require_relative "../config/environment"
-
-replace = ARGV.delete("--replace")
-abort "Использование: bin/import-federal-calendar [--replace] ПУТЬ_К_JSON" unless ARGV.one?
+arguments = ARGV.dup
+replace = arguments.delete("--replace")
+unless ARGV.count("--replace") <= 1 && arguments.one? && !arguments.first.start_with?("-")
+  warn "Использование: bin/import-federal-calendar [--replace] ПУТЬ_К_JSON. " \
+    "Пример: bin/import-federal-calendar --replace ./calendar.json"
+  exit 2
+end
 
 begin
-  File.open(ARGV.first, "rb") do |file|
-    calendar = FederalCalendarImporter.call(file, replace: !!replace)
-    puts "Федеральный календарь на #{calendar.year} год импортирован."
-  end
-rescue Errno::ENOENT, Errno::EACCES, FederalCalendarImporter::InvalidFile => error
-  abort "Импорт не выполнен: #{error.message}"
+  file = File.open(arguments.first, File::RDONLY | File::NONBLOCK)
+rescue SystemCallError
+  warn "Импорт не выполнен: не удалось прочитать выбранный файл JSON. " \
+    "Пример: bin/import-federal-calendar ./calendar.json"
+  exit 2
+end
+
+unless file.stat.file?
+  file.close
+  warn "Импорт не выполнен: ожидается обычный файл JSON. " \
+    "Пример: bin/import-federal-calendar ./calendar.json"
+  exit 2
+end
+
+require_relative "../config/environment"
+begin
+  calendar = FederalCalendarImporter.call(file, replace: !!replace)
+  puts "Федеральный календарь на #{calendar.year} год импортирован."
+rescue FederalCalendarImporter::InvalidFile => error
+  warn "Импорт не выполнен: #{error.message}"
+  exit 2
+ensure
+  file&.close
 end

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-archive="${1:-}"
-if [[ -z "$archive" || ! -f "$archive" ]]; then
+if [[ $# -ne 1 || -z "$1" || ! -f "$1" ]]; then
   echo "Usage: RESTORE_DATABASE_URL=... ALLOW_DATABASE_RESTORE=yes bin/restore PATH_TO_DUMP" >&2
-  exit 1
+  exit 2
 fi
+archive=$1
 if [[ -z "${RESTORE_DATABASE_URL:-}" ]]; then
   echo "RESTORE_DATABASE_URL is required" >&2
   exit 1
@@ -28,8 +28,8 @@ done
 
 checksum="$archive.sha256"
 if [[ ! -f "$checksum" ]]; then
-  echo "Checksum file is missing: $checksum" >&2
-  exit 1
+  echo "Checksum file is missing for the selected archive" >&2
+  exit 2
 fi
 archive_directory="$(dirname "$archive")"
 archive_name="$(basename "$archive")"
@@ -38,11 +38,11 @@ if [[ "${#checksum_entries[@]}" -ne 1 ||
       ! "${checksum_entries[0]}" =~ ^([[:xdigit:]]{64})[[:space:]][[:space:]](.+)$ ||
       "${BASH_REMATCH[2]}" != "$archive_name" ]]; then
   echo "Checksum file must contain one entry for the selected archive" >&2
-  exit 1
+  exit 2
 fi
 if ! (cd "$archive_directory" && sha256sum --check --status -- "$archive_name.sha256"); then
   echo "Archive checksum does not match" >&2
-  exit 1
+  exit 2
 fi
 
 pg_restore --exit-on-error --single-transaction --no-owner --no-privileges \

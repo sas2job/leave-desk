@@ -28,6 +28,17 @@ class RestoreScriptTest < ActiveSupport::TestCase
     end
   end
 
+  test "rejects an extra argument before pg_restore" do
+    with_restore_environment do |directory, environment, calls|
+      archive = create_archive(directory, "leave-desk.dump", "valid archive")
+      _output, error, status = run_restore(environment, archive, "unexpected")
+
+      assert_equal 2, status.exitstatus
+      assert_includes error, "PATH_TO_DUMP"
+      assert_not File.exist?(calls)
+    end
+  end
+
   test "rejects a renamed pair while the original archive still exists" do
     with_restore_environment do |directory, environment, calls|
       original = create_archive(directory, "leave-desk.dump", "valid archive")
@@ -113,7 +124,7 @@ class RestoreScriptTest < ActiveSupport::TestCase
     archive
   end
 
-  def run_restore(environment, archive)
-    Open3.capture3(environment, Rails.root.join("bin/restore").to_s, archive)
+  def run_restore(environment, archive, *extra_arguments)
+    Open3.capture3(environment, Rails.root.join("bin/restore").to_s, archive, *extra_arguments)
   end
 end
