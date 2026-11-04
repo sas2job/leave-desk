@@ -9,10 +9,29 @@ class RestoreScriptTest < ActiveSupport::TestCase
     with_restore_environment do |directory, environment, calls|
       archive = create_archive(directory, "leave-desk.dump", "valid archive")
 
-      output, error, status = run_restore(environment, archive)
+      output, error, status = run_restore(environment.merge("DATABASE_URL" => "postgres://localhost/forbidden"), archive)
 
       assert status.success?, "#{output}\n#{error}"
-      assert_equal "called\n", File.read(calls)
+      arguments = File.readlines(calls, chomp: true)
+      assert_equal archive, arguments.last
+      assert_equal [ "--dbname=postgres://localhost/isolated" ], arguments.grep(/\A--dbname=/)
+      %w[--exit-on-error --single-transaction --no-owner --no-privileges].each do |option|
+        assert_includes arguments, option
+      end
+      assert_equal 6, arguments.length
+    end
+  end
+
+  test "requires an explicit isolated database and restore confirmation before pg_restore" do
+    with_restore_environment do |directory, environment, calls|
+      archive = create_archive(directory, "leave-desk.dump", "valid archive")
+      [ { "RESTORE_DATABASE_URL" => nil }, { "ALLOW_DATABASE_RESTORE" => nil },
+        { "ALLOW_DATABASE_RESTORE" => "no" } ].each do |invalid_settings|
+        _output, _error, status = run_restore(environment.merge(invalid_settings), archive)
+
+        assert_not status.success?, invalid_settings.keys.first
+        assert_not File.exist?(calls)
+      end
     end
   end
 
@@ -106,7 +125,7 @@ class RestoreScriptTest < ActiveSupport::TestCase
       executable_directory = File.join(directory, "bin")
       FileUtils.mkdir_p(executable_directory)
       restore = File.join(executable_directory, "pg_restore")
-      File.write(restore, "#!/bin/sh\nprintf 'called\\n' >> \"$RESTORE_CALLS\"\n")
+      File.write(restore, "#!/bin/sh\nprintf '%s\\n' \"$@\" >> \"$RESTORE_CALLS\"\n")
       FileUtils.chmod(0o700, restore)
       calls = File.join(directory, "restore-calls")
       environment = { "PATH" => "#{executable_directory}:#{ENV.fetch('PATH')}",
