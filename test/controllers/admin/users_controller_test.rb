@@ -234,10 +234,7 @@ module Admin
     test "administrator selects employee city and time zone follows it" do
       sign_in_as(@administrator)
 
-      patch admin_user_path(@employee), params: { user: {
-        city: "Братск", time_zone: "Europe/Moscow"
-      } }
-
+      patch admin_user_path(@employee), params: { user: { city: "Братск" } }
       assert_response :redirect
       assert_equal "Братск", @employee.reload.city
       assert_equal "Asia/Irkutsk", @employee.time_zone
