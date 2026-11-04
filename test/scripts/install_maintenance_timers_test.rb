@@ -36,15 +36,29 @@ class InstallMaintenanceTimersTest < ActiveSupport::TestCase
     end
   end
 
-  test "fails before cache trial if backup timer is inactive" do
-    with_fake_systemd do |script, _unit_directory, environment|
-      output, _error, status = Open3.capture3(
-        environment.merge("FAIL_BACKUP_TIMER" => "yes"), "sh", script
-      )
+  test "fails before cache trial if any timer is inactive" do
+    %w[backup cache-cleanup regional-holiday-notifications].each do |name|
+      with_fake_systemd do |script, _unit_directory, environment|
+        timer = "leave-desk-#{name}.timer"
+        output, _error, status = Open3.capture3(environment.merge("FAIL_TIMER" => timer), "sh", script)
 
-      assert_not status.success?, output
-      actions = File.readlines(environment.fetch("SYSTEMCTL_LOG"), chomp: true)
-      assert_not_includes actions, "start leave-desk-cache-cleanup.service"
+        assert_not status.success?, "#{timer}: #{output}"
+        actions = File.readlines(environment.fetch("SYSTEMCTL_LOG"), chomp: true)
+        assert_includes actions, "is-active --quiet #{timer}"
+        assert_not_includes actions, "start leave-desk-cache-cleanup.service"
+      end
+    end
+  end
+
+  test "rejects arguments before installing units or calling systemctl" do
+    with_fake_systemd do |script, unit_directory, environment|
+      output, error, status = Open3.capture3(environment, "sh", script, "--unexpected")
+
+      assert_equal 64, status.exitstatus, output
+      assert_empty output
+      assert_includes error, "Usage: install-maintenance-timers.sh"
+      assert_empty Dir.children(unit_directory)
+      assert_not File.exist?(environment.fetch("SYSTEMCTL_LOG"))
     end
   end
 
@@ -80,7 +94,7 @@ class InstallMaintenanceTimersTest < ActiveSupport::TestCase
         if [ "$1" = start ] && [ "${FAIL_TRIAL:-}" = yes ]; then
           exit 71
         fi
-        if [ "$1" = is-active ] && [ "$3" = leave-desk-backup.timer ] && [ "${FAIL_BACKUP_TIMER:-}" = yes ]; then
+        if [ "$1" = is-active ] && [ "$3" = "${FAIL_TIMER:-}" ]; then
           exit 72
         fi
         if [ "$1" = show ]; then
