@@ -19,6 +19,33 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(@employee)
   end
 
+  test "missing dates return validation errors without creating a request" do
+    %i[starts_on ends_on].each do |missing_date|
+      attributes = {
+        leave_type_id: @leave_type.id,
+        starts_on: "2026-11-10",
+        ends_on: "2026-11-12"
+      }.except(missing_date)
+
+      assert_no_difference("LeaveRequest.count") do
+        post leave_requests_path, params: { leave_request: attributes }, as: :json
+      end
+      assert_response :unprocessable_entity
+      assert response.parsed_body.fetch("errors").any?
+    end
+  end
+
+  test "unknown request fields are rejected without creating a request" do
+    assert_no_difference("LeaveRequest.count") do
+      post leave_requests_path, params: { leave_request: {
+        leave_type_id: @leave_type.id, starts_on: "2026-11-10", ends_on: "2026-11-12",
+        unknown_field: "private-canary"
+      } }, as: :json
+    end
+    assert_response :bad_request
+    assert_no_match(/private-canary/, response.body)
+  end
+
   test "form accepts 2000 Unicode comment characters and rejects one more" do
     comment = "🌿" * LeaveRequest::COMMENT_MAX_LENGTH
     assert_difference("LeaveRequest.count", 1) do
@@ -231,7 +258,6 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_difference("@employee.leave_requests.count", 1) do
       post leave_requests_path, params: {
         leave_request: {
-          employee_id: @other_employee.id,
           leave_type_id: @leave_type.id,
           starts_on: "2026-11-10",
           ends_on: "2026-11-12",
@@ -242,6 +268,16 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to leave_requests_path
     assert_equal @employee, LeaveRequest.order(:id).last.employee
+  end
+
+  test "cannot submit an employee identifier with a leave request" do
+    assert_no_difference("LeaveRequest.count") do
+      post leave_requests_path, params: { leave_request: {
+        employee_id: @other_employee.id, leave_type_id: @leave_type.id,
+        starts_on: "2026-11-10", ends_on: "2026-11-12"
+      } }
+    end
+    assert_response :bad_request
   end
 
   test "rejects non-finite dates without a server error" do

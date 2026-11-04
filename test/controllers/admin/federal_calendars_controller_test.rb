@@ -108,6 +108,33 @@ module Admin
       assert_equal "НПА", FederalCalendar.last.legal_basis
     end
 
+    test "invalid replace flag is rejected before importing a calendar" do
+      sign_in_as(@administrator)
+      Tempfile.create([ "federal-calendar", ".json" ]) do |file|
+        file.write({ year: 2026, legal_basis: "НПА", public_holidays: [], transfers: [] }.to_json)
+        file.flush
+
+        assert_no_difference("FederalCalendar.count") do
+          post import_admin_federal_calendars_path, params: {
+            replace: "invalid",
+            calendar_file: Rack::Test::UploadedFile.new(file.path, "application/json")
+          }
+        end
+      end
+      assert_response :bad_request
+    end
+
+    test "unknown calendar fields are rejected before creation" do
+      sign_in_as(@administrator)
+      assert_no_difference("FederalCalendar.count") do
+        post admin_federal_calendars_path, params: {
+          federal_calendar: calendar_attributes.merge(unknown_field: "private-canary")
+        }, as: :json
+      end
+      assert_response :bad_request
+      assert_no_match(/private-canary/, response.body)
+    end
+
     test "employee cannot import a calendar" do
       sign_in_as(@employee)
       post import_admin_federal_calendars_path

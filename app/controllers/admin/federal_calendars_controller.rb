@@ -8,6 +8,11 @@ module Admin
     end
 
     def import
+      unless [ nil, "0", "1" ].include?(params[:replace])
+        raise ActionController::BadRequest,
+          "Invalid replace flag; expected 0 or 1. Example: replace=1 with calendar_file=<JSON file>"
+      end
+
       upload = params[:calendar_file]
       unless upload.is_a?(ActionDispatch::Http::UploadedFile)
         raise FederalCalendarImporter::InvalidFile, "Выберите файл JSON"
@@ -61,6 +66,9 @@ module Admin
     def calendar_params(include_year:)
       fields = %i[legal_basis public_holidays_input transfers_input]
       fields.unshift(:year) if include_year
+      require_known_fields!(params[:federal_calendar], *fields, container: "federal_calendar",
+        example: '{"federal_calendar":{"year":"2026","legal_basis":"НПА",' \
+          '"public_holidays_input":"2026-01-01","transfers_input":""}}')
       require_string_fields!(params.expect(federal_calendar: fields), *fields)
     end
   end

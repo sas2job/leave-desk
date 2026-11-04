@@ -43,7 +43,11 @@ module Admin
     end
 
     def leave_type_params
-      require_string_fields!(params.expect(leave_type: %i[name code holiday_handling active]),
+      fields = %i[name code holiday_handling active]
+      require_known_fields!(params[:leave_type], *fields, container: "leave_type",
+        example: '{"leave_type":{"name":"Учебный","code":"STUDY",' \
+          '"holiday_handling":"include_public_holidays","active":true}}')
+      require_string_fields!(params.expect(leave_type: fields),
         :name, :code, :holiday_handling)
     end
   end

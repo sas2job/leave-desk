@@ -45,10 +45,15 @@ class LeaveRequestsController < ApplicationController
   end
 
   def leave_request_params
-    attributes = params.expect(leave_request: %i[leave_type_id starts_on ends_on start_time end_time full_day employee_comment])
-    if params[:leave_request].key?(:start_part) || params[:leave_request].key?(:end_part)
+    fields = %i[leave_type_id starts_on ends_on start_time end_time full_day employee_comment]
+    raw = params[:leave_request]
+    if raw.is_a?(ActionController::Parameters) && (raw.key?(:start_part) || raw.key?(:end_part))
       raise ActionController::BadRequest, "Use exact start and end times"
     end
+    require_known_fields!(raw, *fields, container: "leave_request",
+      example: '{"leave_request":{"leave_type_id":"1","starts_on":"2026-11-10",' \
+        '"ends_on":"2026-11-12"}}')
+    attributes = params.expect(leave_request: fields)
     full_day = attributes.delete(:full_day)
     raise ActionController::BadRequest, "Invalid full day value" unless [ nil, "0", "1" ].include?(full_day)
 
@@ -68,7 +73,7 @@ class LeaveRequestsController < ApplicationController
     @date_inputs = attributes.slice(:starts_on, :ends_on)
     %i[starts_on ends_on].each do |field|
       value = attributes[field]
-      next unless value.match?(/\A\d{2}\.\d{2}\.\d{4}\z/)
+      next unless value&.match?(/\A\d{2}\.\d{2}\.\d{4}\z/)
 
       attributes[field] = Date.strptime(value, "%d.%m.%Y").iso8601
     rescue Date::Error

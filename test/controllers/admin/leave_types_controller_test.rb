@@ -151,6 +151,18 @@ module Admin
       assert_select ".error-summary li", text: "Активность: должна быть указана как да или нет"
     end
 
+    test "unknown leave type fields are rejected before creation" do
+      sign_in_as(@administrator)
+      assert_no_difference("LeaveType.count") do
+        post admin_leave_types_path, params: { leave_type: {
+          name: "Study leave", code: "TEST_STUDY", holiday_handling: "include_public_holidays",
+          active: true, unknown_field: "private-canary"
+        } }, as: :json
+      end
+      assert_response :bad_request
+      assert_no_match(/private-canary/, response.body)
+    end
+
     private
 
     def birthday_leave_type

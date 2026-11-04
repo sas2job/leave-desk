@@ -9,6 +9,14 @@ class ApplicationController < ActionController::Base
 
   private
 
+  def require_known_fields!(values, *fields, container:, example:)
+    return unless values.is_a?(ActionController::Parameters)
+    return if (values.keys - fields.map(&:to_s)).empty?
+
+    raise ActionController::BadRequest,
+      "Unknown field in #{container}; expected #{fields.join(', ')}. Example: #{example}"
+  end
+
   def require_string_fields!(values, *fields)
     fields.each do |field|
       next unless values.key?(field)
