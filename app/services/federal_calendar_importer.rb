@@ -7,6 +7,8 @@ class FederalCalendarImporter
   FIELDS = %w[year legal_basis public_holidays transfers].freeze
 
   def self.call(io, replace: false)
+    raise ArgumentError, "replace must be true or false" unless [ true, false ].include?(replace)
+
     content = io.read(MAX_BYTES + 1).to_s
     raise InvalidFile, "Файл календаря превышает 64 КиБ" if content.bytesize > MAX_BYTES
 

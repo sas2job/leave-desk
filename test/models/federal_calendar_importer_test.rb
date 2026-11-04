@@ -29,6 +29,18 @@ class FederalCalendarImporterTest < ActiveSupport::TestCase
     assert_equal "НПА", calendar.legal_basis
   end
 
+  test "rejects a nonboolean replace option before reading the file" do
+    input = StringIO.new(calendar_json)
+
+    error = assert_raises(ArgumentError) do
+      FederalCalendarImporter.call(input, replace: "0")
+    end
+
+    assert_equal "replace must be true or false", error.message
+    assert_equal 0, input.pos
+    assert_not FederalCalendar.exists?(year: 2026)
+  end
+
   test "rejects oversized JSON collections before date normalization" do
     data = JSON.parse(calendar_json)
     data["public_holidays"] = [ "2026-01-01" ] * 367
