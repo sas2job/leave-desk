@@ -79,7 +79,8 @@ class BackupScriptTest < ActiveSupport::TestCase
     with_backup_environment do |directory, environment|
       destination = File.join(directory, "new", "backups")
 
-      _output, error, status = run_backup(environment.merge("BACKUP_DIRECTORY" => destination, "DUMP_PAYLOAD" => "new"))
+      _output, error, status = run_backup(environment.merge("BACKUP_DIRECTORY" => destination,
+        "DATABASE_URL" => "postgresql:///isolated", "DUMP_PAYLOAD" => "new"))
 
       assert status.success?, error
       assert_equal 0o700, File.stat(destination).mode & 0o7777
@@ -133,6 +134,21 @@ class BackupScriptTest < ActiveSupport::TestCase
       assert_not status.success?
       assert_includes error, "requires Bash 4 or newer"
       assert_not File.exist?(destination)
+    end
+  end
+
+  test "rejects a malformed database URL before creating a backup directory" do
+    with_backup_environment do |directory, environment|
+      destination = File.join(directory, "not-created")
+      [ "--help", "postgres://localhost/", "postgres://localhost/isolated private-canary" ].each do |url|
+        _output, error, status = run_backup(environment.merge("DATABASE_URL" => url,
+          "BACKUP_DIRECTORY" => destination))
+
+        assert_equal 2, status.exitstatus
+        assert_includes error, "DATABASE_URL must"
+        assert_not_includes error, "private-canary"
+        assert_not File.exist?(destination)
+      end
     end
   end
 

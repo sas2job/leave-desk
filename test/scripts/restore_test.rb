@@ -9,16 +9,30 @@ class RestoreScriptTest < ActiveSupport::TestCase
     with_restore_environment do |directory, environment, calls|
       archive = create_archive(directory, "leave-desk.dump", "valid archive")
 
-      output, error, status = run_restore(environment.merge("DATABASE_URL" => "postgres://localhost/forbidden"), archive)
+      output, error, status = run_restore(environment.merge("DATABASE_URL" => "postgres://localhost/forbidden",
+        "RESTORE_DATABASE_URL" => "postgresql:///isolated"), archive)
 
       assert status.success?, "#{output}\n#{error}"
       arguments = File.readlines(calls, chomp: true)
       assert_equal archive, arguments.last
-      assert_equal [ "--dbname=postgres://localhost/isolated" ], arguments.grep(/\A--dbname=/)
+      assert_equal "--", arguments[-2]
+      assert_equal [ "--dbname=postgresql:///isolated" ], arguments.grep(/\A--dbname=/)
       %w[--exit-on-error --single-transaction --no-owner --no-privileges].each do |option|
         assert_includes arguments, option
       end
-      assert_equal 6, arguments.length
+      assert_equal 7, arguments.length
+    end
+  end
+
+  test "treats a leading dash archive name as a file" do
+    with_restore_environment do |directory, environment, calls|
+      create_archive(directory, "--clean", "valid archive")
+
+      output, error, status = Open3.capture3(environment, Rails.root.join("bin/restore").to_s,
+        "--clean", chdir: directory)
+
+      assert status.success?, "#{output}\n#{error}"
+      assert_equal [ "--", "--clean" ], File.readlines(calls, chomp: true).last(2)
     end
   end
 
@@ -30,6 +44,21 @@ class RestoreScriptTest < ActiveSupport::TestCase
         _output, _error, status = run_restore(environment.merge(invalid_settings), archive)
 
         assert_not status.success?, invalid_settings.keys.first
+        assert_not File.exist?(calls)
+      end
+    end
+  end
+
+  test "rejects a malformed restore database URL before pg_restore" do
+    with_restore_environment do |directory, environment, calls|
+      archive = create_archive(directory, "leave-desk.dump", "valid archive")
+
+      [ "--help", "postgres://localhost/", "postgres://localhost/isolated private-canary" ].each do |url|
+        _output, error, status = run_restore(environment.merge("RESTORE_DATABASE_URL" => url), archive)
+
+        assert_equal 2, status.exitstatus
+        assert_includes error, "RESTORE_DATABASE_URL must"
+        assert_not_includes error, "private-canary"
         assert_not File.exist?(calls)
       end
     end
@@ -80,6 +109,19 @@ class RestoreScriptTest < ActiveSupport::TestCase
       _output, _error, status = run_restore(environment, archive)
 
       assert_not status.success?
+      assert_not File.exist?(calls)
+    end
+  end
+
+  test "rejects an oversized checksum sidecar before reading it" do
+    with_restore_environment do |directory, environment, calls|
+      archive = create_archive(directory, "leave-desk.dump", "valid archive")
+      File.binwrite("#{archive}.sha256", "x" * 1_024)
+
+      _output, error, status = run_restore(environment, archive)
+
+      assert_equal 2, status.exitstatus
+      assert_includes error, "Checksum file exceeds 512 bytes"
       assert_not File.exist?(calls)
     end
   end
