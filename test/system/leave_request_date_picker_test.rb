@@ -38,7 +38,14 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
     travel_to Date.new(2026, 10, 28) do
       employee = User.create!(name: "Test Employee", email_address: "employee@example.test",
         password: "test-password")
-      LeaveType.find_by!(code: "ANNUAL")
+      LeaveType.find_or_create_by!(code: "ANNUAL") do |leave_type|
+        leave_type.name = "Ежегодный отпуск"
+        leave_type.holiday_handling = :exclude_public_holidays
+      end
+      FederalCalendar.find_or_create_by!(year: 2026) do |calendar|
+        calendar.legal_basis = "Test federal calendar"
+        calendar.public_holidays = RussianFederalHoliday.fixed_dates_for(2026)
+      end
 
       visit new_session_path
       fill_in "Электронная почта", with: employee.email_address
