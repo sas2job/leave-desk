@@ -14,6 +14,8 @@ class RegionalHolidayNotifierTest < ActiveSupport::TestCase
 
   test "notifies only active employees in the matching region on the preceding morning" do
     morning = Time.find_zone!("Europe/Moscow").local(2026, 11, 5, 9, 5)
+    inactive_employee = User.create!(name: "Inactive Employee", email_address: "holiday-inactive@example.test",
+      password: "test-password", city: "Казань", region: @region, active: false)
 
     assert_difference("Notification.count", 1) { RegionalHolidayNotifier.deliver_due!(at: morning) }
     notification = @tatarstan_employee.notifications.last
@@ -21,6 +23,7 @@ class RegionalHolidayNotifierTest < ActiveSupport::TestCase
     assert_equal @region, notification.region
     assert_equal Date.new(2026, 11, 6), notification.holiday_on
     assert_empty @other_employee.notifications
+    assert_empty inactive_employee.notifications
     assert_no_difference("Notification.count") { RegionalHolidayNotifier.deliver_due!(at: morning + 1.hour) }
   end
 
