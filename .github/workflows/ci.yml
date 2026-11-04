@@ -90,5 +90,5 @@ jobs:
       - name: Run tests with seeded reference data
         run: |
           bin/rails db:seed
-          PARALLEL_WORKERS=1 bin/rails test
+          PARALLEL_WORKERS=1 bin/rails test test/scripts/seeds_test.rb test/models/federal_calendar_seed_test.rb test/models/regional_calendar_seed_test.rb
           PARALLEL_WORKERS=1 bin/rails test:system

@@ -9,7 +9,8 @@ CI.run do
   step "Security: Brakeman code analysis", "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error"
   step "Tests: Rails", "bin/rails test"
   step "Tests: Seed reference data", "env", "RAILS_ENV=test", "bin/rails", "db:seed"
-  step "Tests: Rails with reference data", "env", "PARALLEL_WORKERS=1", "bin/rails", "test"
+  step "Tests: Seeds with reference data", "env", "PARALLEL_WORKERS=1", "bin/rails", "test",
+    "test/scripts/seeds_test.rb", "test/models/federal_calendar_seed_test.rb", "test/models/regional_calendar_seed_test.rb"
   step "Tests: System", "env", "PARALLEL_WORKERS=1", "bin/rails", "test:system"
 
   # Optional: set a green GitHub commit status to unblock PR merge.
