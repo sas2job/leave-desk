@@ -1,4 +1,8 @@
 #!/usr/bin/env ruby
+unless ARGV.empty?
+  warn "Usage: bin/ci (no arguments)"
+  exit 2
+end
 require_relative "../config/boot"
 require "active_support/continuous_integration"
 

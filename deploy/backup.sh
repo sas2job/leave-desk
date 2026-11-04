@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if (( $# != 0 )); then
+  echo "Usage: backup.sh (no arguments)" >&2
+  exit 64
+fi
+
 umask 077
 backup_directory=/var/backups/leave-desk
 minimum_free_bytes=$((2 * 1024 * 1024 * 1024))

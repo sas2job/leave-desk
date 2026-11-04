@@ -1,5 +1,10 @@
 #!/usr/bin/env ruby
 
+unless ARGV.empty?
+  warn "Usage: bin/first-administrator (no arguments)"
+  exit 2
+end
+
 require_relative "../config/environment"
 require_relative "../lib/first_administrator"
 require "io/console"

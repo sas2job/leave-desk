@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+if [ "$#" -ne 0 ]; then
+  echo "Usage: apply-caddy.sh (no arguments)" >&2
+  exit 64
+fi
+
 release_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 deployment_root=${LEAVE_DESK_DEPLOYMENT_ROOT:-$(dirname -- "$(dirname -- "$release_directory")")}
 candidate="$release_directory/Caddyfile"

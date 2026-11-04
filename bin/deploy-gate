@@ -1,5 +1,10 @@
 #!/usr/bin/env ruby
 
+unless ARGV.empty?
+  warn "Usage: bin/deploy-gate (no arguments)"
+  exit 2
+end
+
 require "json"
 
 event_name = ENV.fetch("GITHUB_EVENT_NAME")

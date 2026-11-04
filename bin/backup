@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if (( $# != 0 )); then
+  echo "Usage: bin/backup (set DATABASE_URL and BACKUP_DIRECTORY)" >&2
+  exit 2
+fi
+
 if [[ -z "${DATABASE_URL:-}" ]]; then
   echo "DATABASE_URL is required" >&2
   exit 1

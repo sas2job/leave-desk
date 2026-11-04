@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+if [ "$#" -ne 0 ]; then
+  echo "Usage: verify-container-logging.sh (no arguments)" >&2
+  exit 64
+fi
+
 release_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 
 for service in caddy db web; do

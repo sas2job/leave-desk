@@ -1,6 +1,11 @@
 #!/usr/bin/env ruby
 require "fileutils"
 
+unless (ARGV - %w[--reset --skip-server]).empty? && ARGV.uniq == ARGV
+  warn "Usage: bin/setup [--reset] [--skip-server]"
+  exit 2
+end
+
 APP_ROOT = File.expand_path("..", __dir__)
 
 def system!(*args)

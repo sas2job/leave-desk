@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if (( $# != 0 )); then
+  echo "Usage: audit-pre-reset-backup.sh (no arguments)" >&2
+  exit 64
+fi
+
 : "${DEPLOY_HOST:?}"
 : "${DEPLOY_PORT:?}"
 : "${DEPLOY_USER:?}"

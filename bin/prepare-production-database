@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if (( $# != 0 )); then
+  echo "Usage: bin/prepare-production-database (no arguments)" >&2
+  exit 2
+fi
+
 if [[ "${RAILS_ENV:-}" != "production" ]]; then
   echo "This command is only for production" >&2
   exit 1

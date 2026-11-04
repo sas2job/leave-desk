@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if (( $# != 0 )); then
+  echo "Usage: check-pre-reset-backup.sh (no arguments)" >&2
+  exit 64
+fi
+
 backup_directory=${LEAVE_DESK_BACKUP_DIRECTORY:-/var/backups/leave-desk}
 reset_cutoff=20261020T091700Z
 latest=

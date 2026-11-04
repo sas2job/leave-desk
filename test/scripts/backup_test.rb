@@ -127,7 +127,8 @@ class BackupScriptTest < ActiveSupport::TestCase
       script = Rails.root.join("bin/backup").to_s
 
       _output, error, status = Open3.capture3(environment.merge("BACKUP_DIRECTORY" => destination),
-                                              "bash", "-c", 'enable -n mapfile; source "$1"', "bash", script)
+                                              "bash", "-c", 'script=$1; shift; enable -n mapfile; source "$script"',
+                                              "bash", script)
 
       assert_not status.success?
       assert_includes error, "requires Bash 4 or newer"

@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+if [ "$#" -ne 0 ]; then
+  echo "Usage: install-maintenance-timers.sh (no arguments)" >&2
+  exit 64
+fi
+
 release_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 unit_directory=${LEAVE_DESK_SYSTEMD_DIRECTORY:-/etc/systemd/system}
 backup_service=leave-desk-backup.service
