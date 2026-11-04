@@ -129,12 +129,23 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
   test "reviewed request cannot be reviewed again" do
     request = create_request
-    request.reject!(by: @manager)
+    request.reject!(by: @manager, comment: "Unavailable")
+    request.reload
+    assert_equal @manager, request.reviewer
+    assert_not_nil request.reviewed_at
+    assert_equal "Unavailable", request.review_comment
+    rejection = request.events.rejected.sole
+    assert_equal @manager, rejection.actor
+    assert_equal "Unavailable", rejection.comment
 
-    assert_raises(LeaveRequest::InvalidTransition) do
-      request.approve!(by: @manager)
+    assert_no_difference([ "LeaveRequestEvent.count", "Notification.count" ]) do
+      assert_raises(LeaveRequest::InvalidTransition) do
+        request.approve!(by: @manager)
+      end
     end
     assert_predicate request.reload, :rejected?
+    assert_equal @manager, request.reviewer
+    assert_equal "Unavailable", request.review_comment
   end
 
   test "approved request can be cancelled" do
@@ -143,7 +154,10 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
     request.cancel!
 
-    assert_predicate request, :cancelled?
+    assert_predicate request.reload, :cancelled?
+    cancellation = request.events.cancelled.sole
+    assert_equal @employee, cancellation.actor
+    assert_equal LeaveRequest.statuses.fetch("approved"), cancellation.from_status
   end
 
   test "active requests cannot overlap including period boundaries" do

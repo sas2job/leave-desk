@@ -8,7 +8,9 @@ class LeaveRequestEventTest < ActiveSupport::TestCase
     event = request.events.first
 
     assert_not event.update(comment: "changed")
+    assert_nil event.reload.comment
     assert_not event.destroy
+    assert_predicate event.reload, :persisted?
   end
 
   test "event comment cannot exceed request comment limit" do
