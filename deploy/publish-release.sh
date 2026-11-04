@@ -76,6 +76,8 @@ leave-desk-backup.service
 leave-desk-backup.timer
 leave-desk-cache-cleanup.service
 leave-desk-cache-cleanup.timer
+leave-desk-regional-holiday-notifications.service
+leave-desk-regional-holiday-notifications.timer
 leave-desk-session-prune.service
 leave-desk-session-prune.timer
 publish-release.sh

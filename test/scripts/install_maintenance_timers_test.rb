@@ -10,17 +10,18 @@ class InstallMaintenanceTimersTest < ActiveSupport::TestCase
       output, error, status = Open3.capture3(environment, "sh", script)
 
       assert status.success?, error
-      %w[backup cache-cleanup].product(%w[service timer]).each do |name, extension|
+      %w[backup cache-cleanup regional-holiday-notifications].product(%w[service timer]).each do |name, extension|
         unit = "leave-desk-#{name}.#{extension}"
         assert_equal Rails.root.join("deploy", unit).read,
           File.read(File.join(unit_directory, unit))
       end
-      assert_includes output, "Backup and cache cleanup timers active"
+      assert_includes output, "regional holiday notification timers active"
       actions = File.readlines(environment.fetch("SYSTEMCTL_LOG"), chomp: true)
       assert_operator actions.index("daemon-reload"), :<,
         actions.index("start leave-desk-cache-cleanup.service")
       assert_includes actions, "enable --now leave-desk-backup.timer"
       assert_includes actions, "enable --now leave-desk-cache-cleanup.timer"
+      assert_includes actions, "enable --now leave-desk-regional-holiday-notifications.timer"
     end
   end
 
@@ -69,7 +70,8 @@ class InstallMaintenanceTimersTest < ActiveSupport::TestCase
       FileUtils.mkdir_p([ release, bin, unit_directory ])
       script = File.join(release, "install-maintenance-timers.sh")
       %w[install-maintenance-timers.sh leave-desk-backup.service leave-desk-backup.timer
-        leave-desk-cache-cleanup.service leave-desk-cache-cleanup.timer].each do |file|
+        leave-desk-cache-cleanup.service leave-desk-cache-cleanup.timer
+        leave-desk-regional-holiday-notifications.service leave-desk-regional-holiday-notifications.timer].each do |file|
         FileUtils.cp(Rails.root.join("deploy", file), File.join(release, file))
       end
       File.write(File.join(bin, "systemctl"), <<~'SH')

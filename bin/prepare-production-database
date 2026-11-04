@@ -20,6 +20,7 @@ if [[ "$LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD" == "$LEAVE_DESK_RUNTIME_DATABASE
 fi
 
 ./bin/rails db:prepare
+./bin/rails db:seed
 
 export PGPASSWORD="$LEAVE_DESK_BOOTSTRAP_DATABASE_PASSWORD"
 for database in leave_desk_production leave_desk_production_cache \

@@ -12,8 +12,10 @@ backup_service=leave-desk-backup.service
 backup_timer=leave-desk-backup.timer
 cache_service=leave-desk-cache-cleanup.service
 cache_timer=leave-desk-cache-cleanup.timer
+holiday_service=leave-desk-regional-holiday-notifications.service
+holiday_timer=leave-desk-regional-holiday-notifications.timer
 
-for unit in "$backup_service" "$backup_timer" "$cache_service" "$cache_timer"; do
+for unit in "$backup_service" "$backup_timer" "$cache_service" "$cache_timer" "$holiday_service" "$holiday_timer"; do
   install -m 0644 "$release_directory/$unit" "$unit_directory/$unit"
   if ! cmp -s "$release_directory/$unit" "$unit_directory/$unit"; then
     echo "Installed unit differs from release: $unit" >&2
@@ -22,14 +24,14 @@ for unit in "$backup_service" "$backup_timer" "$cache_service" "$cache_timer"; d
 done
 
 systemctl daemon-reload
-for timer in "$backup_timer" "$cache_timer"; do
+for timer in "$backup_timer" "$cache_timer" "$holiday_timer"; do
   systemctl enable --now "$timer"
   systemctl restart "$timer"
   systemctl is-enabled --quiet "$timer"
   systemctl is-active --quiet "$timer"
 done
 
-for unit in "$backup_service" "$backup_timer" "$cache_service" "$cache_timer"; do
+for unit in "$backup_service" "$backup_timer" "$cache_service" "$cache_timer" "$holiday_service" "$holiday_timer"; do
   fragment=$(systemctl show "$unit" -p FragmentPath --value)
   if [ "$fragment" != "$unit_directory/$unit" ]; then
     echo "Unexpected systemd unit path for $unit" >&2
@@ -45,4 +47,4 @@ if [ "$result" != success ] || [ "$status" != 0 ]; then
   exit 1
 fi
 
-echo "Backup and cache cleanup timers active; cache cleanup trial run succeeded"
+echo "Backup, cache cleanup and regional holiday notification timers active; cache cleanup trial run succeeded"

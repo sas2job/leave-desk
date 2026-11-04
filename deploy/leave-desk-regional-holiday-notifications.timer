@@ -1,0 +1,10 @@
+[Unit]
+Description=Check regional holiday notifications hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=leave-desk-regional-holiday-notifications.service
+
+[Install]
+WantedBy=timers.target
