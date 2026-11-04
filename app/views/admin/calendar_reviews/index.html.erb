@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">Администрирование</p>
       <h1>Проверка календаря</h1>
-      <p class="lede">Эти заявки созданы до внесения календаря года. Их длительность меняется только после явной проверки с записью в историю.</p>
+      <p class="lede">Эти заявки требуют проверки после внесения или изменения федерального либо регионального календаря. Длительность меняется только после подтверждения с записью в историю.</p>
     </div>
   </header>
 
@@ -19,7 +19,8 @@
           <p><%= format_date(request.starts_on) %>–<%= format_date(request.ends_on) %></p>
           <p>Сохранено: <%= format_leave_duration(request) %></p>
           <% missing_years = request.calendar_years.reject { |year| @configured_years.include?(year) } %>
-          <% if missing_years.empty? %>
+          <% missing_regional_years = request.region_id ? request.calendar_years.reject { |year| @configured_regional_years.include?([request.region_id, year]) } : [] %>
+          <% if missing_years.empty? && missing_regional_years.empty? %>
             <% new_duration = request.calendar_duration_in_days %>
             <p>По внесённому календарю: <%= format_calendar_duration(request) %></p>
             <% if new_duration&.positive? %>
@@ -29,8 +30,10 @@
             <% end %>
           <% elsif missing_years.one? %>
             <p>Календарь <%= missing_years.first %> года ещё не внесён.</p>
-          <% else %>
+          <% elsif missing_years.any? %>
             <p>Календари <%= missing_years.join(", ") %> годов ещё не внесены.</p>
+          <% elsif missing_regional_years.any? %>
+            <p>Региональный календарь <%= missing_regional_years.join(", ") %> года не подтверждён полностью.</p>
           <% end %>
         </article>
       <% end %>

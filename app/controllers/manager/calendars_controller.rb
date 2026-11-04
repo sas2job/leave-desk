@@ -12,6 +12,9 @@ module Manager
       @calendar_off_days = FederalCalendar.nonworking_dates(@dates)
 
       employees = calendar_employees.order(:name).to_a
+      @off_days_by_region = employees.map(&:region_id).uniq.index_with do |region_id|
+        FederalCalendar.nonworking_dates(@dates, region_id:)
+      end
       requests_by_employee = LeaveRequest.where(employee_id: employees.map(&:id), status: :approved)
         .includes(:leave_type)
         .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)
@@ -44,7 +47,7 @@ module Manager
         visible_dates.each { |date| days << date }
       end
       { employee:, requests: requests.sort_by(&:period_start_minute), leave_days:,
-        birthday: birthday_in_year(employee) }
+        birthday: birthday_in_year(employee), off_days: @off_days_by_region.fetch(employee.region_id) }
     end
 
     def type_colors_for(leave_types)

@@ -37,13 +37,15 @@ class FederalCalendar < ApplicationRecord
     end
   end
 
-  def self.nonworking_dates(dates)
+  def self.nonworking_dates(dates, region_id: nil)
     return Set.new if dates.empty?
 
     calendar = find_by(year: dates.first.year)
+    regional = RegionalCalendar.find_by(year: dates.first.year, region_id:) if region_id
     dates.select do |date|
-      calendar ? calendar.day_off?(date) :
-        date.saturday? || date.sunday? || RussianFederalHoliday::FIXED_DATES.include?([ date.month, date.day ])
+      (calendar ? calendar.day_off?(date) :
+        date.saturday? || date.sunday? || RussianFederalHoliday::FIXED_DATES.include?([ date.month, date.day ])) ||
+        regional&.day_off?(date)
     end.to_set
   end
 

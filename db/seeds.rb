@@ -15,6 +15,9 @@ ActiveRecord::Base.transaction do
     end
   end
 
+  load Rails.root.join("db/seeds/federal_calendars.rb")
+  load Rails.root.join("db/seeds/regional_calendars.rb")
+
   next unless Rails.env.development?
 
   load Rails.root.join("db/seeds/development.rb")

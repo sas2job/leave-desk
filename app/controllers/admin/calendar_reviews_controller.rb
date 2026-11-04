@@ -8,6 +8,9 @@ module Admin
       request_years = @requests.flat_map(&:calendar_years).uniq
       @configured_years = FederalCalendar.where(year: request_years)
         .pluck(:year).to_set
+      @configured_regional_years = RegionalCalendar.where(complete: true,
+        region_id: @requests.filter_map(&:region_id).uniq,
+        year: request_years).pluck(:region_id, :year).to_set
     end
 
     def update

@@ -85,7 +85,7 @@
           <div class="team-timeline__name"><%= row[:employee].name %></div>
           <div class="team-timeline__track" aria-label="Отсутствия: <%= row[:employee].name %>">
             <% @dates.each do |date| %>
-              <span class="team-timeline__day <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %>" aria-hidden="true"></span>
+              <span class="team-timeline__day <%= "is-off" if row[:off_days].include?(date) %> <%= "is-today" if date == Date.current %>" aria-hidden="true"></span>
             <% end %>
             <% row[:requests].each do |request| %>
               <span class="team-timeline__bar timeline-color--<%= @type_colors.fetch(request.leave_type_id) %>" style="<%= timeline_bar_style(request, @dates) %>" title="<%= timeline_bar_label(request) %>" aria-label="<%= timeline_bar_label(request) %>" tabindex="0"><span class="team-timeline__bar-text"><%= request.leave_type.name %></span></span>
@@ -123,7 +123,7 @@
               <% leave = row[:leave_days].include?(date) %>
               <% birthday = row[:birthday] == date %>
               <% classes = [] %>
-              <% classes << "weekend" if @calendar_off_days.include?(date) %>
+              <% classes << "weekend" if row[:off_days].include?(date) %>
               <% classes << "leave" if leave %>
               <% classes << "birthday" if birthday %>
               <% labels = [format_date(date)] %>

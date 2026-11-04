@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_215617) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_03_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -61,9 +61,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_215617) do
     t.integer "start_minute"
     t.integer "end_minute"
     t.integer "duration_minutes"
+    t.bigint "region_id"
     t.index ["employee_id", "id"], name: "index_leave_requests_on_employee_id_and_id"
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
     t.index ["leave_type_id"], name: "index_leave_requests_on_leave_type_id"
+    t.index ["region_id"], name: "index_leave_requests_on_region_id"
     t.index ["reviewer_id"], name: "index_leave_requests_on_reviewer_id"
     t.check_constraint "duration_half_days > 0 AND duration_minutes IS NULL OR duration_minutes > 0 AND duration_half_days IS NULL", name: "leave_requests_positive_duration"
     t.check_constraint "end_minute >= 1 AND end_minute <= 1440", name: "leave_requests_valid_end_minute"
@@ -93,13 +95,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_215617) do
 
   create_table "notifications", force: :cascade do |t|
     t.bigint "recipient_id", null: false
-    t.bigint "leave_request_event_id", null: false
+    t.bigint "leave_request_event_id"
     t.datetime "read_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "region_id"
+    t.date "holiday_on"
     t.index ["leave_request_event_id", "recipient_id"], name: "index_notifications_on_event_and_recipient", unique: true
     t.index ["recipient_id", "id"], name: "index_notifications_on_recipient_id_and_id"
+    t.index ["recipient_id", "region_id", "holiday_on"], name: "index_notifications_on_regional_holiday", unique: true, where: "(region_id IS NOT NULL)"
     t.index ["recipient_id"], name: "index_notifications_on_recipient_id"
+    t.index ["region_id"], name: "index_notifications_on_region_id"
+    t.check_constraint "leave_request_event_id IS NOT NULL AND region_id IS NULL AND holiday_on IS NULL OR leave_request_event_id IS NULL AND region_id IS NOT NULL AND holiday_on IS NOT NULL", name: "notifications_exactly_one_source"
+  end
+
+  create_table "regional_calendars", force: :cascade do |t|
+    t.bigint "region_id", null: false
+    t.integer "year", null: false
+    t.text "legal_basis", null: false
+    t.date "public_holidays", default: [], null: false, array: true
+    t.date "additional_days_off", default: [], null: false, array: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "complete", default: false, null: false
+    t.index ["region_id", "year"], name: "index_regional_calendars_on_region_id_and_year", unique: true
+    t.index ["region_id"], name: "index_regional_calendars_on_region_id"
+    t.check_constraint "year >= 2000 AND year <= 2100", name: "regional_calendars_supported_year"
+  end
+
+  create_table "regions", force: :cascade do |t|
+    t.string "code", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_regions_on_code", unique: true
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -124,8 +153,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_215617) do
     t.date "birthday_on"
     t.string "city"
     t.string "time_zone", default: "Europe/Moscow", null: false
+    t.bigint "region_id"
     t.index "lower((email_address)::text)", name: "index_users_on_lower_email_address", unique: true
     t.index ["manager_id"], name: "index_users_on_manager_id"
+    t.index ["region_id"], name: "index_users_on_region_id"
     t.check_constraint "birthday_on IS NULL OR isfinite(birthday_on)", name: "users_finite_birthday"
     t.check_constraint "manager_id IS NULL OR manager_id <> id", name: "users_manager_is_not_self"
     t.check_constraint "role = ANY (ARRAY[0, 1, 2])", name: "users_valid_role"
@@ -134,10 +165,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_215617) do
   add_foreign_key "leave_request_events", "leave_requests"
   add_foreign_key "leave_request_events", "users", column: "actor_id"
   add_foreign_key "leave_requests", "leave_types"
+  add_foreign_key "leave_requests", "regions"
   add_foreign_key "leave_requests", "users", column: "employee_id"
   add_foreign_key "leave_requests", "users", column: "reviewer_id"
   add_foreign_key "notifications", "leave_request_events"
+  add_foreign_key "notifications", "regions"
   add_foreign_key "notifications", "users", column: "recipient_id"
+  add_foreign_key "regional_calendars", "regions"
   add_foreign_key "sessions", "users"
+  add_foreign_key "users", "regions"
   add_foreign_key "users", "users", column: "manager_id"
 end

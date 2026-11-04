@@ -41,6 +41,7 @@
 - [управление сотрудниками](specifications/005-employee-administration.md);
 - [продолжительность отсутствия](specifications/006-leave-duration.md).
 - [личный календарь сотрудника](specifications/010-personal-calendar.md).
+- [региональные нерабочие дни](specifications/019-regional-holidays.md).
 
 ## Этап 4. Эксплуатационная готовность
 

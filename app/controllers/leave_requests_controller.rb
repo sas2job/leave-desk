@@ -92,7 +92,6 @@ class LeaveRequestsController < ApplicationController
 
   def load_form_options
     @leave_types = LeaveType.where(active: true).order(:name)
-    @public_holidays = FederalCalendar.find_by(year: Date.current.year)&.public_holidays ||
-      RussianFederalHoliday.fixed_dates_for(Date.current.year)
+    @public_holidays = PublicHoliday.dates_for_year(Date.current.year, region_id: Current.user.region_id)
   end
 end

@@ -30,6 +30,7 @@ class User < ApplicationRecord
   enum :role, { employee: 0, manager: 1, administrator: 2 }, validate: true
 
   belongs_to :manager, class_name: "User", optional: true
+  belongs_to :region, optional: true
   has_many :direct_reports, class_name: "User", foreign_key: :manager_id,
     inverse_of: :manager, dependent: :nullify
   has_many :leave_requests, foreign_key: :employee_id, inverse_of: :employee,

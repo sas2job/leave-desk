@@ -1,0 +1,27 @@
+<main class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Администрирование</p>
+      <h1>Региональные календари</h1>
+      <p class="lede">Укажите нерабочие праздничные дни по закону региона и отдельно дополнительные выходные. Праздники не входят в ежегодный отпуск; перенесённые выходные входят.</p>
+    </div>
+    <%= link_to "Добавить календарь", new_admin_regional_calendar_path, class: "button" %>
+  </header>
+  <% if @calendars.any? %>
+    <div class="request-list">
+      <% @calendars.each do |calendar| %>
+        <article class="request-card">
+          <h2 class="request-card__title"><%= calendar.region.name %> · <%= calendar.year %> год</h2>
+          <p><%= calendar.legal_basis %></p>
+          <p><%= calendar.complete? ? "Все даты года подтверждены" : "Нужна проверка полного списка дат года" %></p>
+          <p>Праздничных дат: <%= calendar.public_holidays.size %>; дополнительных выходных: <%= calendar.additional_days_off.size %>.</p>
+          <div class="request-card__actions">
+            <%= link_to "Изменить", edit_admin_regional_calendar_path(calendar), class: "button button--secondary" %>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <section class="card empty-state"><h2>Региональные календари ещё не внесены</h2></section>
+  <% end %>
+</main>

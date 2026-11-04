@@ -7,17 +7,26 @@
   <% if @notifications.any? %>
     <div class="request-list">
       <% @notifications.each do |notification| %>
-        <% event = notification.leave_request_event %>
         <article id="<%= dom_id(notification) %>" class="request-card">
           <div class="request-card__summary">
             <div class="request-card__title">
-              <%= link_to leave_request_notification_label(event),
-                notification_request_path(event.leave_request, event_type: event.event_type) %>
+              <% if notification.regional_holiday? %>
+                <%= link_to "Региональный выходной: #{notification.region.name}",
+                  calendar_path(year: notification.holiday_on.year, month: notification.holiday_on.month) %>
+              <% else %>
+                <% event = notification.leave_request_event %>
+                <%= link_to leave_request_notification_label(event),
+                  notification_request_path(event.leave_request, event_type: event.event_type) %>
+              <% end %>
             </div>
             <span class="status"><%= notification.read_at? ? "Прочитано" : "Новое" %></span>
           </div>
-          <p><%= event.leave_request.employee.name %> — <%= event.leave_request.leave_type.name %></p>
-          <p><%= format_date(event.leave_request.starts_on) %>–<%= format_date(event.leave_request.ends_on) %></p>
+          <% if notification.regional_holiday? %>
+            <p><%= format_date(notification.holiday_on) %> — нерабочий день в вашем регионе.</p>
+          <% else %>
+            <p><%= event.leave_request.employee.name %> — <%= event.leave_request.leave_type.name %></p>
+            <p><%= format_date(event.leave_request.starts_on) %>–<%= format_date(event.leave_request.ends_on) %></p>
+          <% end %>
           <%= button_to "Отметить прочитанным", notification_path(notification), method: :patch,
             class: "button button--secondary" unless notification.read_at? %>
         </article>

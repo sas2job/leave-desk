@@ -26,6 +26,7 @@ class LeaveRequest < ApplicationRecord
 
   belongs_to :employee, class_name: "User", inverse_of: :leave_requests
   belongs_to :leave_type
+  belongs_to :region, optional: true
   belongs_to :reviewer, class_name: "User", inverse_of: :reviewed_leave_requests,
     optional: true
   has_many :events, class_name: "LeaveRequestEvent", dependent: :restrict_with_exception
@@ -46,6 +47,7 @@ class LeaveRequest < ApplicationRecord
   validate :leave_type_id_has_valid_syntax
   validate :calculation_inputs_are_unchanged, on: :update
   before_validation :parse_precise_times, on: :create
+  before_validation :set_region_from_employee, on: :create
   before_validation :store_duration, on: :create
   after_create :record_created_event
   after_create :record_calendar_unverified_event, if: :calendar_unverified?
@@ -92,7 +94,7 @@ class LeaveRequest < ApplicationRecord
     return calendar_duration_in_minutes / MINUTES_PER_DAY.to_f if precise_time?
 
     days = ends_on.jd - starts_on.jd + 1
-    days -= RussianFederalHoliday.count_between(starts_on, ends_on) if leave_type.exclude_public_holidays?
+    days -= PublicHoliday.count_between(starts_on, ends_on, region_id:) if leave_type.exclude_public_holidays?
     days -= 0.5 if starts_afternoon? && counted_calendar_date?(starts_on)
     days -= 0.5 if ends_morning? && counted_calendar_date?(ends_on)
     days
@@ -102,7 +104,7 @@ class LeaveRequest < ApplicationRecord
     return unless leave_type && dates_supported? && ends_on >= starts_on && precise_time?
 
     days = ends_on.jd - starts_on.jd + 1
-    days -= RussianFederalHoliday.count_between(starts_on, ends_on) if leave_type.exclude_public_holidays?
+    days -= PublicHoliday.count_between(starts_on, ends_on, region_id:) if leave_type.exclude_public_holidays?
     minutes = days * MINUTES_PER_DAY
     minutes -= start_minute if counted_calendar_date?(starts_on)
     minutes -= MINUTES_PER_DAY - end_minute if counted_calendar_date?(ends_on)
@@ -153,6 +155,12 @@ class LeaveRequest < ApplicationRecord
     (starts_on.year..ends_on.year).to_a
   end
 
+  def missing_regional_calendar_years
+    return [] unless region_id
+
+    calendar_years - RegionalCalendar.where(region_id:, year: calendar_years, complete: true).pluck(:year)
+  end
+
   def reconcile_calendar!(by:)
     raise InvalidTransition, "Проверить календарь может только администратор" unless by&.administrator?
 
@@ -161,6 +169,16 @@ class LeaveRequest < ApplicationRecord
         calendars = FederalCalendar.where(year: calendar_years).order(:year).lock("FOR UPDATE").load
         missing_years = calendar_years - calendars.map(&:year)
         raise InvalidTransition, missing_calendars_message(missing_years) if missing_years.any?
+
+        if region_id
+          Region.where(id: region_id).lock("FOR UPDATE").first
+          regional_calendars = RegionalCalendar.where(region_id:, year: calendar_years, complete: true)
+            .order(:year).lock("FOR UPDATE").load
+          missing_regional_years = calendar_years - regional_calendars.map(&:year)
+          if missing_regional_years.any?
+            raise InvalidTransition, "Региональный календарь #{missing_regional_years.join(', ')} года не подтверждён полностью"
+          end
+        end
 
         with_lock do
           raise InvalidTransition, "Календарь заявки уже проверен" unless calendar_unverified?
@@ -207,7 +225,6 @@ class LeaveRequest < ApplicationRecord
       association(:leave_type).target = locked_type
       if new_record?
         with_calendar_locks do
-          lock_employee_for_creation
           yield
         end
       else
@@ -217,11 +234,20 @@ class LeaveRequest < ApplicationRecord
   end
 
   def with_calendar_locks
-    return yield if calendar_years.empty?
+    if calendar_years.empty?
+      lock_employee_for_creation
+      return yield
+    end
 
     FederalCalendar.with_year_locks(calendar_years) do
       FederalCalendar.uncached do
         FederalCalendar.where(year: calendar_years).order(:year).lock("FOR UPDATE").load
+        lock_employee_for_creation
+        if employee&.region_id
+          Region.where(id: employee.region_id).lock("FOR UPDATE").first
+          RegionalCalendar.where(region_id: employee.region_id, year: calendar_years)
+            .order(:year).lock("FOR UPDATE").load
+        end
         yield
       end
     end
@@ -232,6 +258,10 @@ class LeaveRequest < ApplicationRecord
       User.where(id: employee_id).lock("FOR UPDATE").first
     end
     association(:employee).target = locked_employee
+  end
+
+  def set_region_from_employee
+    self.region_id = employee&.region_id
   end
 
   def leave_type_id_has_valid_syntax
@@ -262,7 +292,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def calculation_inputs_are_unchanged
-    fields = %i[leave_type_id starts_on ends_on start_part end_part start_minute end_minute]
+    fields = %i[leave_type_id region_id starts_on ends_on start_part end_part start_minute end_minute]
     return unless fields.any? { |field| will_save_change_to_attribute?(field) }
 
     errors.add(:base, "Даты и способ расчёта сохранённой заявки нельзя изменить; отмените её и создайте новую")
@@ -296,7 +326,12 @@ class LeaveRequest < ApplicationRecord
         self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
       end
       years = calendar_years
-      self.calendar_unverified = FederalCalendar.where(year: years).count != years.size if years.any?
+      if years.any?
+        federal_missing = FederalCalendar.where(year: years).count != years.size
+        regional_missing = region_id.present? &&
+          RegionalCalendar.where(region_id:, year: years, complete: true).count != years.size
+        self.calendar_unverified = federal_missing || regional_missing
+      end
     end
   end
 
@@ -412,7 +447,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def counted_calendar_date?(date)
-    leave_type.include_public_holidays? || !RussianFederalHoliday.on?(date)
+    leave_type.include_public_holidays? || !PublicHoliday.on?(date, region_id:)
   end
 
   def record_created_event

@@ -1,0 +1,35 @@
+<main class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Администрирование</p>
+      <h1>Регионы работы</h1>
+      <p class="lede">Регион выбирается для сотрудника отдельно от города проживания. Предварительный список регионов требует проверки дат по НПА каждого года.</p>
+    </div>
+    <%= link_to "Добавить регион", new_admin_region_path, class: "button" %>
+  </header>
+  <% if @regions.any? %>
+    <div class="request-list">
+      <% @regions.each do |region| %>
+        <article class="request-card">
+          <h2 class="request-card__title"><%= region.name %></h2>
+          <p><%= region.code %></p>
+          <% [2026, 2027].each do |year| %>
+            <% calendar = region.regional_calendars.find { |item| item.year == year } %>
+            <p><%= year %>: <%= if calendar.nil?
+              "календарь не внесён"
+            elsif calendar.complete?
+              "все даты подтверждены"
+            else
+              "календарь неполный"
+            end %></p>
+          <% end %>
+          <div class="request-card__actions">
+            <%= link_to "Изменить название", edit_admin_region_path(region), class: "button button--secondary" %>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  <% else %>
+    <section class="card empty-state"><h2>Регионы ещё не добавлены</h2></section>
+  <% end %>
+</main>

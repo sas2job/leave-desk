@@ -4,7 +4,7 @@ class NotificationsController < ApplicationController
   before_action :set_notification, only: :update
 
   def index
-    @notifications = paginate_history(Current.user.notifications.includes(leave_request_event: {
+    @notifications = paginate_history(Current.user.notifications.includes(:region, leave_request_event: {
       leave_request: %i[employee leave_type]
     }))
     @has_unread_notifications = Current.user.notifications.unread.exists?

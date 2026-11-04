@@ -5,7 +5,7 @@ class CalendarsController < ApplicationController
     @year, @month, @dates = window.year, window.month, window.dates
     @weeks = (@dates.first.beginning_of_week(:monday)..@dates.last.end_of_week(:monday)).each_slice(7).to_a if @month
 
-    @calendar_off_days = FederalCalendar.nonworking_dates(@dates)
+    @calendar_off_days = FederalCalendar.nonworking_dates(@dates, region_id: Current.user.region_id)
 
     @leave_requests = Current.user.leave_requests.includes(:leave_type)
       .where(status: %i[pending approved])

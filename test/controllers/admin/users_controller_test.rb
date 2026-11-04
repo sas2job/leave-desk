@@ -201,7 +201,7 @@ module Admin
       employee = @employee
       employee.birthday_on = "infinity"
       html = ApplicationController.render(partial: "admin/users/form",
-        locals: { user: employee }, assigns: { manager_options: [] })
+        locals: { user: employee }, assigns: { manager_options: [], region_options: [] })
 
       assert_includes html, 'name="user[birthday_on]"'
     end

@@ -25,6 +25,11 @@
         <%= form.select :city, User::CITY_TIME_ZONES.keys, { include_blank: "Выберите город" }, required: true %>
       </div>
       <div class="field">
+        <%= form.label :region_id, "Регион работы" %>
+        <%= form.collection_select :region_id, @region_options, :id, :name,
+          { include_blank: "Не указан (только федеральный календарь)" } %>
+      </div>
+      <div class="field">
         <%= form.label :birthday_on, "День рождения" %>
         <%= form.date_field :birthday_on, value: user.birthday_on.is_a?(Date) ? user.birthday_on.iso8601 : nil %>
       </div>

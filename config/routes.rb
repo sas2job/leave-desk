@@ -18,6 +18,8 @@ Rails.application.routes.draw do
 
   namespace :admin do
     resources :calendar_reviews, only: %i[index update]
+    resources :regions, only: %i[index new create edit update]
+    resources :regional_calendars, only: %i[index new create edit update]
     resources :federal_calendars, except: %i[show destroy] do
       collection { post :import }
     end
