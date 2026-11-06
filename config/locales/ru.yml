@@ -94,6 +94,22 @@ ru:
             password_confirmation:
               confirmation: "не совпадает с паролем"
     attributes:
+      leave_recall:
+        leave_request: "Заявка"
+        requested_by: "Инициатор"
+        return_on: "Дата выхода"
+        reason: "Причина"
+        eligibility_confirmed: "Допустимость отзыва"
+        remainder_option: "Способ использования неиспользованной части"
+        remainder_preference: "Желаемый период"
+        responded_at: "Время ответа"
+        confirmed_by: "Оформивший отзыв"
+        confirmed_at: "Время оформления"
+        order_number: "Номер приказа"
+        order_on: "Дата приказа"
+        consent_reference: "Документ о согласии"
+        unused_days: "Неиспользованные дни"
+        status: "Состояние отзыва"
       user:
         name: "Имя"
         email_address: "Электронная почта"

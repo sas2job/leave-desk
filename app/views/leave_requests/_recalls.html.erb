@@ -1,0 +1,11 @@
+<div class="request-card__actions">
+  <% leave_request.leave_recalls.sort_by(&:id).each do |recall| %>
+    <%= link_to "Отзыв: #{LeaveRecall.status_label(recall.status)}", leave_request_recall_path(leave_request, recall), class: "button button--secondary" %>
+  <% end %>
+  <% if Current.user.manager? && Current.user.id == leave_request.employee.manager_id && leave_request.recallable? && leave_request.leave_recalls.none? { |recall| recall.proposed? || recall.consented? } %>
+    <%= link_to "Предложить отзыв", new_leave_request_recall_path(leave_request), class: "button button--secondary" %>
+  <% end %>
+  <% if leave_request.recalled? %>
+    <p>Выход на работу: <%= format_date(leave_request.recalled_on) %>. Исходный период и решение о согласовании сохранены.</p>
+  <% end %>
+</div>

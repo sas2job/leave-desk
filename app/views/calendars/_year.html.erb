@@ -20,7 +20,7 @@
                   <td class="personal-year__outside" aria-hidden="true"></td>
                 <% else %>
                   <% requests = @leave_requests_by_date.fetch(date, {}).values.flatten.uniq %>
-                  <% approved = requests.any?(&:approved?) %>
+                  <% approved = requests.any?(&:approved_or_recalled?) %>
                   <% pending = requests.any?(&:pending?) %>
                   <% classes = ["personal-year__day"] %>
                   <% classes << "is-off" if @calendar_off_days.include?(date) %>

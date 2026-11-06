@@ -18,7 +18,7 @@ module Manager::CalendarsHelper
   end
 
   def timeline_bar_label(request)
-    period = "#{format_date(request.starts_on)} — #{format_date(request.ends_on)}"
+    period = "#{format_date(request.starts_on)} — #{format_date(request.effective_ends_on)}"
     period += ", #{request.start_time_label}–#{request.end_time_label}" if request.precise_time?
     "#{request.leave_type.name}: #{period}. Согласовано"
   end

@@ -1,0 +1,20 @@
+<main class="page page--narrow">
+  <header class="page-header"><div><h1>Предложить отзыв из отпуска</h1>
+    <p><%= @leave_request.employee.name %> · заявка №<%= @leave_request.id %></p></div></header>
+  <section class="card">
+    <p>Сотрудник вправе отказаться без объяснения причин. До добровольного согласия и оформления приказа отпуск продолжается.</p>
+    <p>Обычный отзыв запрещён для работников младше 18 лет, беременных и занятых во вредных или опасных условиях. Аварийный порядок здесь не применяется.</p>
+    <%= form_with model: @recall, url: leave_request_recalls_path(@leave_request), scope: :recall do |form| %>
+      <div class="field"><%= form.label :return_on, "Дата выхода на работу" %>
+        <%= form.date_field :return_on, required: true, min: @leave_request.employee_today + 1, max: @leave_request.ends_on %></div>
+      <div class="field"><%= form.label :reason, "Причина отзыва" %>
+        <%= form.text_area :reason, required: true, maxlength: LeaveRequest::COMMENT_MAX_LENGTH %></div>
+      <div class="field"><%= form.label :eligibility_confirmed do %>
+        <%= form.check_box :eligibility_confirmed, required: true %>
+        Проверено: работник совершеннолетний, не относится к беременным работницам, не занят во вредных или опасных условиях; соблюдено правило одной части ежегодного отпуска не менее 14 дней.
+      <% end %></div>
+      <p>Не указывайте медицинские сведения. Подтверждение допустимости сохраняется с предложением.</p>
+      <%= form.submit "Направить предложение" %>
+    <% end %>
+  </section>
+</main>

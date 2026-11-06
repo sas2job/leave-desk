@@ -4,7 +4,7 @@ class LeaveRequestsController < ApplicationController
   before_action :set_leave_request, only: :destroy
 
   def index
-    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, events: :actor))
+    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, :leave_recalls, events: :actor))
   end
 
   def new

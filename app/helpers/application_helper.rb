@@ -3,7 +3,8 @@ module ApplicationHelper
     "pending" => "На рассмотрении",
     "approved" => "Одобрена",
     "rejected" => "Отклонена",
-    "cancelled" => "Отменена"
+    "cancelled" => "Отменена",
+    "recalled" => "Отозвана из отпуска"
   }.freeze
   LEAVE_REQUEST_EVENT_LABELS = {
     "created" => "Заявка создана",
@@ -11,7 +12,12 @@ module ApplicationHelper
     "rejected" => "Заявка отклонена",
     "cancelled" => "Заявка отменена",
     "calendar_unverified" => "Заявка требует проверки календаря",
-    "calendar_reconciled" => "Заявка проверена по календарю"
+    "calendar_reconciled" => "Заявка проверена по календарю",
+    "recall_proposed" => "Заявка получила предложение об отзыве",
+    "recall_consented" => "Заявка: сотрудник согласился на отзыв",
+    "recall_declined" => "Заявка: сотрудник отказался от отзыва",
+    "recall_withdrawn" => "Заявка: предложение об отзыве отозвано",
+    "recalled" => "Заявка: отзыв из отпуска оформлен"
   }.freeze
 
   def leave_request_status_label(leave_request)
@@ -53,7 +59,7 @@ module ApplicationHelper
   end
 
   def leave_request_notification_label(event)
-    leave_request_event_label(event).sub(/\AЗаявка /, "Заявка №#{event.leave_request.id} ")
+    leave_request_event_label(event).sub(/\AЗаявка(?= |:)/, "Заявка №#{event.leave_request.id}")
   end
 
   def notification_request_path(leave_request, event_type: nil)

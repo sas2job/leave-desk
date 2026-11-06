@@ -19,9 +19,9 @@ class CalendarWindow
     end
   end
 
-  def visible_dates_for(request)
+  def visible_dates_for(request, ends_on: request.ends_on)
     first = [ request.starts_on, dates.first ].max
-    last = [ request.ends_on, dates.last ].min
+    last = [ ends_on, dates.last ].min
     first..last if first <= last
   end
 

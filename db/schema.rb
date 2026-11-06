@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_03_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -27,6 +27,38 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_000002) do
     t.check_constraint "year >= 2000 AND year <= 2100", name: "federal_calendars_supported_year"
   end
 
+  create_table "leave_recalls", force: :cascade do |t|
+    t.bigint "leave_request_id", null: false
+    t.bigint "requested_by_id", null: false
+    t.date "return_on", null: false
+    t.text "reason", null: false
+    t.boolean "eligibility_confirmed", default: false, null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "responded_at"
+    t.integer "remainder_option"
+    t.text "remainder_preference"
+    t.bigint "confirmed_by_id"
+    t.datetime "confirmed_at"
+    t.string "order_number", limit: 100
+    t.string "consent_reference", limit: 200
+    t.date "order_on"
+    t.integer "unused_days"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["confirmed_by_id"], name: "index_leave_recalls_on_confirmed_by_id"
+    t.index ["leave_request_id"], name: "index_leave_recalls_on_leave_request_id"
+    t.index ["leave_request_id"], name: "leave_recalls_one_confirmation_per_request", unique: true, where: "(status = 4)"
+    t.index ["leave_request_id"], name: "leave_recalls_one_open_per_request", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
+    t.index ["requested_by_id"], name: "index_leave_recalls_on_requested_by_id"
+    t.check_constraint "(status <> ALL (ARRAY[1, 4])) OR responded_at IS NOT NULL AND remainder_option IS NOT NULL", name: "leave_recalls_consent_required"
+    t.check_constraint "eligibility_confirmed", name: "leave_recalls_eligibility_confirmed"
+    t.check_constraint "isfinite(return_on) AND return_on >= '2000-01-01'::date AND return_on <= '2100-12-31'::date", name: "leave_recalls_supported_return_date"
+    t.check_constraint "remainder_option IS NULL OR (remainder_option = ANY (ARRAY[0, 1]))", name: "leave_recalls_valid_remainder_option"
+    t.check_constraint "status <> 2 OR responded_at IS NOT NULL", name: "leave_recalls_decline_recorded"
+    t.check_constraint "status = 4 AND confirmed_by_id IS NOT NULL AND confirmed_at IS NOT NULL AND order_number IS NOT NULL AND length(btrim(order_number::text)) > 0 AND consent_reference IS NOT NULL AND length(btrim(consent_reference::text)) > 0 AND order_on IS NOT NULL AND isfinite(order_on) AND order_on < return_on AND unused_days > 0 AND unused_days IS NOT NULL OR status <> 4 AND confirmed_by_id IS NULL AND confirmed_at IS NULL AND order_number IS NULL AND consent_reference IS NULL AND order_on IS NULL AND unused_days IS NULL", name: "leave_recalls_confirmation_complete"
+    t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3, 4])", name: "leave_recalls_valid_status"
+  end
+
   create_table "leave_request_events", force: :cascade do |t|
     t.bigint "leave_request_id", null: false
     t.bigint "actor_id"
@@ -38,8 +70,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_000002) do
     t.index ["actor_id"], name: "index_leave_request_events_on_actor_id"
     t.index ["leave_request_id"], name: "index_leave_request_events_on_leave_request_id"
     t.check_constraint "event_type = 4 OR actor_id IS NOT NULL", name: "leave_request_events_actor_required_except_calendar_alert"
-    t.check_constraint "event_type = ANY (ARRAY[0, 1, 2, 3, 4, 5])", name: "leave_request_events_valid_type"
-    t.check_constraint "to_status = ANY (ARRAY[0, 1, 2, 3])", name: "leave_request_events_valid_to_status"
+    t.check_constraint "event_type >= 0 AND event_type <= 10", name: "leave_request_events_valid_type"
+    t.check_constraint "to_status = ANY (ARRAY[0, 1, 2, 3, 4])", name: "leave_request_events_valid_to_status"
   end
 
   create_table "leave_requests", force: :cascade do |t|
@@ -62,6 +94,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_000002) do
     t.integer "end_minute"
     t.integer "duration_minutes"
     t.bigint "region_id"
+    t.date "recalled_on"
     t.index ["employee_id", "id"], name: "index_leave_requests_on_employee_id_and_id"
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
     t.index ["leave_type_id"], name: "index_leave_requests_on_leave_type_id"
@@ -78,8 +111,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_000002) do
     t.check_constraint "start_minute IS NULL AND end_minute IS NULL AND duration_minutes IS NULL AND duration_half_days IS NOT NULL OR start_minute IS NOT NULL AND end_minute IS NOT NULL AND duration_minutes IS NOT NULL AND duration_half_days IS NULL", name: "leave_requests_consistent_time_precision"
     t.check_constraint "start_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_start_part"
     t.check_constraint "starts_on < ends_on OR start_minute IS NULL AND start_part <= end_part OR start_minute IS NOT NULL AND start_minute < end_minute", name: "leave_requests_period_boundaries_in_order"
-    t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3])", name: "leave_requests_valid_status"
-    t.exclusion_constraint "employee_id WITH =, tsrange((starts_on + ((COALESCE(start_minute, (start_part * 720)))::double precision * 'PT1M'::interval)), (ends_on + ((COALESCE(end_minute, ((end_part + 1) * 720)))::double precision * 'PT1M'::interval)), '[)'::text) WITH &&", where: "status = ANY (ARRAY[0, 1])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
+    t.check_constraint "status = 4 AND recalled_on IS NOT NULL AND isfinite(recalled_on) AND recalled_on > starts_on AND recalled_on <= ends_on OR status <> 4 AND recalled_on IS NULL", name: "leave_requests_recall_date"
+    t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3, 4])", name: "leave_requests_valid_status"
+    t.exclusion_constraint "employee_id WITH =, tsrange((starts_on + ((COALESCE(start_minute, (start_part * 720)))::double precision * 'PT1M'::interval)),\nCASE\n    WHEN (recalled_on IS NOT NULL) THEN (recalled_on)::timestamp without time zone\n    ELSE (ends_on + ((COALESCE(end_minute, ((end_part + 1) * 720)))::double precision * 'PT1M'::interval))\nEND, '[)'::text) WITH &&", where: "status = ANY (ARRAY[0, 1, 4])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
   end
 
   create_table "leave_types", force: :cascade do |t|
@@ -162,6 +196,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_03_000002) do
     t.check_constraint "role = ANY (ARRAY[0, 1, 2])", name: "users_valid_role"
   end
 
+  add_foreign_key "leave_recalls", "leave_requests"
+  add_foreign_key "leave_recalls", "users", column: "confirmed_by_id"
+  add_foreign_key "leave_recalls", "users", column: "requested_by_id"
   add_foreign_key "leave_request_events", "leave_requests"
   add_foreign_key "leave_request_events", "users", column: "actor_id"
   add_foreign_key "leave_requests", "leave_types"

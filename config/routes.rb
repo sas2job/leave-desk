@@ -1,7 +1,16 @@
 Rails.application.routes.draw do
   resource :session, only: %i[new create destroy]
   get "calendar", to: "calendars#show", as: :calendar
-  resources :leave_requests, only: %i[index new create destroy]
+  resources :leave_requests, only: %i[index new create destroy] do
+    resources :recalls, controller: :leave_recalls, only: %i[new create show] do
+      member do
+        post :consent
+        post :decline
+        post :withdraw
+        post :confirm
+      end
+    end
+  end
   resources :notifications, only: %i[index update] do
     collection { patch :mark_all_read }
   end

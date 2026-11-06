@@ -453,7 +453,8 @@ h2 {
   background: var(--warning-soft);
 }
 
-.status--approved {
+.status--approved,
+.status--recalled {
   color: var(--primary);
   background: var(--primary-soft);
 }

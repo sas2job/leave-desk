@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">Личный календарь</p>
       <h1>Мой календарь — <%= @month ? I18n.l(Date.new(@year, @month, 1), format: "%B %Y") : @year %></h1>
-      <p class="calendar-summary">Согласовано: <%= @leave_requests.count(&:approved?) %> · На рассмотрении: <%= @leave_requests.count(&:pending?) %></p>
+      <p class="calendar-summary">Согласовано: <%= @leave_requests.count(&:approved_or_recalled?) %> · На рассмотрении: <%= @leave_requests.count(&:pending?) %></p>
     </div>
     <div class="calendar-year-nav">
       <% if @month %>
@@ -67,11 +67,11 @@
                 <% part_requests.each do |request| %>
                   <% time_label = "#{request.start_time_label}–#{request.end_time_label}, " if request.precise_time? %>
                   <% labels << "#{part == :morning ? "Утро" : "После полудня"}: #{request.leave_type.name}, " \
-                    "#{time_label}#{request.approved? ? "Согласовано" : "На рассмотрении"}" %>
+                    "#{time_label}#{request.approved_or_recalled? ? "Согласовано" : "На рассмотрении"}" %>
                 <% end %>
               <% end %>
               <% labels << "День рождения" if @birthday == date %>
-              <div class="personal-month__day <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %> <%= "leave" if requests.any?(&:approved?) %> <%= "leave-pending" if requests.any?(&:pending?) %> <%= "leave-split" if requests.size > 1 %> <%= "birthday" if @birthday == date %>" role="cell" data-date="<%= date.iso8601 %>" title="<%= labels.join(" — ") %>" aria-label="<%= labels.join(" — ") %>">
+              <div class="personal-month__day <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %> <%= "leave" if requests.any?(&:approved_or_recalled?) %> <%= "leave-pending" if requests.any?(&:pending?) %> <%= "leave-split" if requests.size > 1 %> <%= "birthday" if @birthday == date %>" role="cell" data-date="<%= date.iso8601 %>" title="<%= labels.join(" — ") %>" aria-label="<%= labels.join(" — ") %>">
                 <time class="personal-month__date" datetime="<%= date.iso8601 %>"><%= date.day %></time>
                 <div class="personal-month__events">
                   <% requests.each do |request| %>
@@ -82,8 +82,8 @@
                     else
                       :afternoon
                     end %>
-                    <span class="calendar-event <%= request.approved? ? "calendar-event--approved calendar-half--approved" : "calendar-event--pending calendar-half--pending" %> calendar-half calendar-half--<%= part %>" title="<%= request.leave_type.name %>, <%= request.approved? ? "Согласовано" : "На рассмотрении" %>">
-                      <span class="calendar-event__short"><%= request.approved? ? "С" : "Р" %></span>
+                    <span class="calendar-event <%= request.approved_or_recalled? ? "calendar-event--approved calendar-half--approved" : "calendar-event--pending calendar-half--pending" %> calendar-half calendar-half--<%= part %>" title="<%= request.leave_type.name %>, <%= request.approved_or_recalled? ? "Согласовано" : "На рассмотрении" %>">
+                      <span class="calendar-event__short"><%= request.approved_or_recalled? ? "С" : "Р" %></span>
                       <span class="calendar-event__name"><%= request.leave_type.name %></span>
                     </span>
                   <% end %>
@@ -106,9 +106,9 @@
         <ul class="calendar-agenda__list">
           <% @leave_requests.each do |request| %>
             <li>
-              <span class="calendar-agenda__period"><%= format_date(request.starts_on) %><%= " — #{format_date(request.ends_on)}" if request.ends_on != request.starts_on %><%= ", #{request.start_time_label}–#{request.end_time_label}" if request.precise_time? %></span>
+              <span class="calendar-agenda__period"><%= format_date(request.starts_on) %><%= " — #{format_date(request.effective_ends_on)}" if request.effective_ends_on != request.starts_on %><%= ", #{request.start_time_label}–#{request.end_time_label}" if request.precise_time? %></span>
               <strong><%= request.leave_type.name %></strong>
-              <span class="calendar-agenda__status <%= request.approved? ? "is-approved" : "is-pending" %>"><%= request.approved? ? "Согласовано" : "На рассмотрении" %></span>
+              <span class="calendar-agenda__status <%= request.approved_or_recalled? ? "is-approved" : "is-pending" %>"><%= request.approved_or_recalled? ? "Согласовано" : "На рассмотрении" %></span>
             </li>
           <% end %>
         </ul>

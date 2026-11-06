@@ -18,7 +18,7 @@ class LeaveRequest < ApplicationRecord
   class InvalidTransition < StandardError; end
   class ReviewNotAuthorized < StandardError; end
 
-  enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3 }
+  enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3, recalled: 4 }
   enum :start_part, { morning: 0, afternoon: 1 }, prefix: :starts,
     default: :morning, validate: true
   enum :end_part, { morning: 0, afternoon: 1 }, prefix: :ends,
@@ -30,6 +30,7 @@ class LeaveRequest < ApplicationRecord
   belongs_to :reviewer, class_name: "User", inverse_of: :reviewed_leave_requests,
     optional: true
   has_many :events, class_name: "LeaveRequestEvent", dependent: :restrict_with_exception
+  has_many :leave_recalls, dependent: :restrict_with_exception
 
   validates :starts_on, :ends_on, presence: true
   validates :employee_comment, length: { maximum: COMMENT_MAX_LENGTH }, if: :will_save_change_to_employee_comment?
@@ -78,6 +79,24 @@ class LeaveRequest < ApplicationRecord
     end
   end
 
+  def employee_today
+    Time.current.in_time_zone(employee.time_zone).to_date
+  end
+
+  def recallable?
+    approved? && employee.active? && leave_type.code == "ANNUAL" && !calendar_unverified? &&
+      starts_on <= employee_today && ends_on > employee_today &&
+      (precise_time? ? start_minute.zero? && end_minute == MINUTES_PER_DAY : starts_morning? && ends_afternoon?)
+  end
+
+  def effective_ends_on
+    recalled_on ? recalled_on - 1 : ends_on
+  end
+
+  def approved_or_recalled?
+    approved? || recalled?
+  end
+
   def duration_in_days
     return duration_minutes / MINUTES_PER_DAY.to_f if persisted? && duration_minutes
 
@@ -120,6 +139,8 @@ class LeaveRequest < ApplicationRecord
   end
 
   def period_end_minute
+    return recalled_on.jd * MINUTES_PER_DAY if recalled_on
+
     ends_on.jd * MINUTES_PER_DAY + (end_minute || (ends_morning? ? HALF_DAY_MINUTES : MINUTES_PER_DAY))
   end
 
@@ -134,7 +155,7 @@ class LeaveRequest < ApplicationRecord
   def overlapping_active_request
     return if employee_id.blank? || !dates_supported?
 
-    self.class.where(employee_id:, status: %i[pending approved])
+    self.class.where(employee_id:, status: %i[pending approved recalled])
       .where.not(id:).where("starts_on <= ? AND ends_on >= ?", ends_on, starts_on)
       .includes(:leave_type).order(:starts_on, :id)
       .detect { |request| time_slots_overlap?(request) }
@@ -382,7 +403,7 @@ class LeaveRequest < ApplicationRecord
 
   def period_does_not_overlap_active_request
     return if employee_id.blank? || !dates_supported?
-    return unless pending? || approved?
+    return unless pending? || approved? || recalled?
 
     conflict = overlapping_active_request
     errors.add(:base, self.class.overlap_error_message(conflict)) if conflict

@@ -1,0 +1,66 @@
+<main class="page page--narrow">
+  <header class="page-header"><div><h1>Отзыв из отпуска</h1>
+    <p><%= @leave_request.employee.name %> · заявка №<%= @leave_request.id %></p></div></header>
+  <section class="card">
+    <p><strong><%= LeaveRecall.status_label(@recall.status) %></strong></p>
+    <p>Предлагаемый выход: <%= format_date(@recall.return_on) %></p>
+    <p>Причина: <%= @recall.reason %></p>
+    <p>Предложение: <%= @recall.requested_by.name %>, <%= l(@recall.created_at, format: :short) %></p>
+    <% if @recall.responded_at %><p>Ответ сотрудника: <%= l(@recall.responded_at, format: :short) %></p><% end %>
+    <% if @recall.remainder_option %>
+      <p>Выбор сотрудника: <%= @recall.remainder_next_work_year? ? "присоединить к отпуску за следующий рабочий год" : "использовать отдельно в удобное время" %>.</p>
+      <p><%= @recall.remainder_preference %></p>
+    <% end %>
+    <% if @recall.confirmed? %>
+      <p>Приказ №<%= @recall.order_number %> от <%= format_date(@recall.order_on) %>.</p>
+      <p>Документ о согласии: <%= @recall.consent_reference %></p>
+      <p>Неиспользованная часть: <%= format_date(@recall.return_on) %>–<%= format_date(@leave_request.ends_on) %>, <%= @recall.unused_days %> дн.</p>
+      <p>Право на эти дни сохранено. Срок их предоставления оформляется по выбору сотрудника в рамках его рабочего года; бухгалтерский перерасчёт выполняется отдельно.</p>
+    <% else %>
+      <p>Без согласия и оформленного приказа отпуск продолжается. Отказ не является нарушением трудовой дисциплины.</p>
+    <% end %>
+  </section>
+
+  <% if @leave_request.employee_id == Current.user.id && @recall.proposed? %>
+    <section class="card"><h2>Ваш ответ</h2>
+      <%= form_with url: consent_leave_request_recall_path(@leave_request, @recall), scope: :recall do |form| %>
+        <div class="field"><%= form.label :remainder_option, "Как использовать оставшуюся часть" %>
+          <%= form.select :remainder_option, [["В удобное время в текущем рабочем году", "choose_dates"], ["Присоединить к отпуску за следующий рабочий год", "next_work_year"]], include_blank: "Выберите вариант", required: true %></div>
+        <div class="field"><%= form.label :remainder_preference, "Желаемый период или уточнение" %>
+          <%= form.text_area :remainder_preference, maxlength: LeaveRequest::COMMENT_MAX_LENGTH %></div>
+        <div class="field"><%= form.label :consent_confirmed do %>
+          <%= form.check_box :consent_confirmed, required: true %>
+          Добровольно согласен выйти <%= format_date(@recall.return_on) %>. Мне известно право отказаться.
+        <% end %></div>
+        <p>Ответ сохраняется в истории. Кадровое согласие оформляется установленным у работодателя способом.</p>
+        <%= form.submit "Согласиться на отзыв" %>
+      <% end %>
+      <%= button_to "Отказаться от отзыва", decline_leave_request_recall_path(@leave_request, @recall), class: "button--secondary" %>
+    </section>
+  <% end %>
+
+  <% if Current.user.manager? && Current.user.id == @leave_request.employee.manager_id && @recall.consented? %>
+    <section class="card"><h2>Оформить отзыв</h2>
+      <%= form_with url: confirm_leave_request_recall_path(@leave_request, @recall), scope: :recall do |form| %>
+        <div class="field"><%= form.label :consent_reference, "Реквизиты оформленного согласия сотрудника" %>
+          <%= form.text_field :consent_reference, required: true, maxlength: 200 %></div>
+        <div class="field"><%= form.label :order_number, "Номер приказа" %>
+          <%= form.text_field :order_number, required: true, maxlength: 100 %></div>
+        <div class="field"><%= form.label :order_on, "Дата приказа" %>
+          <%= form.date_field :order_on, required: true, value: @leave_request.employee_today, max: @leave_request.employee_today %></div>
+        <div class="field"><%= form.label :eligibility_confirmed do %>
+          <%= form.check_box :eligibility_confirmed, required: true %>
+          Повторно проверена допустимость обычного отзыва по статье 125 ТК РФ: работник совершеннолетний, не относится к беременным работницам, не занят во вредных или опасных условиях; соблюдено правило одной части ежегодного отпуска не менее 14 дней.
+        <% end %></div>
+        <p>Учитывайте право на одну часть ежегодного отпуска не менее 14 дней. Приложение не ведёт рабочие годы и не проверяет всю историю дробления.</p>
+        <%= form.submit "Зафиксировать приказ и отзыв" %>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% if @recall.proposed? || @recall.consented? %>
+    <%= button_to @leave_request.employee_id == Current.user.id ? "Отозвать предложение или согласие" : "Отозвать предложение", withdraw_leave_request_recall_path(@leave_request, @recall), class: "button--secondary" %>
+  <% end %>
+  <%= render "leave_requests/history", leave_request: @leave_request %>
+  <%= link_to "К заявкам", @leave_request.employee_id == Current.user.id ? leave_requests_path : manager_leave_requests_path %>
+</main>

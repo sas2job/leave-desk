@@ -15,9 +15,9 @@ module Manager
       @off_days_by_region = employees.map(&:region_id).uniq.index_with do |region_id|
         FederalCalendar.nonworking_dates(@dates, region_id:)
       end
-      requests_by_employee = LeaveRequest.where(employee_id: employees.map(&:id), status: :approved)
+      requests_by_employee = LeaveRequest.where(employee_id: employees.map(&:id), status: %i[approved recalled])
         .includes(:leave_type)
-        .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)
+        .where("starts_on <= ? AND COALESCE(recalled_on - 1, ends_on) >= ?", @dates.last, @dates.first)
         .group_by(&:employee_id)
       @rows = employees.map { |employee| calendar_row(employee, requests_by_employee.fetch(employee.id, [])) }
       @leave_types = @rows.flat_map { |row| row[:requests].map(&:leave_type) }.uniq.sort_by(&:name)
@@ -42,7 +42,7 @@ module Manager
 
     def calendar_row(employee, requests)
       leave_days = requests.each_with_object(Set.new) do |request, days|
-        next unless (visible_dates = @window.visible_dates_for(request))
+        next unless (visible_dates = @window.visible_dates_for(request, ends_on: request.effective_ends_on))
 
         visible_dates.each { |date| days << date }
       end
