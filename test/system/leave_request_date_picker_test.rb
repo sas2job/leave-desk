@@ -34,7 +34,7 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
     end
   end
 
-  test "planner explains full annual leave and a partial first day" do
+  test "planner keeps annual leave in full days and offers partial days for custom leave" do
     travel_to Date.new(2026, 10, 28) do
       employee = User.create!(name: "Test Employee", email_address: "employee@example.test",
         password: "test-password")
@@ -42,6 +42,7 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
         leave_type.name = "Ежегодный отпуск"
         leave_type.holiday_handling = :exclude_public_holidays
       end
+      LeaveType.create!(name: "Отсутствие на часть дня", code: "TEST_PARTIAL_PLANNER")
       FederalCalendar.find_or_create_by!(year: 2026) do |calendar|
         calendar.legal_basis = "Test federal calendar"
         calendar.public_holidays = RussianFederalHoliday.fixed_dates_for(2026)
@@ -63,7 +64,9 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
       assert_selector "[data-planner-summary]", text: "29 календарных дат · 28 дней отпуска"
       assert_selector ".leave-planner__day.is-excluded time[datetime='2026-11-04']"
       assert_no_selector "[data-time-field]", visible: true
+      assert_field "leave_request_full_day", checked: true, disabled: true
 
+      select "Отсутствие на часть дня", from: "Вид отпуска"
       uncheck "leave_request_full_day"
       select "13:00", from: "Время начала"
       fill_in "Дата начала", with: "05.11.2026"
@@ -73,6 +76,7 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
       assert_selector ".leave-planner__day:last-child", text: /до 18:00/
 
       check "leave_request_full_day"
+      select "Ежегодный отпуск", from: "Вид отпуска"
       fill_in "Дата окончания", with: "11.11.2026"
       assert_selector "[data-planner-summary]", text: "7 календарных дат · 7 дней отпуска"
       assert_selector ".leave-planner__day", count: 7

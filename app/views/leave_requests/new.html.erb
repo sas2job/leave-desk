@@ -31,8 +31,23 @@
             { prompt: "Выберите вид отпуска" },
             required: true, data: { planner_type: true,
               annual_type_id: @leave_types.find { |type| type.code == "ANNUAL" }&.id,
+              full_day_type_ids: @leave_types.select(&:full_day_only?).map(&:id).join(","),
+              statutory_type_ids: @leave_types.select(&:statutory_leave?).map(&:id).join(","),
+              family_type_ids: @leave_types.select(&:family_leave?).map(&:id).join(","),
+              childcare_type_id: @leave_types.find { |type| type.code == "CHILDCARE" }&.id,
               excluded_holiday_type_ids: @leave_types.select(&:exclude_public_holidays?).map(&:id).join(",") } %>
         </div>
+
+        <%= form.hidden_field :resumes_request_id if @leave_request.resumes_request_id %>
+        <div class="field field--full" data-childcare-field>
+          <%= form.label :child_born_on, "Дата рождения ребёнка (для отпуска по уходу)" %>
+          <%= form.date_field :child_born_on, max: Date.current %>
+        </div>
+        <div class="field field--full" data-childcare-field>
+          <%= form.label :care_relationship, "Кто осуществляет уход" %>
+          <%= form.select :care_relationship, LeaveRequest.care_relationships.keys.map { |key| [care_relationship_label(key), key] }, include_blank: "Выберите для отпуска по уходу" %>
+        </div>
+        <p class="field-hint field--full">Ежегодный отпуск и семейные отпуска оформляются на полные календарные дни и могут переходить в следующий год. Для беременности и родов укажите даты по заявлению и документу; 140/156/194 дня — обычные варианты, не единственные допустимые сроки. Семейный отпуск регистрирует администратор. Выходной в день рождения — один полный день один раз в календарном году.</p>
 
         <% %i[starts_on ends_on].each do |field| %>
           <div class="field">
@@ -48,6 +63,7 @@
                 data-calendar-first-year="2025"
                 data-calendar-min="<%= Date.current.iso8601 %>"
                 data-calendar-max="<%= Date.current.end_of_year.iso8601 %>"
+                data-statutory-max="<%= Date.new(CalendarWindow::LAST_YEAR, 12, 31).iso8601 %>"
                 aria-label="Выбор <%= field == :starts_on ? "даты начала" : "даты окончания" %>">
                 <div class="date-entry__controls">
                   <label>Месяц <select data-calendar-month></select></label>

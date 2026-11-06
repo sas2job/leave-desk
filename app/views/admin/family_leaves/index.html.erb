@@ -1,0 +1,13 @@
+<main class="page">
+  <header class="page-header"><h1>Семейные отпуска: кадровая регистрация</h1></header>
+  <p>При подтверждённом праве отпуск оформляется по заявлению и документам. Решение руководителя о производственной целесообразности не требуется.</p>
+  <div class="request-list">
+    <% @requests.each do |request| %>
+      <article class="card">
+        <%= link_to "#{request.employee.name} — #{request.leave_type.name}", admin_family_leave_path(request) %>
+        <p><%= format_date(request.starts_on) %>–<%= format_date(request.ends_on) %> · <%= leave_request_status_label(request) %></p>
+      </article>
+    <% end %>
+  </div>
+  <%= render "shared/history_pagination", path: admin_family_leaves_path %>
+</main>

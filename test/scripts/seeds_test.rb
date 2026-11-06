@@ -20,7 +20,7 @@ class SeedsTest < ActiveSupport::TestCase
   test "creates reference leave types idempotently" do
     2.times { load Rails.root.join("db/seeds.rb") }
 
-    expected_codes = %w[ANNUAL BIRTHDAY SICK UNPAID]
+    expected_codes = %w[ANNUAL BIRTHDAY CHILDCARE MATERNITY SICK UNPAID]
     assert_equal expected_codes, LeaveType.where(code: expected_codes).order(:code).pluck(:code)
     assert_predicate LeaveType.find_by!(code: "ANNUAL"), :exclude_public_holidays?
     assert_predicate LeaveType.find_by!(code: "BIRTHDAY"), :include_public_holidays?

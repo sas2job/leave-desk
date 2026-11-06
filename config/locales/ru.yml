@@ -94,6 +94,15 @@ ru:
             password_confirmation:
               confirmation: "не совпадает с паролем"
     attributes:
+      leave_legal_review:
+        conditions_confirmed: "Подтверждение кадровых условий"
+        age_boundary_confirmed: "Проверка возрастной границы"
+        document_reference: "Реквизиты основания"
+        document_starts_on: "Начало периода документа"
+        document_ends_on: "Окончание периода документа"
+        working_year_starts_on: "Начало рабочего года"
+        working_year_ends_on: "Окончание рабочего года"
+        entitlement_days: "Установленная годовая продолжительность"
       leave_recall:
         leave_request: "Заявка"
         requested_by: "Инициатор"
@@ -134,6 +143,9 @@ ru:
         transfers: "Переносы выходных"
         transfers_input: "Переносы выходных"
       leave_request:
+        child_born_on: "Дата рождения ребёнка"
+        care_relationship: "Лицо, осуществляющее уход"
+        resumes_request: "Возобновляемая заявка"
         employee: "Сотрудник"
         starts_on: "Дата начала"
         start_part: "Начало периода"

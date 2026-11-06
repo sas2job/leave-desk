@@ -1,0 +1,27 @@
+<main class="page page--narrow">
+  <header class="page-header"><div><h1><%= @leave_request.leave_type.name %></h1>
+    <p><%= @leave_request.employee.name %> · заявка №<%= @leave_request.id %></p></div></header>
+  <section class="card">
+    <p><%= format_date(@leave_request.starts_on) %>–<%= format_date(@leave_request.ends_on) %> · <%= leave_request_status_label(@leave_request) %></p>
+    <% if @leave_request.childcare_leave? %>
+      <p>Дата рождения ребёнка: <%= format_date(@leave_request.child_born_on) %>.</p>
+      <p>Кто осуществляет уход: <%= care_relationship_label(@leave_request.care_relationship) %>.</p>
+    <% end %>
+    <p><%= @leave_request.employee_comment %></p>
+    <% if @leave_request.legal_review %>
+      <p>Кадровое основание: <%= @leave_request.legal_review.document_reference %></p>
+    <% end %>
+    <% if @leave_request.pending? %>
+      <%= form_with url: register_admin_family_leave_path(@leave_request) do %>
+        <%= render "leave_requests/legal_review_fields", leave_request: @leave_request %>
+        <%= submit_tag "Зарегистрировать по документам" %>
+      <% end %>
+      <%= form_with url: clarify_admin_family_leave_path(@leave_request) do %>
+        <div class="field"><%= label_tag :review_comment, "Что требуется уточнить" %>
+          <%= text_area_tag :review_comment, nil, required: true, maxlength: LeaveRequest::COMMENT_MAX_LENGTH %></div>
+        <%= submit_tag "Запросить уточнение", class: "button button--secondary" %>
+      <% end %>
+    <% end %>
+  </section>
+  <%= render "leave_requests/history", leave_request: @leave_request %>
+</main>

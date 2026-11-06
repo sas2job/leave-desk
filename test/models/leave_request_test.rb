@@ -569,7 +569,7 @@ class LeaveRequestTest < ActiveSupport::TestCase
 
     full_workday = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
       starts_on: date, ends_on: date, start_time: "09:00", end_time: "18:00")
-    assert full_workday.valid?
+    assert_not full_workday.valid?
 
     full_day = LeaveRequest.new(employee: @employee, leave_type: birthday_type,
       starts_on: date, ends_on: date, start_time: "00:00", end_time: "24:00")

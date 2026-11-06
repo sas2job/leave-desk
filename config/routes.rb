@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   resource :session, only: %i[new create destroy]
   get "calendar", to: "calendars#show", as: :calendar
   resources :leave_requests, only: %i[index new create destroy] do
+    member { post :return_from_childcare }
     resources :recalls, controller: :leave_recalls, only: %i[new create show] do
       member do
         post :consent
@@ -26,6 +27,12 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    resources :family_leaves, only: %i[index show] do
+      member do
+        post :register
+        post :clarify
+      end
+    end
     resources :calendar_reviews, only: %i[index update]
     resources :regions, only: %i[index new create edit update]
     resources :regional_calendars, only: %i[index new create edit update]

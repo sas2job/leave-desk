@@ -40,6 +40,7 @@
     </div>
   </header>
   <div class="calendar-legend" aria-label="Обозначения календаря">
+    <% if @has_family_leave %><span class="calendar-legend__item"><span class="calendar-key timeline-color--4"></span> Длительное отсутствие</span><% end %>
     <% if @month %>
       <% @leave_types.each do |leave_type| %>
         <span class="calendar-legend__item"><span class="calendar-key timeline-color--<%= @type_colors.fetch(leave_type.id) %>"></span> <%= leave_type.name %></span>
@@ -88,7 +89,7 @@
               <span class="team-timeline__day <%= "is-off" if row[:off_days].include?(date) %> <%= "is-today" if date == Date.current %>" aria-hidden="true"></span>
             <% end %>
             <% row[:requests].each do |request| %>
-              <span class="team-timeline__bar timeline-color--<%= @type_colors.fetch(request.leave_type_id) %>" style="<%= timeline_bar_style(request, @dates) %>" title="<%= timeline_bar_label(request) %>" aria-label="<%= timeline_bar_label(request) %>" tabindex="0"><span class="team-timeline__bar-text"><%= request.leave_type.name %></span></span>
+              <span class="team-timeline__bar timeline-color--<%= @type_colors.fetch(request.leave_type_id) %>" style="<%= timeline_bar_style(request, @dates) %>" title="<%= timeline_bar_label(request) %>" aria-label="<%= timeline_bar_label(request) %>" tabindex="0"><span class="team-timeline__bar-text"><%= team_leave_type_name(request) %></span></span>
             <% end %>
             <% if row[:birthday] && @dates.include?(row[:birthday]) %>
               <span class="team-timeline__birthday" style="grid-column: <%= (row[:birthday] - @dates.first).to_i + 1 %>" title="<%= format_date(row[:birthday]) %>: день рождения" aria-label="<%= format_date(row[:birthday]) %>: день рождения">ДР</span>

@@ -24,7 +24,7 @@
           <% if notification.regional_holiday? %>
             <p><%= format_date(notification.holiday_on) %> — нерабочий день в вашем регионе.</p>
           <% else %>
-            <p><%= event.leave_request.employee.name %> — <%= event.leave_request.leave_type.name %></p>
+            <p><%= event.leave_request.employee.name %> — <%= Current.user.manager? && event.leave_request.employee_id != Current.user.id ? team_leave_type_name(event.leave_request) : event.leave_request.leave_type.name %></p>
             <p><%= format_date(event.leave_request.starts_on) %>–<%= format_date(event.leave_request.ends_on) %></p>
           <% end %>
           <%= button_to "Отметить прочитанным", notification_path(notification), method: :patch,

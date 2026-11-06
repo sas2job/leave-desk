@@ -1,0 +1,32 @@
+<% suffix = leave_request.id %>
+<% if leave_request.annual_leave? %>
+  <div class="field"><%= label_tag "work-year-start-#{suffix}", "Начало рабочего года" %>
+    <%= date_field_tag "legal_review[working_year_starts_on]", nil, id: "work-year-start-#{suffix}", required: true %></div>
+  <div class="field"><%= label_tag "work-year-end-#{suffix}", "Окончание рабочего года с учётом сдвигов" %>
+    <%= date_field_tag "legal_review[working_year_ends_on]", nil, id: "work-year-end-#{suffix}", required: true %></div>
+  <div class="field"><%= label_tag "entitlement-#{suffix}", "Установленная годовая продолжительность, дней" %>
+    <%= number_field_tag "legal_review[entitlement_days]", 28, min: 28, id: "entitlement-#{suffix}", required: true %></div>
+  <p>28 дней — обычная годовая продолжительность, не максимум заявки. Для несовершеннолетних — не менее 31 дня; для иных категорий проверьте удлинённый и дополнительный отпуск.</p>
+<% else %>
+  <div class="field"><%= label_tag "basis-reference-#{suffix}", "Реквизиты заявления и кадрового основания" %>
+    <%= text_field_tag "legal_review[document_reference]", nil, maxlength: 200, required: true, id: "basis-reference-#{suffix}" %></div>
+  <% if leave_request.maternity_leave? %>
+    <div class="field"><%= label_tag "basis-start-#{suffix}", "Начало периода документа по беременности и родам" %>
+      <%= date_field_tag "legal_review[document_starts_on]", nil, required: true, id: "basis-start-#{suffix}" %></div>
+    <div class="field"><%= label_tag "basis-end-#{suffix}", "Окончание периода документа" %>
+      <%= date_field_tag "legal_review[document_ends_on]", nil, required: true, id: "basis-end-#{suffix}" %></div>
+  <% end %>
+  <p>Только реквизиты, без медицинских подробностей. Регистрация в Leave Desk не заменяет кадровый документооборот и не назначает пособие.</p>
+  <% if leave_request.childcare_leave? && leave_request.child_born_on.month == 2 && leave_request.child_born_on.day == 29 %>
+    <label><%= check_box_tag "legal_review[age_boundary_confirmed]", "1", false, required: true %>
+      Для рождения 29 февраля отдельно проверены возрастная граница и заявленная дата окончания. Автоматический расчёт не подтверждает её законность.</label>
+  <% end %>
+<% end %>
+<div class="field"><%= label_tag "legal-confirmation-#{suffix}" do %>
+  <%= check_box_tag "legal_review[conditions_confirmed]", "1", false, required: true, id: "legal-confirmation-#{suffix}" %>
+  <% if leave_request.annual_leave? %>
+    Проверены рабочий год, право на выбранные сроки (включая исключения из шестимесячного срока), ежегодное предоставление и перенос, соглашение о разделении и одна непрерывная часть не менее 14 календарных дней. Учтены специальные права работника.
+  <% else %>
+    Проверены заявление и документы, право работника на этот отпуск и фактические даты. При периоде в прошлом подтверждено, что отпуск фактически предоставлялся; дни работы не подменяются отпуском.
+  <% end %>
+<% end %></div>

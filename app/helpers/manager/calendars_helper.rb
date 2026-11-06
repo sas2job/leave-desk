@@ -20,6 +20,6 @@ module Manager::CalendarsHelper
   def timeline_bar_label(request)
     period = "#{format_date(request.starts_on)} — #{format_date(request.effective_ends_on)}"
     period += ", #{request.start_time_label}–#{request.end_time_label}" if request.precise_time?
-    "#{request.leave_type.name}: #{period}. Согласовано"
+    "#{team_leave_type_name(request)}: #{period}. Согласовано"
   end
 end

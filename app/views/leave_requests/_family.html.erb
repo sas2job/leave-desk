@@ -1,0 +1,16 @@
+<% if leave_request.childcare_leave? && leave_request.approved? && leave_request.starts_on <= leave_request.employee_today && leave_request.ends_on >= leave_request.employee_today %>
+  <details class="request-history"><summary>Заявить о досрочном выходе</summary>
+    <%= form_with url: return_from_childcare_leave_request_path(leave_request), scope: :childcare_return do |form| %>
+      <div class="field"><%= form.label :return_on, "Дата выхода", for: "childcare-return-#{leave_request.id}" %>
+        <%= form.date_field :return_on, id: "childcare-return-#{leave_request.id}", required: true,
+          min: leave_request.employee_today, max: leave_request.ends_on %></div>
+      <label><%= form.check_box :confirmed %> Заявляю о выходе на указанную дату. Согласование руководителя не требуется.</label>
+      <p>Заявление и уведомление сохраняются; кадровое оформление выполняется установленным у работодателя способом.</p>
+      <%= form.submit "Сохранить заявление о выходе" %>
+    <% end %>
+  </details>
+<% end %>
+<% if leave_request.interrupted? %>
+  <p>Дата выхода: <%= format_date(leave_request.returned_on) %>. Исходный период сохранён.</p>
+  <%= link_to "Возобновить отпуск по уходу", new_leave_request_path(resumes_request_id: leave_request.id), class: "button button--secondary" %>
+<% end %>

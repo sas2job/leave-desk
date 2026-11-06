@@ -16,7 +16,10 @@ module LeaveRecallTestHelper
       @leave_request = LeaveRequest.create!(employee: @employee, leave_type: @annual,
         starts_on: Date.new(2026, 10, 1), ends_on: Date.new(2026, 10, 20),
         start_time: "00:00", end_time: "24:00")
-      @leave_request.approve!(by: @manager)
+      @leave_request.approve!(by: @manager, legal_review: {
+        conditions_confirmed: true, working_year_starts_on: Date.new(2026, 1, 1),
+        working_year_ends_on: Date.new(2026, 12, 31), entitlement_days: 28
+      })
     end
   end
 

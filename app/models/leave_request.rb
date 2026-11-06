@@ -1,4 +1,5 @@
 class LeaveRequest < ApplicationRecord
+  include StatutoryLeaveRules
   COMMENT_MAX_LENGTH = 2_000
   MINUTES_PER_DAY = 1_440
   HALF_DAY_MINUTES = 720
@@ -18,7 +19,7 @@ class LeaveRequest < ApplicationRecord
   class InvalidTransition < StandardError; end
   class ReviewNotAuthorized < StandardError; end
 
-  enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3, recalled: 4 }
+  enum :status, { pending: 0, approved: 1, rejected: 2, cancelled: 3, recalled: 4, interrupted: 5 }
   enum :start_part, { morning: 0, afternoon: 1 }, prefix: :starts,
     default: :morning, validate: true
   enum :end_part, { morning: 0, afternoon: 1 }, prefix: :ends,
@@ -61,20 +62,28 @@ class LeaveRequest < ApplicationRecord
     with_persistence_locks { super }
   end
 
-  def approve!(by:, comment: nil)
-    review!(new_status: :approved, by:, comment:)
+  def approve!(by:, comment: nil, legal_review: nil)
+    raise InvalidTransition, "Семейный отпуск регистрирует администратор по документам" if family_leave?
+
+    review!(new_status: :approved, by:, comment:, legal_review:)
   end
 
   def reject!(by:, comment: nil)
+    raise InvalidTransition, "Семейный отпуск нельзя отклонить; запросите уточнение документов" if family_leave?
+
     review!(new_status: :rejected, by:, comment:)
   end
 
   def cancel!(by: employee)
     with_lock do
       raise InvalidTransition, "Отменить можно только заявку на рассмотрении или одобренную заявку" unless pending? || approved?
+      if family_leave? && approved? && starts_on <= employee_today
+        raise InvalidTransition, "Начавшийся семейный отпуск сохраняется; для ухода оформите заявление о выходе"
+      end
 
       previous_status = status
-      update!(status: :cancelled)
+      used_birthday = leave_type.code == "BIRTHDAY" && approved? && starts_on <= employee_today
+      update!(status: :cancelled, birthday_used: birthday_used || used_birthday)
       record_event!(:cancelled, by:, from_status: previous_status)
     end
   end
@@ -90,11 +99,11 @@ class LeaveRequest < ApplicationRecord
   end
 
   def effective_ends_on
-    recalled_on ? recalled_on - 1 : ends_on
+    (recalled_on || returned_on) ? (recalled_on || returned_on) - 1 : ends_on
   end
 
   def approved_or_recalled?
-    approved? || recalled?
+    approved? || recalled? || interrupted?
   end
 
   def duration_in_days
@@ -113,7 +122,7 @@ class LeaveRequest < ApplicationRecord
     return calendar_duration_in_minutes / MINUTES_PER_DAY.to_f if precise_time?
 
     days = ends_on.jd - starts_on.jd + 1
-    days -= PublicHoliday.count_between(starts_on, ends_on, region_id:) if leave_type.exclude_public_holidays?
+    days -= PublicHoliday.count_between(starts_on, ends_on, region_id:) if statutory_excludes_holidays?
     days -= 0.5 if starts_afternoon? && counted_calendar_date?(starts_on)
     days -= 0.5 if ends_morning? && counted_calendar_date?(ends_on)
     days
@@ -123,7 +132,7 @@ class LeaveRequest < ApplicationRecord
     return unless leave_type && dates_supported? && ends_on >= starts_on && precise_time?
 
     days = ends_on.jd - starts_on.jd + 1
-    days -= PublicHoliday.count_between(starts_on, ends_on, region_id:) if leave_type.exclude_public_holidays?
+    days -= PublicHoliday.count_between(starts_on, ends_on, region_id:) if statutory_excludes_holidays?
     minutes = days * MINUTES_PER_DAY
     minutes -= start_minute if counted_calendar_date?(starts_on)
     minutes -= MINUTES_PER_DAY - end_minute if counted_calendar_date?(ends_on)
@@ -139,6 +148,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def period_end_minute
+    return returned_on.jd * MINUTES_PER_DAY if returned_on
     return recalled_on.jd * MINUTES_PER_DAY if recalled_on
 
     ends_on.jd * MINUTES_PER_DAY + (end_minute || (ends_morning? ? HALF_DAY_MINUTES : MINUTES_PER_DAY))
@@ -155,7 +165,7 @@ class LeaveRequest < ApplicationRecord
   def overlapping_active_request
     return if employee_id.blank? || !dates_supported?
 
-    self.class.where(employee_id:, status: %i[pending approved recalled])
+    self.class.where(employee_id:, status: %i[pending approved recalled interrupted])
       .where.not(id:).where("starts_on <= ? AND ends_on >= ?", ends_on, starts_on)
       .includes(:leave_type).order(:starts_on, :id)
       .detect { |request| time_slots_overlap?(request) }
@@ -299,6 +309,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def dates_are_in_current_year
+    return if statutory_leave?
     return unless dates_supported?
     return if starts_on.year == Date.current.year && ends_on.year == Date.current.year
 
@@ -306,6 +317,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def starts_on_is_not_in_the_past
+    return if family_leave?
     return unless supported_date?(starts_on)
     return if starts_on >= Date.current
 
@@ -347,6 +359,8 @@ class LeaveRequest < ApplicationRecord
         self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
       end
       years = calendar_years
+      self.calendar_unverified = false if family_leave?
+      return if family_leave?
       if years.any?
         federal_missing = FederalCalendar.where(year: years).count != years.size
         regional_missing = region_id.present? &&
@@ -370,19 +384,30 @@ class LeaveRequest < ApplicationRecord
     date.is_a?(Date) && SupportedCalendarPeriod::DATES.cover?(date)
   end
 
-  def review!(new_status:, by:, comment:)
+  def review!(new_status:, by:, comment:, legal_review: nil, family_registration: false)
     with_lock do
       raise InvalidTransition, "Сотрудник не может согласовать собственную заявку" if by&.id == employee_id
       current_employee = User.uncached do
         User.where(id: employee_id).lock("FOR UPDATE").first
       end
-      raise ReviewNotAuthorized unless by && current_employee&.manager_id == by.id
+      association(:employee).target = current_employee
+      authorized = if family_registration
+        by&.active? && by.administrator? && family_leave?
+      else
+        by && current_employee&.manager_id == by.id && !family_leave?
+      end
+      raise ReviewNotAuthorized unless authorized
       raise InvalidTransition, "Рассмотреть можно только заявку на рассмотрении" unless pending?
 
       previous_status = status
+      if new_status == :approved && (annual_leave? || family_registration)
+        raise InvalidTransition, "Для ежегодного и семейного отпуска требуются полные календарные дни" unless full_calendar_days?
+        attributes = (legal_review || {}).symbolize_keys
+        create_legal_review!(**attributes, reviewer: by, annual: annual_leave?, confirmed_at: Time.current)
+      end
       update!(status: new_status, reviewer: by, reviewed_at: Time.current,
         review_comment: comment)
-      record_event!(new_status, by:, from_status: previous_status, comment:)
+      record_event!(family_registration ? :statutory_registered : new_status, by:, from_status: previous_status, comment:)
     end
   end
 
@@ -403,7 +428,7 @@ class LeaveRequest < ApplicationRecord
 
   def period_does_not_overlap_active_request
     return if employee_id.blank? || !dates_supported?
-    return unless pending? || approved? || recalled?
+    return unless pending? || approved? || recalled? || interrupted?
 
     conflict = overlapping_active_request
     errors.add(:base, self.class.overlap_error_message(conflict)) if conflict
@@ -428,9 +453,7 @@ class LeaveRequest < ApplicationRecord
     return unless leave_type&.code == "BIRTHDAY"
     return unless dates_supported? && ends_on >= starts_on
     if precise_time?
-      return unless starts_on == ends_on
-      return if start_minute.zero? && end_minute == MINUTES_PER_DAY
-      return if start_minute == WORKDAY_START_MINUTE && end_minute == WORKDAY_END_MINUTE
+      return if starts_on == ends_on && start_minute.zero? && end_minute == MINUTES_PER_DAY
 
       errors.add(:base, "Выходной в день рождения можно оформить только на один полный день")
       return
@@ -446,7 +469,7 @@ class LeaveRequest < ApplicationRecord
     return if ends_on < starts_on
     return if precise_time? && starts_on == ends_on && start_minute >= end_minute
     return if starts_on == ends_on && starts_afternoon? && ends_morning?
-    return unless leave_type.exclude_public_holidays?
+    return unless statutory_excludes_holidays?
 
     duration = if new_record? && precise_time?
       duration_minutes
@@ -468,7 +491,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def counted_calendar_date?(date)
-    leave_type.include_public_holidays? || !PublicHoliday.on?(date, region_id:)
+    !statutory_excludes_holidays? || !PublicHoliday.on?(date, region_id:)
   end
 
   def record_created_event

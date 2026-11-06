@@ -1,0 +1,8 @@
+<% if (review = leave_request.legal_review) %>
+  <% if review.annual? %>
+    <p>Рабочий год: <%= format_date(review.working_year_starts_on) %>–<%= format_date(review.working_year_ends_on) %>.
+      Установленная годовая продолжительность: <%= review.entitlement_days %> дн. Это не доступный остаток.</p>
+  <% elsif leave_request.employee_id == Current.user.id || Current.user.administrator? %>
+    <p>Кадровое основание: <%= review.document_reference %></p>
+  <% end %>
+<% end %>

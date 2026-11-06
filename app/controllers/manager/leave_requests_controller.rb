@@ -1,6 +1,7 @@
 module Manager
   class LeaveRequestsController < ApplicationController
     include HistoryPagination
+    include LegalReviewParameters
 
     before_action :require_manager
     before_action :set_leave_request, only: %i[approve reject]
@@ -8,12 +9,13 @@ module Manager
 
     def index
       @leave_requests = paginate_history(
-        managed_leave_requests.includes(:employee, :leave_type, :leave_recalls, events: :actor)
+        managed_leave_requests.includes(:employee, :leave_type, :leave_recalls, :legal_review, events: :actor)
       )
     end
 
     def approve
-      @leave_request.approve!(by: Current.user, comment: params[:review_comment])
+      review = @leave_request.annual_leave? ? legal_review_params : nil
+      @leave_request.approve!(by: Current.user, comment: params[:review_comment], legal_review: review)
       redirect_to manager_leave_requests_path, notice: "Заявка одобрена."
     rescue LeaveRequest::ReviewNotAuthorized
       head :not_found

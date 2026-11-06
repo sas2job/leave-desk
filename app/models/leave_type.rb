@@ -1,5 +1,6 @@
 class LeaveType < ApplicationRecord
   BIRTHDAY_CODE = "BIRTHDAY"
+  SYSTEM_CODES = %w[ANNUAL BIRTHDAY MATERNITY CHILDCARE].freeze
 
   enum :holiday_handling, {
     include_public_holidays: 0,
@@ -16,6 +17,7 @@ class LeaveType < ApplicationRecord
   validates :code, uniqueness: true
   validate :active_has_boolean_input
   validate :birthday_code_is_unchanged
+  validate :system_holiday_policy
   validate :holiday_handling_is_unchanged_when_used
 
   def save(**options)
@@ -24,6 +26,18 @@ class LeaveType < ApplicationRecord
 
   def save!(**options)
     with_holiday_handling_lock { super }
+  end
+
+  def family_leave?
+    %w[MATERNITY CHILDCARE].include?(code)
+  end
+
+  def statutory_leave?
+    code == "ANNUAL" || family_leave?
+  end
+
+  def full_day_only?
+    statutory_leave? || code == "BIRTHDAY"
   end
 
   private
@@ -46,9 +60,19 @@ class LeaveType < ApplicationRecord
 
   def birthday_code_is_unchanged
     return unless persisted? && will_save_change_to_code?
-    return unless code_in_database == BIRTHDAY_CODE
+    return unless SYSTEM_CODES.include?(code_in_database) ||
+      (SYSTEM_CODES.include?(code) && leave_requests.exists?)
 
     errors.add(:code, "нельзя изменить для системного вида отпуска")
+  end
+
+  def system_holiday_policy
+    return unless new_record? || will_save_change_to_holiday_handling? || will_save_change_to_code?
+    if code == "ANNUAL" && !exclude_public_holidays?
+      errors.add(:holiday_handling, "для ежегодного отпуска праздники обязательно исключаются")
+    elsif family_leave? && !include_public_holidays?
+      errors.add(:holiday_handling, "семейный отпуск включает все календарные даты")
+    end
   end
 
   def holiday_handling_is_unchanged_when_used

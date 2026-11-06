@@ -76,7 +76,8 @@ class LeaveRecallTest < ActiveSupport::TestCase
     end
     @leave_request.update!(status: :approved, calendar_unverified: true)
     assert_raises(LeaveRecall::InvalidTransition) { propose_recall }
-    @leave_request.update_columns(calendar_unverified: false, start_minute: 540)
+    LeaveRequest.where(id: @leave_request.id).update_all(calendar_unverified: false, start_minute: 540, legal_kind: 0)
+    @leave_request.reload
     assert_raises(LeaveRecall::InvalidTransition) { propose_recall }
   end
 
@@ -150,7 +151,10 @@ class LeaveRecallTest < ActiveSupport::TestCase
     travel_to Time.zone.local(2026, 11, 1, 12) do
       @leave_request = LeaveRequest.create!(employee: @employee, leave_type: @annual,
         starts_on: Date.new(2026, 11, 1), ends_on: Date.new(2026, 11, 6), start_time: "00:00", end_time: "24:00")
-      @leave_request.approve!(by: @manager)
+      @leave_request.approve!(by: @manager, legal_review: {
+        conditions_confirmed: true, working_year_starts_on: Date.new(2026, 1, 1),
+        working_year_ends_on: Date.new(2026, 12, 31), entitlement_days: 28
+      })
       recall = propose_recall(return_on: Date.new(2026, 11, 3))
       consent_to_recall(recall)
       confirm_recall(recall, order_on: Date.new(2026, 11, 1))

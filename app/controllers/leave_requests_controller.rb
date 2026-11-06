@@ -1,10 +1,10 @@
 class LeaveRequestsController < ApplicationController
   include HistoryPagination
 
-  before_action :set_leave_request, only: :destroy
+  before_action :set_leave_request, only: %i[destroy return_from_childcare]
 
   def index
-    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, :leave_recalls, events: :actor))
+    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, :leave_recalls, :legal_review, events: :actor))
   end
 
   def new
@@ -12,6 +12,12 @@ class LeaveRequestsController < ApplicationController
     @leave_request.start_time = "09:00"
     @leave_request.end_time = "18:00"
     @full_day = true
+    if params[:resumes_request_id]
+      require_identifier_fields!(params, :resumes_request_id)
+      source = Current.user.leave_requests.find(params[:resumes_request_id])
+      @leave_request.assign_attributes(resumes_request: source, leave_type: source.leave_type,
+        child_born_on: source.child_born_on, care_relationship: source.care_relationship)
+    end
     load_form_options
   end
 
@@ -24,10 +30,15 @@ class LeaveRequestsController < ApplicationController
       render_new_with_errors
     end
   rescue ActiveRecord::StatementInvalid => error
-    raise unless error.cause.is_a?(PG::ExclusionViolation)
-
-    conflict = @leave_request.overlapping_active_request
-    @leave_request.errors.add(:base, LeaveRequest.overlap_error_message(conflict))
+    if error.cause.is_a?(PG::ExclusionViolation)
+      conflict = @leave_request.overlapping_active_request
+      @leave_request.errors.add(:base, LeaveRequest.overlap_error_message(conflict))
+    elsif error.cause.is_a?(PG::UniqueViolation) &&
+        error.cause.result.error_field(PG::Result::PG_DIAG_CONSTRAINT_NAME) == "leave_requests_one_birthday_per_year"
+      @leave_request.errors.add(:base, "Выходной в день рождения можно использовать только один раз за календарный год")
+    else
+      raise
+    end
     render_new_with_errors
   end
 
@@ -38,6 +49,21 @@ class LeaveRequestsController < ApplicationController
     redirect_to leave_requests_path, alert: error.message, status: :see_other
   end
 
+  def return_from_childcare
+    attributes = params.expect(childcare_return: %i[return_on confirmed])
+    require_string_fields!(attributes, :return_on, :confirmed)
+    unless attributes[:confirmed] == "1"
+      raise LeaveRequest::InvalidTransition, "Подтвердите заявление о выходе"
+    end
+    date = Date.iso8601(attributes[:return_on]) if attributes[:return_on]&.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+    @leave_request.return_from_childcare!(by: Current.user, return_on: date)
+    redirect_to leave_requests_path, notice: "Заявление о выходе сохранено. Согласование руководителя не требуется.", status: :see_other
+  rescue Date::Error, LeaveRequest::InvalidTransition => error
+    redirect_to leave_requests_path, alert: error.message, status: :see_other
+  rescue LeaveRequest::ReviewNotAuthorized
+    head :not_found
+  end
+
   private
 
   def set_leave_request
@@ -45,8 +71,13 @@ class LeaveRequestsController < ApplicationController
   end
 
   def leave_request_params
-    fields = %i[leave_type_id starts_on ends_on start_time end_time full_day employee_comment]
+    fields = %i[leave_type_id starts_on ends_on start_time end_time full_day employee_comment
+      child_born_on care_relationship resumes_request_id]
     raw = params[:leave_request]
+    if raw.is_a?(ActionController::Parameters)
+      require_string_fields!(raw, :child_born_on, :care_relationship)
+      require_identifier_fields!(raw, :resumes_request_id)
+    end
     if raw.is_a?(ActionController::Parameters) && (raw.key?(:start_part) || raw.key?(:end_part))
       raise ActionController::BadRequest, "Use exact start and end times"
     end
@@ -67,9 +98,12 @@ class LeaveRequestsController < ApplicationController
     end
     require_string_fields!(
       attributes,
-      :starts_on, :ends_on, :start_time, :end_time, :employee_comment
+      :starts_on, :ends_on, :start_time, :end_time, :employee_comment, :child_born_on, :care_relationship
     )
-    require_identifier_fields!(attributes, :leave_type_id)
+    require_identifier_fields!(attributes, :leave_type_id, :resumes_request_id)
+    if attributes[:resumes_request_id].present?
+      Current.user.leave_requests.find(attributes[:resumes_request_id])
+    end
     @date_inputs = attributes.slice(:starts_on, :ends_on)
     %i[starts_on ends_on].each do |field|
       value = attributes[field]
@@ -92,6 +126,8 @@ class LeaveRequestsController < ApplicationController
 
   def load_form_options
     @leave_types = LeaveType.where(active: true).order(:name)
-    @public_holidays = PublicHoliday.dates_for_year(Date.current.year, region_id: Current.user.region_id)
+    @public_holidays = FederalCalendar.where(year: Date.current.year..CalendarWindow::LAST_YEAR).order(:year).pluck(:year).flat_map do |year|
+      PublicHoliday.dates_for_year(year, region_id: Current.user.region_id).to_a
+    end
   end
 end

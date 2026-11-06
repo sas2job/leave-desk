@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -25,6 +25,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
     t.index ["year"], name: "index_federal_calendars_on_year", unique: true
     t.check_constraint "jsonb_typeof(transfers) = 'array'::text", name: "federal_calendars_transfers_array"
     t.check_constraint "year >= 2000 AND year <= 2100", name: "federal_calendars_supported_year"
+  end
+
+  create_table "leave_legal_reviews", force: :cascade do |t|
+    t.bigint "leave_request_id", null: false
+    t.bigint "reviewer_id", null: false
+    t.boolean "annual", default: false, null: false
+    t.boolean "conditions_confirmed", default: false, null: false
+    t.boolean "age_boundary_confirmed", default: false, null: false
+    t.text "document_reference"
+    t.date "document_starts_on"
+    t.date "document_ends_on"
+    t.date "working_year_starts_on"
+    t.date "working_year_ends_on"
+    t.integer "entitlement_days"
+    t.datetime "confirmed_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["leave_request_id"], name: "index_leave_legal_reviews_on_leave_request_id", unique: true
+    t.index ["reviewer_id"], name: "index_leave_legal_reviews_on_reviewer_id"
+    t.check_constraint "annual AND working_year_starts_on IS NOT NULL AND working_year_ends_on IS NOT NULL AND isfinite(working_year_starts_on) AND isfinite(working_year_ends_on) AND working_year_ends_on >= working_year_starts_on AND entitlement_days IS NOT NULL AND entitlement_days >= 28 OR NOT annual AND document_reference IS NOT NULL AND length(btrim(document_reference)) > 0", name: "leave_legal_reviews_basis_required"
+    t.check_constraint "conditions_confirmed", name: "leave_legal_reviews_confirmed"
   end
 
   create_table "leave_recalls", force: :cascade do |t|
@@ -70,8 +91,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
     t.index ["actor_id"], name: "index_leave_request_events_on_actor_id"
     t.index ["leave_request_id"], name: "index_leave_request_events_on_leave_request_id"
     t.check_constraint "event_type = 4 OR actor_id IS NOT NULL", name: "leave_request_events_actor_required_except_calendar_alert"
-    t.check_constraint "event_type >= 0 AND event_type <= 10", name: "leave_request_events_valid_type"
-    t.check_constraint "to_status = ANY (ARRAY[0, 1, 2, 3, 4])", name: "leave_request_events_valid_to_status"
+    t.check_constraint "event_type >= 0 AND event_type <= 13", name: "leave_request_events_valid_type"
+    t.check_constraint "to_status = ANY (ARRAY[0, 1, 2, 3, 4, 5])", name: "leave_request_events_valid_to_status"
   end
 
   create_table "leave_requests", force: :cascade do |t|
@@ -95,25 +116,41 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
     t.integer "duration_minutes"
     t.bigint "region_id"
     t.date "recalled_on"
+    t.integer "legal_kind", default: 0, null: false
+    t.date "child_born_on"
+    t.integer "care_relationship"
+    t.date "returned_on"
+    t.integer "birthday_claim_year"
+    t.boolean "birthday_used", default: false, null: false
+    t.bigint "resumes_request_id"
+    t.index ["employee_id", "birthday_claim_year"], name: "leave_requests_one_birthday_per_year", unique: true, where: "((birthday_claim_year IS NOT NULL) AND ((status = ANY (ARRAY[0, 1])) OR birthday_used))"
     t.index ["employee_id", "id"], name: "index_leave_requests_on_employee_id_and_id"
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
     t.index ["leave_type_id"], name: "index_leave_requests_on_leave_type_id"
     t.index ["region_id"], name: "index_leave_requests_on_region_id"
+    t.index ["resumes_request_id"], name: "index_leave_requests_on_resumes_request_id"
     t.index ["reviewer_id"], name: "index_leave_requests_on_reviewer_id"
+    t.check_constraint "birthday_claim_year IS NULL OR birthday_claim_year = EXTRACT(year FROM starts_on)::integer", name: "leave_requests_birthday_claim_year"
     t.check_constraint "duration_half_days > 0 AND duration_minutes IS NULL OR duration_minutes > 0 AND duration_half_days IS NULL", name: "leave_requests_positive_duration"
     t.check_constraint "end_minute >= 1 AND end_minute <= 1440", name: "leave_requests_valid_end_minute"
     t.check_constraint "end_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_end_part"
     t.check_constraint "ends_on >= starts_on", name: "leave_requests_dates_in_order"
     t.check_constraint "isfinite(ends_on) AND ends_on >= '2000-01-01'::date AND ends_on <= '2100-12-31'::date", name: "leave_requests_supported_end_date"
     t.check_constraint "isfinite(starts_on) AND starts_on >= '2000-01-01'::date AND starts_on <= '2100-12-31'::date", name: "leave_requests_supported_start_date"
+    t.check_constraint "legal_kind <> 3 OR child_born_on IS NOT NULL AND isfinite(child_born_on) AND child_born_on >= '2000-01-01'::date AND child_born_on <= '2100-12-31'::date AND starts_on >= child_born_on AND ends_on <= (child_born_on + 'P3Y'::interval +\nCASE\n    WHEN to_char(child_born_on::timestamp with time zone, 'MM-DD'::text) = '02-29'::text THEN 'P1D'::interval\n    ELSE 'PT0S'::interval\nEND)::date AND care_relationship IS NOT NULL AND (care_relationship = ANY (ARRAY[0, 1, 2, 3, 4]))", name: "leave_requests_childcare_period"
+    t.check_constraint "legal_kind <> 4 OR starts_on = ends_on AND birthday_claim_year IS NOT NULL", name: "leave_requests_birthday_one_day"
+    t.check_constraint "legal_kind = 0 OR start_minute IS NOT NULL AND end_minute IS NOT NULL AND start_minute = 0 AND end_minute = 1440", name: "leave_requests_statutory_full_days"
+    t.check_constraint "legal_kind = ANY (ARRAY[0, 1, 2, 3, 4])", name: "leave_requests_valid_legal_kind"
+    t.check_constraint "resumes_request_id IS NULL OR resumes_request_id <> id", name: "leave_requests_resume_not_self"
     t.check_constraint "reviewer_id IS NULL OR reviewer_id <> employee_id", name: "leave_requests_reviewer_is_not_employee"
     t.check_constraint "start_minute >= 0 AND start_minute <= 1439", name: "leave_requests_valid_start_minute"
     t.check_constraint "start_minute IS NULL AND end_minute IS NULL AND duration_minutes IS NULL AND duration_half_days IS NOT NULL OR start_minute IS NOT NULL AND end_minute IS NOT NULL AND duration_minutes IS NOT NULL AND duration_half_days IS NULL", name: "leave_requests_consistent_time_precision"
     t.check_constraint "start_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_start_part"
     t.check_constraint "starts_on < ends_on OR start_minute IS NULL AND start_part <= end_part OR start_minute IS NOT NULL AND start_minute < end_minute", name: "leave_requests_period_boundaries_in_order"
     t.check_constraint "status = 4 AND recalled_on IS NOT NULL AND isfinite(recalled_on) AND recalled_on > starts_on AND recalled_on <= ends_on OR status <> 4 AND recalled_on IS NULL", name: "leave_requests_recall_date"
-    t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3, 4])", name: "leave_requests_valid_status"
-    t.exclusion_constraint "employee_id WITH =, tsrange((starts_on + ((COALESCE(start_minute, (start_part * 720)))::double precision * 'PT1M'::interval)),\nCASE\n    WHEN (recalled_on IS NOT NULL) THEN (recalled_on)::timestamp without time zone\n    ELSE (ends_on + ((COALESCE(end_minute, ((end_part + 1) * 720)))::double precision * 'PT1M'::interval))\nEND, '[)'::text) WITH &&", where: "status = ANY (ARRAY[0, 1, 4])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
+    t.check_constraint "status = 5 AND legal_kind = 3 AND returned_on IS NOT NULL AND isfinite(returned_on) AND returned_on >= starts_on AND returned_on <= ends_on OR status <> 5 AND returned_on IS NULL", name: "leave_requests_childcare_return"
+    t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3, 4, 5])", name: "leave_requests_valid_status"
+    t.exclusion_constraint "employee_id WITH =, tsrange((starts_on + ((COALESCE(start_minute, (start_part * 720)))::double precision * 'PT1M'::interval)),\nCASE\n    WHEN (COALESCE(recalled_on, returned_on) IS NOT NULL) THEN (COALESCE(recalled_on, returned_on))::timestamp without time zone\n    ELSE (ends_on + ((COALESCE(end_minute, ((end_part + 1) * 720)))::double precision * 'PT1M'::interval))\nEND, '[)'::text) WITH &&", where: "status = ANY (ARRAY[0, 1, 4, 5])", using: :gist, name: "leave_requests_no_overlapping_active_periods"
   end
 
   create_table "leave_types", force: :cascade do |t|
@@ -196,11 +233,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000001) do
     t.check_constraint "role = ANY (ARRAY[0, 1, 2])", name: "users_valid_role"
   end
 
+  add_foreign_key "leave_legal_reviews", "leave_requests"
+  add_foreign_key "leave_legal_reviews", "users", column: "reviewer_id"
   add_foreign_key "leave_recalls", "leave_requests"
   add_foreign_key "leave_recalls", "users", column: "confirmed_by_id"
   add_foreign_key "leave_recalls", "users", column: "requested_by_id"
   add_foreign_key "leave_request_events", "leave_requests"
   add_foreign_key "leave_request_events", "users", column: "actor_id"
+  add_foreign_key "leave_requests", "leave_requests", column: "resumes_request_id"
   add_foreign_key "leave_requests", "leave_types"
   add_foreign_key "leave_requests", "regions"
   add_foreign_key "leave_requests", "users", column: "employee_id"

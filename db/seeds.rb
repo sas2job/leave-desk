@@ -5,7 +5,9 @@ ActiveRecord::Base.transaction do
       holiday_handling: :include_public_holidays },
     { code: "SICK", name: "Больничный", holiday_handling: :include_public_holidays },
     { code: "UNPAID", name: "Отпуск без сохранения заработной платы",
-      holiday_handling: :include_public_holidays }
+      holiday_handling: :include_public_holidays },
+    { code: "MATERNITY", name: "Отпуск по беременности и родам", holiday_handling: :include_public_holidays },
+    { code: "CHILDCARE", name: "Отпуск по уходу за ребёнком", holiday_handling: :include_public_holidays }
   ].each do |attributes|
     leave_type = LeaveType.find_or_initialize_by(code: attributes.fetch(:code))
     if leave_type.new_record?

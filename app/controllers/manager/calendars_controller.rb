@@ -15,13 +15,15 @@ module Manager
       @off_days_by_region = employees.map(&:region_id).uniq.index_with do |region_id|
         FederalCalendar.nonworking_dates(@dates, region_id:)
       end
-      requests_by_employee = LeaveRequest.where(employee_id: employees.map(&:id), status: %i[approved recalled])
+      requests_by_employee = LeaveRequest.where(employee_id: employees.map(&:id), status: %i[approved recalled interrupted])
         .includes(:leave_type)
-        .where("starts_on <= ? AND COALESCE(recalled_on - 1, ends_on) >= ?", @dates.last, @dates.first)
+        .where("starts_on <= ? AND COALESCE(recalled_on - 1, returned_on - 1, ends_on) >= ?", @dates.last, @dates.first)
         .group_by(&:employee_id)
       @rows = employees.map { |employee| calendar_row(employee, requests_by_employee.fetch(employee.id, [])) }
       @leave_types = @rows.flat_map { |row| row[:requests].map(&:leave_type) }.uniq.sort_by(&:name)
       @type_colors = type_colors_for(@leave_types)
+      @has_family_leave = @leave_types.any?(&:family_leave?)
+      @leave_types.reject!(&:family_leave?)
       @coverage = @dates.index_with { 0 }
       @rows.each { |row| row[:leave_days].each { |date| @coverage[date] += 1 } }
       @focus_date = @coverage.find { |_, count| count >= 2 }&.first ||
@@ -54,6 +56,11 @@ module Manager
       colors = {}
       used = Set.new
       leave_types.each do |leave_type|
+        if leave_type.family_leave?
+          colors[leave_type.id] = 4
+          used.add(4)
+          next
+        end
         tone = TYPE_TONES[leave_type.code.split("_").last]
         next unless tone && used.add?(tone)
 

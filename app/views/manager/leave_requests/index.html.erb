@@ -14,7 +14,7 @@
           <header class="review-card__header">
             <div>
               <h2><%= leave_request.employee.name %></h2>
-              <p class="request-card__comment"><%= leave_request.employee_comment.presence || "Без комментария" %></p>
+              <p class="request-card__comment"><%= leave_request.family_leave? ? "Кадровая регистрация у администратора" : leave_request.employee_comment.presence || "Без комментария" %></p>
             </div>
             <span class="status status--<%= leave_request.status %>">
               <%= leave_request_status_label(leave_request) %>
@@ -24,7 +24,7 @@
           <div class="review-card__details">
             <div>
               <div class="meta-label">Вид отпуска</div>
-              <div class="meta-value"><%= leave_request.leave_type.name %></div>
+              <div class="meta-value"><%= team_leave_type_name(leave_request) %></div>
             </div>
             <div>
               <div class="meta-label">Начало</div>
@@ -47,7 +47,7 @@
             <% end %>
           </div>
 
-          <% if leave_request.pending? %>
+          <% if leave_request.pending? && !leave_request.family_leave? %>
             <%= form_with url: approve_manager_leave_request_path(leave_request),
               method: :patch, class: "review-card__form" do |form| %>
               <div class="field">
@@ -58,10 +58,12 @@
                   maxlength: LeaveRequest::COMMENT_MAX_LENGTH,
                   placeholder: "Необязательно: поясните решение" %>
               </div>
+              <%= render "leave_requests/legal_review_fields", leave_request: leave_request if leave_request.annual_leave? %>
               <div class="review-card__actions">
                 <%= form.submit "Одобрить" %>
                 <%= button_tag "Отклонить",
                   type: "submit",
+                  formnovalidate: true,
                   formaction: reject_manager_leave_request_path(leave_request),
                   name: "authenticity_token",
                   value: form_authenticity_token(
@@ -74,8 +76,9 @@
               </div>
             <% end %>
           <% end %>
+          <%= render "leave_requests/legal_basis", leave_request: leave_request unless leave_request.family_leave? %>
           <%= render "leave_requests/recalls", leave_request: %>
-          <%= render "leave_requests/history", leave_request: %>
+          <%= render "leave_requests/history", leave_request: leave_request unless leave_request.family_leave? %>
         </article>
       <% end %>
     </div>

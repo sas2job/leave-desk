@@ -14,8 +14,8 @@ class CalendarsController < ApplicationController
     @calendar_off_days = FederalCalendar.nonworking_dates(@dates, region_id: Current.user.region_id)
 
     @leave_requests = Current.user.leave_requests.includes(:leave_type)
-      .where(status: %i[pending approved recalled])
-      .where("starts_on <= ? AND COALESCE(recalled_on - 1, ends_on) >= ?", @dates.last, @dates.first)
+      .where(status: %i[pending approved recalled interrupted])
+      .where("starts_on <= ? AND COALESCE(recalled_on - 1, returned_on - 1, ends_on) >= ?", @dates.last, @dates.first)
       .order(:starts_on)
     @leave_requests_by_date = @leave_requests.each_with_object({}) do |request, requests_by_date|
       next unless (visible_dates = window.visible_dates_for(request, ends_on: request.effective_ends_on))

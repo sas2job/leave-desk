@@ -42,5 +42,8 @@ demo_names.each_with_index do |name, index|
 
   request.employee_comment = "Демонстрационный календарь"
   request.save!
-  request.approve!(by: manager, comment: "Демонстрационные данные")
+  request.approve!(by: manager, comment: "Демонстрационные данные", legal_review: {
+    conditions_confirmed: true, working_year_starts_on: today.beginning_of_year,
+    working_year_ends_on: today.end_of_year, entitlement_days: 28
+  })
 end
