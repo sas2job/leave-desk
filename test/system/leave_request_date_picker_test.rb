@@ -4,6 +4,12 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
   driven_by :selenium, using: :headless_chrome, screen_size: [ 390, 844 ]
 
   test "date picker starts in 2025 and allows only current or future dates" do
+    [ 2025, 2026 ].each do |year|
+      FederalCalendar.find_or_create_by!(year:) do |calendar|
+        calendar.legal_basis = "Test calendar"
+        calendar.public_holidays = RussianFederalHoliday.fixed_dates_for(year)
+      end
+    end
     travel_to Date.new(2026, 10, 28) do
       employee = User.create!(name: "Test Employee", email_address: "employee@example.test",
         password: "test-password")

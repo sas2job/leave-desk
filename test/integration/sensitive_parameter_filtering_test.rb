@@ -21,6 +21,10 @@ class SensitiveParameterFilteringTest < ActionDispatch::IntegrationTest
   end
 
   test "successful and failed leave submissions filter employee comments" do
+    FederalCalendar.find_or_create_by!(year: 2026) do |calendar|
+      calendar.legal_basis = "Test calendar"
+      calendar.public_holidays = RussianFederalHoliday.fixed_dates_for(2026)
+    end
     employee = User.create!(name: "Employee", email_address: "employee@example.test",
       password: "test-password")
     leave_type = LeaveType.create!(name: "Annual leave", code: "TEST_ANNUAL")

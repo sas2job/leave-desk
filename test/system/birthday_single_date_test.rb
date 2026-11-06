@@ -6,6 +6,10 @@ class BirthdaySingleDateTest < ActionDispatch::SystemTestCase
   test "birthday uses one visible date and synchronizes picker and manual entry" do
     employee = User.create!(name: "Birthday Employee", email_address: "birthday-form@example.test", password: "test-password")
     LeaveType.find_or_create_by!(code: "BIRTHDAY") { |type| type.name = "Выходной в день рождения" }
+    FederalCalendar.find_or_create_by!(year: 2026) do |calendar|
+      calendar.legal_basis = "Test calendar"
+      calendar.public_holidays = RussianFederalHoliday.fixed_dates_for(2026)
+    end
     visit new_session_path
     fill_in "Электронная почта", with: employee.email_address
     fill_in "Пароль", with: "test-password"
@@ -17,7 +21,7 @@ class BirthdaySingleDateTest < ActionDispatch::SystemTestCase
     fill_in "Дата выходного", with: "20.10.2026"
     assert_field "leave_request_ends_on", with: "20.10.2026", visible: :all
     find("[data-period-field='starts_on'] [data-date-picker-button]").click
-    click_button "21 октября 2026 г."
+    find("dialog[open] button.date-entry__day", text: "21", exact_text: true).click
     assert_field "leave_request_ends_on", with: "21.10.2026", visible: :all
   end
 end

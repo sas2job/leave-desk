@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const min = () => dialog.dataset.calendarMin;
     const max = () => dialog.dataset.calendarMax;
     const firstYear = Number(dialog.dataset.calendarFirstYear);
+    const availableYears = new Set(dialog.dataset.calendarAvailableYears.split(",").filter(Boolean));
     const months = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
       "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
     const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
@@ -49,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
         dayButton.type = "button";
         dayButton.textContent = String(day);
         dayButton.className = "date-entry__day";
-        dayButton.disabled = date < min() || date > max();
+        dayButton.disabled = date < min() || date > max() || !availableYears.has(String(year));
         dayButton.setAttribute("aria-label", new Intl.DateTimeFormat("ru-RU", {
           day: "numeric", month: "long", year: "numeric"
         }).format(new Date(year, month - 1, day)));
@@ -67,7 +68,9 @@ document.addEventListener("DOMContentLoaded", () => {
     button.addEventListener("click", () => {
       yearSelect.replaceChildren();
       for (let year = firstYear; year <= Number(max().slice(0, 4)); year += 1) {
-        yearSelect.add(new Option(String(year), String(year)));
+        const option = new Option(String(year), String(year));
+        option.disabled = !availableYears.has(String(year));
+        yearSelect.add(option);
       }
       const selected = selectedIso();
       const initial = selected >= `${firstYear}-01-01` && selected <= max() ? selected : min();
@@ -105,6 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const holidays = new Set(planner.dataset.publicHolidays.split(",").filter(Boolean));
   const excludedTypeIds = new Set(leaveType.dataset.excludedHolidayTypeIds.split(",").filter(Boolean));
   const dayMillis = 24 * 60 * 60 * 1000;
+  const configuredYears = new Set(planner.dataset.calendarAvailableYears.split(",").filter(Boolean));
   const dateLabel = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", timeZone: "UTC" });
   const weekdayLabel = new Intl.DateTimeFormat("ru-RU", { weekday: "short", timeZone: "UTC" });
   let customStartTime = startTime.value;
@@ -142,6 +146,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (dateIso(first) < minDate || dateIso(last) > maxDate) {
       summary.textContent = `Выберите даты в допустимом периоде: ${minDate} — ${maxDate}.`;
+      return;
+    }
+    const missingYears = [];
+    for (let year = first.getUTCFullYear(); year <= last.getUTCFullYear(); year += 1) {
+      if (!configuredYears.has(String(year))) missingYears.push(year);
+    }
+    if (missingYears.length) {
+      summary.textContent = `Календарь ${missingYears.join(", ")} года ещё не размечен. Обратитесь к администратору.`;
       return;
     }
 

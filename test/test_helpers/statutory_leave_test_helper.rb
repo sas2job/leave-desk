@@ -10,7 +10,7 @@ module StatutoryLeaveTestHelper
     @birthday = LeaveType.find_or_create_by!(code: "BIRTHDAY") { |type| type.name = "Выходной в день рождения" }
     @maternity = LeaveType.find_or_create_by!(code: "MATERNITY") { |type| type.name = "Отпуск по беременности и родам" }
     @childcare = LeaveType.find_or_create_by!(code: "CHILDCARE") { |type| type.name = "Отпуск по уходу за ребёнком" }
-    [ 2026, 2027 ].each do |year|
+    [ 2026, 2027, 2028 ].each do |year|
       FederalCalendar.find_or_create_by!(year:) do |calendar|
         calendar.legal_basis = "Тестовый календарь"
         calendar.public_holidays = RussianFederalHoliday.fixed_dates_for(year)

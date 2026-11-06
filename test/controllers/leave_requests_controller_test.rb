@@ -16,6 +16,10 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     @employee = create_user("employee@example.test")
     @other_employee = create_user("other@example.test")
     @leave_type = LeaveType.create!(name: "Annual leave", code: "TEST_ANNUAL")
+    FederalCalendar.find_or_create_by!(year: 2026) do |calendar|
+      calendar.legal_basis = "Test calendar"
+      calendar.public_holidays = RussianFederalHoliday.fixed_dates_for(2026)
+    end
     sign_in_as(@employee)
   end
 
@@ -147,7 +151,7 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "planner receives configured public holidays" do
-    FederalCalendar.create!(year: 2026, legal_basis: "Test calendar",
+    FederalCalendar.find_by!(year: 2026).update!(legal_basis: "Test calendar",
       public_holidays: [ Date.new(2026, 11, 5) ])
 
     get new_leave_request_path

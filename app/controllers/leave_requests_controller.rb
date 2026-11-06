@@ -24,7 +24,7 @@ class LeaveRequestsController < ApplicationController
   def create
     @leave_request = Current.user.leave_requests.new(leave_request_params)
 
-    if @leave_request.save
+    if @leave_request.submit
       redirect_to leave_requests_path, notice: "Заявка создана."
     else
       render_new_with_errors
@@ -130,7 +130,11 @@ class LeaveRequestsController < ApplicationController
 
   def load_form_options
     @leave_types = LeaveType.where(active: true).order(:name)
-    @public_holidays = FederalCalendar.where(year: Date.current.year..CalendarWindow::LAST_YEAR).order(:year).pluck(:year).flat_map do |year|
+    @available_years = FederalCalendar.where(year: CalendarWindow::YEARS).order(:year).pluck(:year)
+    if Current.user.region_id
+      @available_years &= RegionalCalendar.where(region_id: Current.user.region_id, complete: true).pluck(:year)
+    end
+    @public_holidays = @available_years.flat_map do |year|
       PublicHoliday.dates_for_year(year, region_id: Current.user.region_id).to_a
     end
   end

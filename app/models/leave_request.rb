@@ -1,5 +1,6 @@
 class LeaveRequest < ApplicationRecord
   include StatutoryLeaveRules
+  include ConfiguredCalendarSubmission
   COMMENT_MAX_LENGTH = 2_000
   MINUTES_PER_DAY = 1_440
   HALF_DAY_MINUTES = 720

@@ -65,6 +65,7 @@
                 data-calendar-min="<%= Date.current.iso8601 %>"
                 data-calendar-max="<%= Date.current.end_of_year.iso8601 %>"
                 data-statutory-max="<%= Date.new(CalendarWindow::LAST_YEAR, 12, 31).iso8601 %>"
+                data-calendar-available-years="<%= @available_years.join(',') %>"
                 aria-label="Выбор <%= field == :starts_on ? "даты начала" : "даты окончания" %>">
                 <div class="date-entry__controls">
                   <label>Месяц <select data-calendar-month></select></label>
@@ -96,6 +97,7 @@
       <p class="field-hint field--full leave-time-hint">Снимите отметку «Весь день», чтобы указать время начала первого и окончания последнего дня с шагом 15 минут в пределах 09:00–18:00. Промежуточные даты входят целиком.</p>
 
       <section class="leave-planner field--full" data-leave-planner
+        data-calendar-available-years="<%= @available_years.join(',') %>"
         data-public-holidays="<%= @public_holidays.map(&:iso8601).join(",") %>"
         aria-labelledby="leave-planner-title">
         <div class="leave-planner__heading">
