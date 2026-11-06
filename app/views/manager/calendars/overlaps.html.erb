@@ -1,0 +1,21 @@
+<main class="page">
+  <header class="page-header"><div><h1>Пересечения отпусков — <%= @year %></h1>
+    <p>Сотрудников: <%= @report.employee_count %> · Дней с пересечениями: <%= @report.overlap_days %></p>
+    <p>Сформировано: <%= l(@report.generated_at, format: :short) %>.</p></div>
+    <%= link_to "Скачать документ Markdown", manager_calendar_overlaps_path(year: @year, month: @month || "all", format: :md), class: "button" %>
+  </header>
+  <p>Месяцы без пересечений пропущены. Учитываются одобренные отсутствия и использованные части после отзыва или выхода.
+    Два отсутствующих в течение дня могут отсутствовать в разные часы; отчёт показывает дневные совпадения.</p>
+  <% if @report.months.empty? %><p>В выбранном периоде пересечений нет.</p><% end %>
+  <% @report.months.each do |month| %>
+    <section class="card">
+      <h2><%= @report.month_label(month) %></h2>
+      <p>Дней с пересечениями: <%= month[:overlap_days] %></p>
+      <% month[:ranges].each do |range| %>
+        <p><strong><%= format_date(range[:starts_on]) %>–<%= format_date(range[:ends_on]) %></strong> ·
+          Отсутствуют: <%= range[:employees].size %> · <%= range[:employees].map(&:name).join(", ") %></p>
+      <% end %>
+    </section>
+  <% end %>
+  <%= link_to "К календарю", manager_calendar_path(year: @year, month: @month || "all") %>
+</main>

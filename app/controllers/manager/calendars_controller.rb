@@ -3,8 +3,30 @@ module Manager
     TYPE_TONES = { "ANNUAL" => 0, "SICK" => 1, "UNPAID" => 2, "BIRTHDAY" => 3 }.freeze
 
     before_action :require_calendar_access
+    before_action :require_overlap_access, only: :overlaps
+    before_action :load_calendar
 
     def show
+    end
+
+    def overlaps
+      @report = TeamCalendarOverlapReport.new(rows: @rows, coverage: @coverage, dates: @dates)
+      respond_to do |format|
+        format.html
+        format.md do
+          send_data @report.to_markdown, filename: "leave-overlaps-#{@year}#{@month ? '-%02d' % @month : ''}.md",
+            type: "text/markdown; charset=utf-8", disposition: "attachment"
+        end
+      end
+    end
+
+    private
+
+    def require_overlap_access
+      head :forbidden unless Current.user.manager?
+    end
+
+    def load_calendar
       require_string_fields!(params, :year, :month)
       @window = CalendarWindow.new(year: params[:year], month: params[:month])
       @year, @month, @dates = @window.year, @window.month, @window.dates
@@ -29,8 +51,6 @@ module Manager
       @focus_date = @coverage.find { |_, count| count >= 2 }&.first ||
         @coverage.find { |_, count| count.positive? }&.first
     end
-
-    private
 
     def require_calendar_access
       head :forbidden unless Current.user.manager? || Current.user.administrator?

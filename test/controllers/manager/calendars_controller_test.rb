@@ -30,6 +30,32 @@ module Manager
       assert_select "th#team-year-date-2026-10-01"
     end
 
+    test "overlap document includes only relevant months and direct reports and denies other roles" do
+      second = create_user("overlap-second@example.test", manager: @manager)
+      [ @employee, second ].each do |employee|
+        request = LeaveRequest.create!(employee:, leave_type: @leave_type,
+          starts_on: Date.new(2026, 10, 10), ends_on: Date.new(2026, 10, 12))
+        request.approve!(by: @manager)
+      end
+      sign_in_as(@manager)
+      get manager_calendar_overlaps_path(year: 2026, month: "all", format: :md)
+      assert_response :success
+      assert_includes response.headers["Content-Disposition"], "attachment"
+      assert_includes response.body, "Дней с пересечениями: 3"
+      assert_includes response.body, "октябрь 2026"
+      assert_not_includes response.body, "ноябрь 2026"
+      sign_in_as(@employee)
+      get manager_calendar_overlaps_path(year: 2026, month: "all", format: :md)
+      assert_response :forbidden
+      administrator = create_user("overlap-admin@example.test", role: :administrator)
+      sign_in_as(administrator)
+      get manager_calendar_overlaps_path(year: 2026, month: "all", format: :md)
+      assert_response :forbidden
+      get manager_calendar_path(year: 2026, month: 10)
+      assert_select ".calendar-summary", text: /Дней с пересечениями/, count: 0
+      assert_select ".team-timeline__coverage", count: 0
+    end
+
     test "shows only visible dates for a long approved request" do
     request = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
       starts_on: Date.new(2026, 10, 1), ends_on: Date.new(2026, 10, 31))

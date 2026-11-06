@@ -3,9 +3,10 @@
     <div>
       <p class="eyebrow">Команда</p>
       <h1>Календарь <%= @month ? I18n.l(Date.new(@year, @month, 1), format: "%B %Y") : @year %></h1>
-      <p class="calendar-summary">Сотрудников: <%= @rows.size %> · Дней с пересечениями: <%= @coverage.values.count { |count| count >= 2 } %></p>
+      <p class="calendar-summary">Сотрудников: <%= @rows.size %><% if Current.user.manager? %> · Дней с пересечениями: <%= @coverage.values.count { |count| count >= 2 } %><% end %></p>
     </div>
     <div class="calendar-year-nav">
+      <%= link_to "Отчёт о пересечениях", manager_calendar_overlaps_path(year: @year, month: @month || "all"), class: "button button--secondary" if Current.user.manager? %>
       <% if @month %>
         <% previous_month = Date.new(@year, @month, 1).prev_month %>
         <% next_month = Date.new(@year, @month, 1).next_month %>
@@ -41,7 +42,7 @@
   </header>
   <div class="calendar-legend" aria-label="Обозначения календаря">
     <% if @has_family_leave %><span class="calendar-legend__item"><span class="calendar-key timeline-color--4"></span> Длительное отсутствие</span><% end %>
-    <% if @month %>
+    <% if @month && Current.user.manager? %>
       <% @leave_types.each do |leave_type| %>
         <span class="calendar-legend__item"><span class="calendar-key timeline-color--<%= @type_colors.fetch(leave_type.id) %>"></span> <%= leave_type.name %></span>
       <% end %>
@@ -75,6 +76,7 @@
             </time>
           <% end %>
         </div>
+        <% if Current.user.manager? %>
         <div class="team-timeline__heading team-timeline__heading--coverage">Отсутствуют</div>
         <div class="team-timeline__coverage">
           <% @dates.each do |date| %>
@@ -82,6 +84,7 @@
             <span class="team-timeline__count <%= "is-overlap" if count >= 2 %>" title="<%= format_date(date) %>: отсутствуют <%= count %>" aria-label="<%= format_date(date) %>: отсутствуют <%= count %>"><%= count if count.positive? %></span>
           <% end %>
         </div>
+        <% end %>
         <% @rows.each do |row| %>
           <div class="team-timeline__name"><%= row[:employee].name %></div>
           <div class="team-timeline__track" aria-label="Отсутствия: <%= row[:employee].name %>">

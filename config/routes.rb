@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   end
 
   namespace :manager do
+    get "calendar/overlaps", to: "calendars#overlaps", as: :calendar_overlaps
     resource :calendar, only: :show
     resources :leave_requests, only: :index do
       member do
