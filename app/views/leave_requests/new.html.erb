@@ -40,15 +40,27 @@
         </div>
 
         <%= form.hidden_field :resumes_request_id if @leave_request.resumes_request_id %>
-        <div class="field field--full" data-childcare-field>
+        <%= tag.div class: "field field--full", data: { childcare_field: true }, hidden: !@leave_request.childcare_leave? do %>
           <%= form.label :child_born_on, "Дата рождения ребёнка (для отпуска по уходу)" %>
-          <%= form.date_field :child_born_on, max: Date.current %>
-        </div>
-        <div class="field field--full" data-childcare-field>
+          <%= form.date_field :child_born_on, max: Date.current,
+            disabled: !@leave_request.childcare_leave?, required: @leave_request.childcare_leave? %>
+        <% end %>
+        <%= tag.div class: "field field--full", data: { childcare_field: true }, hidden: !@leave_request.childcare_leave? do %>
           <%= form.label :care_relationship, "Кто осуществляет уход" %>
-          <%= form.select :care_relationship, LeaveRequest.care_relationships.keys.map { |key| [care_relationship_label(key), key] }, include_blank: "Выберите для отпуска по уходу" %>
-        </div>
-        <p class="field-hint field--full">Ежегодный отпуск и семейные отпуска оформляются на полные календарные дни и могут переходить в следующий год. Для беременности и родов укажите даты по заявлению и документу; 140/156/194 дня — обычные варианты, не единственные допустимые сроки. Семейный отпуск регистрирует администратор. Выходной в день рождения — один полный день один раз в календарном году.</p>
+          <%= form.select :care_relationship, LeaveRequest.care_relationships.keys.map { |key| [care_relationship_label(key), key] },
+            { include_blank: "Выберите для отпуска по уходу" },
+            disabled: !@leave_request.childcare_leave?, required: @leave_request.childcare_leave? %>
+        <% end %>
+        <% {
+          "ANNUAL" => "Ежегодный отпуск оформляется на полные календарные дни и может переходить в следующий год. Выходные входят в отпуск, официальные праздники исключаются.",
+          "MATERNITY" => "Укажите даты отпуска по беременности и родам по заявлению и документу. Отпуск оформляется на полные календарные дни и может переходить в следующий год. 140/156/194 дня — обычные варианты, не единственные допустимые сроки. Отпуск регистрирует администратор.",
+          "CHILDCARE" => "Укажите дату рождения ребёнка и кто осуществляет уход. Отпуск оформляется на полные календарные дни и может переходить в следующий год. Отпуск регистрирует администратор.",
+          "BIRTHDAY" => "Выходной в день рождения — один полный день один раз в календарном году."
+        }.each do |code, hint| %>
+          <%= tag.p hint, class: "field-hint field--full",
+            data: { leave_type_hint: @leave_types.find { |type| type.code == code }&.id },
+            hidden: @leave_request.leave_type&.code != code %>
+        <% end %>
 
         <% %i[starts_on ends_on].each do |field| %>
           <div class="field" data-period-field="<%= field %>">

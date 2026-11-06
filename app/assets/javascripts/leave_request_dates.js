@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const renderPlanner = () => {
-    if (leaveType.value === leaveType.dataset.birthdayTypeId) endsOn.value = startsOn.value;
+    if (leaveType.value && leaveType.value === leaveType.dataset.birthdayTypeId) endsOn.value = startsOn.value;
     daysList.replaceChildren();
     const first = parseDate(startsOn.value);
     const last = parseDate(endsOn.value);
@@ -225,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderPlanner();
   });
   const applyTypePolicy = () => {
-    const birthday = leaveType.value === leaveType.dataset.birthdayTypeId;
+    const birthday = Boolean(leaveType.value) && leaveType.value === leaveType.dataset.birthdayTypeId;
     endsOn.closest("[data-period-field]").hidden = birthday;
     endsOn.readOnly = birthday;
     form.querySelector("[data-date-label='starts_on']").textContent = birthday ? "Дата выходного" : "Дата начала";
@@ -238,10 +238,15 @@ document.addEventListener("DOMContentLoaded", () => {
       dialog.dataset.calendarMin = minDate;
       dialog.dataset.calendarMax = maxDate;
     });
-    const childcare = leaveType.value === leaveType.dataset.childcareTypeId;
+    const childcare = Boolean(leaveType.value) && leaveType.value === leaveType.dataset.childcareTypeId;
     form.querySelectorAll("[data-childcare-field]").forEach((field) => {
       field.hidden = !childcare;
-      field.querySelector("input, select").disabled = !childcare;
+      const input = field.querySelector("input, select");
+      input.disabled = !childcare;
+      input.required = childcare;
+    });
+    form.querySelectorAll("[data-leave-type-hint]").forEach((hint) => {
+      hint.hidden = !leaveType.value || hint.dataset.leaveTypeHint !== leaveType.value;
     });
     [startTime, endTime].forEach((field) => {
       field.disabled = fullDay.checked;

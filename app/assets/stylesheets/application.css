@@ -530,6 +530,11 @@ h2 {
   gap: 0.4rem;
 }
 
+.field[hidden],
+[data-leave-type-hint][hidden] {
+  display: none;
+}
+
 .field--full {
   grid-column: 1 / -1;
 }
