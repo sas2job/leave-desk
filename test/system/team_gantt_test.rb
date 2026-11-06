@@ -4,7 +4,6 @@ class TeamGanttTest < ActionDispatch::SystemTestCase
   driven_by :selenium, using: :headless_chrome
 
   test "annual gantt opens details and isolates overlap participants" do
-    travel_to Date.new(2026, 10, 1)
     manager = User.create!(name: "Gantt Manager", email_address: "gantt-manager@example.test",
       password: "test-password", role: :manager)
     employees = [ "First", "Second", "Unrelated" ].map do |name|
@@ -22,6 +21,7 @@ class TeamGanttTest < ActionDispatch::SystemTestCase
     fill_in "Электронная почта", with: manager.email_address
     fill_in "Пароль", with: "test-password"
     click_button "Войти"
+    assert_button "Выйти"
     visit manager_calendar_path(year: 2026, month: "all")
     assert_selector ".team-timeline--year"
     assert_selector ".team-timeline__name", count: 3

@@ -18,6 +18,7 @@ class LeaveRequestTypeFieldsTest < ActionDispatch::SystemTestCase
     fill_in "Электронная почта", with: employee.email_address
     fill_in "Пароль", with: "test-password"
     click_button "Войти"
+    assert_button "Выйти"
     visit new_leave_request_path
 
     assert_no_selector "[data-childcare-field]"

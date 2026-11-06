@@ -14,6 +14,7 @@ class BirthdaySingleDateTest < ActionDispatch::SystemTestCase
     fill_in "Электронная почта", with: employee.email_address
     fill_in "Пароль", with: "test-password"
     click_button "Войти"
+    assert_button "Выйти"
     visit new_leave_request_path
     select "Выходной в день рождения", from: "Вид отпуска"
     assert_field "Дата выходного"

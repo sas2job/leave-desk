@@ -16,6 +16,7 @@ class LeaveRequestPeriodValidationTest < ActionDispatch::SystemTestCase
     fill_in "Электронная почта", with: @employee.email_address
     fill_in "Пароль", with: "test-password"
     click_button "Войти"
+    assert_button "Выйти"
     visit new_leave_request_path
     select @leave_type.name, from: "Вид отпуска"
   end
