@@ -197,14 +197,43 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{calendar_path(year: 2024, month: "all")}']", count: 0
   end
 
-  test "year overview has month links" do
+  test "year overview has twelve month grids and links to detailed months" do
     sign_in_as(@employee)
 
     get calendar_path(year: 2026, month: "all")
 
     assert_response :success
-    assert_select "nav.calendar-month-jump a[href='#personal-year-date-2026-10-01']"
-    assert_select "th#personal-year-date-2026-10-01"
+    assert_select ".personal-year__month", count: 12
+    assert_select ".personal-year__day[data-date]", count: 365
+    assert_select ".personal-year__month h2 a[href='#{calendar_path(year: 2026, month: 10)}']"
+    assert_select ".personal-year__month thead th", count: 84
+    assert_select ".team-calendar-wrap", count: 0
+  end
+
+  test "year overview includes February 29 only in a leap year" do
+    sign_in_as(@employee)
+    get calendar_path(year: 2028, month: "all")
+    assert_select ".personal-year__day[data-date]", count: 366
+    assert_select ".personal-year__day[data-date='2028-02-29']", count: 1
+  end
+
+  test "year overview preserves both statuses exact hours and birthday on the same day" do
+    date = Date.new(2026, 10, 20)
+    @employee.update!(birthday_on: Date.new(1990, 10, 20))
+    morning = LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "09:00", end_time: "10:00")
+    morning.approve!(by: @manager)
+    LeaveRequest.create!(employee: @employee, leave_type: @leave_type,
+      starts_on: date, ends_on: date, start_time: "14:00", end_time: "15:00")
+    sign_in_as(@employee)
+
+    get calendar_path(year: 2026, month: "all")
+
+    assert_select ".personal-year__day.has-approved.has-pending.has-birthday[data-date='2026-10-20']" do
+      assert_select ".personal-year__status", text: "С/Р"
+      assert_select "[aria-hidden='true'].personal-year__birthday"
+    end
+    assert_select ".personal-year__day[aria-label*='09:00–10:00'][aria-label*='14:00–15:00'][aria-label*='День рождения']"
   end
 
   test "navigation stops at December 2050" do

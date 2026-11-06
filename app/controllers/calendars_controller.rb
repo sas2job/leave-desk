@@ -4,6 +4,12 @@ class CalendarsController < ApplicationController
     window = CalendarWindow.new(year: params[:year], month: params[:month])
     @year, @month, @dates = window.year, window.month, window.dates
     @weeks = (@dates.first.beginning_of_week(:monday)..@dates.last.end_of_week(:monday)).each_slice(7).to_a if @month
+    unless @month
+      @year_months = (1..12).map do |month|
+        first = Date.new(@year, month, 1)
+        { first:, weeks: Array.new(42) { |day| first.beginning_of_week(:monday) + day }.each_slice(7).to_a }
+      end
+    end
 
     @calendar_off_days = FederalCalendar.nonworking_dates(@dates, region_id: Current.user.region_id)
 

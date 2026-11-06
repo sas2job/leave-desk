@@ -1,4 +1,4 @@
-<main class="page calendar-page">
+<main class="page calendar-page<%= " personal-year-page" unless @month %>">
   <header class="page-header">
     <div>
       <p class="eyebrow">Личный календарь</p>
@@ -41,18 +41,11 @@
   </header>
 
   <div class="calendar-legend" aria-label="Обозначения календаря">
-    <span class="calendar-legend__item"><span class="calendar-key calendar-key--leave"></span> Согласовано</span>
-    <span class="calendar-legend__item"><span class="calendar-key calendar-key--pending"></span> На рассмотрении</span>
+    <span class="calendar-legend__item"><span class="calendar-key calendar-key--leave"></span> С — согласовано</span>
+    <span class="calendar-legend__item"><span class="calendar-key calendar-key--pending"></span> Р — на рассмотрении</span>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--birthday"></span> День рождения</span>
   </div>
 
-  <% unless @month %>
-    <nav class="calendar-month-jump" aria-label="Месяцы года">
-      <% @dates.group_by(&:month).each_value do |dates| %>
-        <%= link_to I18n.l(dates.first, format: "%b"), "#personal-year-date-#{dates.first.iso8601}" %>
-      <% end %>
-    </nav>
-  <% end %>
   <% if @month %>
     <div class="personal-month" role="table" aria-label="Мой календарь за <%= I18n.l(Date.new(@year, @month, 1), format: "%B %Y") %>">
       <div class="personal-month__weekdays" role="row">
@@ -124,60 +117,6 @@
       <% end %>
     </section>
   <% else %>
-  <div class="team-calendar-wrap <%= "team-calendar-wrap--month" if @month %>">
-    <table class="team-calendar <%= "team-calendar--month" if @month %>">
-      <thead>
-        <tr>
-          <th rowspan="2" scope="col">Мои отсутствия</th>
-          <% @dates.group_by(&:month).each_value do |dates| %>
-            <th colspan="<%= dates.size %>" scope="colgroup"><%= I18n.l(dates.first, format: "%B") %></th>
-          <% end %>
-        </tr>
-        <tr>
-          <% @dates.each do |date| %>
-            <th id="personal-year-date-<%= date.iso8601 %>" scope="col" class="<%= "weekend" if @calendar_off_days.include?(date) %>">
-              <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
-            </th>
-          <% end %>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <th scope="row">Мои заявки</th>
-          <% @dates.each do |date| %>
-            <% day_slots = @leave_requests_by_date[date] || {} %>
-            <% slots = { morning: day_slots.fetch(:morning, []), afternoon: day_slots.fetch(:afternoon, []) } %>
-            <% requests = slots.values.flatten.uniq %>
-            <% classes = [] %>
-            <% classes << "weekend" if @calendar_off_days.include?(date) %>
-            <% classes << (requests.first.approved? ? "leave" : "leave-pending") if requests.one? %>
-            <% classes << "leave-split" if requests.size > 1 %>
-            <% classes << "birthday" if @birthday == date && requests.empty? %>
-            <% labels = [format_date(date)] %>
-            <% slots.each do |part, part_requests| %>
-              <% part_requests.each do |request| %>
-                <% time_label = "#{request.start_time_label}–#{request.end_time_label}, " if request.precise_time? %>
-                <% labels << "#{part == :morning ? "Утро" : "После полудня"}: #{request.leave_type.name}, " \
-                  "#{time_label}#{request.approved? ? "Согласовано" : "На рассмотрении"}" %>
-              <% end %>
-            <% end %>
-            <% labels << "День рождения" if @birthday == date %>
-            <td class="<%= classes.join(" ") %>" title="<%= labels.join(" — ") %>" aria-label="<%= labels.join(" — ") %>">
-              <% if requests.size > 1 %>
-                <% slots.each do |part, part_requests| %>
-                  <% part_requests.each do |request| %>
-                    <span class="calendar-half calendar-half--<%= part %> <%= request.approved? ? "calendar-half--approved" : "calendar-half--pending" %>"><%= request.approved? ? "С" : "Р" %></span>
-                  <% end %>
-                <% end %>
-              <% elsif requests.one? %>
-                <%= requests.first.approved? ? "С" : "Р" %>
-              <% end %>
-              <span class="calendar-birthday"><%= "ДР" if @birthday == date %></span>
-            </td>
-          <% end %>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+    <%= render "year" %>
   <% end %>
 </main>

@@ -32,8 +32,10 @@ class CalendarAccessibilityTest < ActionDispatch::SystemTestCase
     assert_operator contrast_ratio(".calendar-event--pending"), :>=, 4.5
 
     visit calendar_path(year: 2026, month: "all")
-    find("nav.calendar-month-jump a[href='#personal-year-date-2026-10-01']").click
-    assert_operator page.evaluate_script("document.querySelector('.team-calendar-wrap').scrollLeft"), :>, 0
+    assert_selector ".personal-year__month", count: 12
+    assert_personal_year_layout
+    find(".personal-year__month h2 a[href='#{calendar_path(year: 2026, month: 10)}']").click
+    assert_selector ".personal-month__day[data-date='2026-10-20']"
 
     click_button "Выйти"
     fill_in "Электронная почта", with: manager.email_address
@@ -53,6 +55,19 @@ class CalendarAccessibilityTest < ActionDispatch::SystemTestCase
   end
 
   private
+
+  def assert_personal_year_layout
+    [ 320, 375, 390, 768, 1366 ].each do |width|
+      page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+        width:, height: 900, deviceScaleFactor: 1, mobile: false)
+      assert_operator page.evaluate_script("document.documentElement.scrollWidth"), :<=, width
+      assert_operator page.evaluate_script("document.querySelector('.personal-year__day').getBoundingClientRect().width"), :>=, 18
+      assert_operator page.evaluate_script("parseFloat(getComputedStyle(document.querySelector('.personal-year__day')).fontSize)"), :>=, 12
+    end
+    assert_operator page.evaluate_script("document.querySelector('.personal-year__month:last-child').getBoundingClientRect().bottom"), :<=, 900
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
+  end
 
   def assert_mobile_personal_layout
     [ 320, 375, 390, 768 ].each do |width|

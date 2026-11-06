@@ -1,0 +1,45 @@
+<div class="personal-year" aria-label="Мой календарь за <%= @year %> год">
+  <% @year_months.each do |month| %>
+    <% first = month.fetch(:first) %>
+    <section class="personal-year__month" aria-labelledby="personal-month-<%= first.month %>">
+      <h2 id="personal-month-<%= first.month %>">
+        <%= link_to I18n.l(first, format: "%B"), calendar_path(year: @year, month: first.month),
+          aria: { label: "#{I18n.l(first, format: '%B %Y')}: открыть подробный месяц" } %>
+      </h2>
+      <table class="personal-year__table" aria-labelledby="personal-month-<%= first.month %>">
+        <thead><tr>
+          <% 7.times do |day| %>
+            <th scope="col"><%= I18n.l(month.fetch(:weeks).first.first + day, format: "%a") %></th>
+          <% end %>
+        </tr></thead>
+        <tbody>
+          <% month.fetch(:weeks).each do |week| %>
+            <tr>
+              <% week.each do |date| %>
+                <% if date.month != first.month %>
+                  <td class="personal-year__outside" aria-hidden="true"></td>
+                <% else %>
+                  <% requests = @leave_requests_by_date.fetch(date, {}).values.flatten.uniq %>
+                  <% approved = requests.any?(&:approved?) %>
+                  <% pending = requests.any?(&:pending?) %>
+                  <% classes = ["personal-year__day"] %>
+                  <% classes << "is-off" if @calendar_off_days.include?(date) %>
+                  <% classes << "is-today" if date == Date.current %>
+                  <% classes << "has-approved" if approved %>
+                  <% classes << "has-pending" if pending %>
+                  <% classes << "has-birthday" if @birthday == date %>
+                  <% description = personal_year_day_description(date, requests) %>
+                  <td class="<%= classes.join(' ') %>" data-date="<%= date.iso8601 %>" title="<%= description %>" aria-label="<%= description %>">
+                    <time datetime="<%= date.iso8601 %>" aria-hidden="true"><%= date.day %></time>
+                    <span class="personal-year__status" aria-hidden="true"><%= [approved ? "С" : nil, pending ? "Р" : nil].compact.join('/') %></span>
+                    <% if @birthday == date %><span class="personal-year__birthday" aria-hidden="true">•</span><% end %>
+                  </td>
+                <% end %>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </section>
+  <% end %>
+</div>
