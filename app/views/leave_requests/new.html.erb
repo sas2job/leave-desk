@@ -69,6 +69,7 @@
               <%= form.text_field field, required: true, inputmode: "numeric",
                 autocomplete: "off", maxlength: 10, placeholder: "ДД.ММ.ГГГГ",
                 pattern: "[0-9]{2}[.][0-9]{2}[.][0-9]{4}",
+                aria: { describedby: "leave_request_#{field}_error" },
                 value: @date_inputs&.dig(field) || @leave_request.public_send(field)&.strftime("%d.%m.%Y") %>
               <button type="button" class="date-entry__button" data-date-picker-button hidden
                 aria-label="Выбрать <%= field == :starts_on ? "дату начала" : "дату окончания" %>">📅</button>
@@ -87,6 +88,7 @@
                 <button type="button" class="button button--secondary" data-calendar-close>Закрыть</button>
               </dialog>
             </div>
+            <p id="leave_request_<%= field %>_error" class="field-error" aria-live="polite" hidden></p>
           </div>
         <% end %>
       <div class="field field--full leave-full-day">
@@ -104,7 +106,9 @@
       <div class="field" data-time-field>
         <%= form.label :end_time, "Время окончания" %>
         <%= form.select :end_time, LeaveRequest::END_TIME_OPTIONS,
-          { selected: form.object.end_time }, required: true, data: { workday_end: true } %>
+          { selected: form.object.end_time }, required: true, data: { workday_end: true },
+          aria: { describedby: "leave_request_end_time_error" } %>
+        <p id="leave_request_end_time_error" class="field-error" aria-live="polite" hidden></p>
       </div>
       <p class="field-hint field--full leave-time-hint">Снимите отметку «Весь день», чтобы указать время начала первого и окончания последнего дня с шагом 15 минут в пределах 09:00–18:00. Промежуточные даты входят целиком.</p>
 

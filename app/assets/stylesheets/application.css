@@ -531,8 +531,19 @@ h2 {
 }
 
 .field[hidden],
-[data-leave-type-hint][hidden] {
+[data-leave-type-hint][hidden],
+.field-error[hidden] {
   display: none;
+}
+
+.field-error {
+  margin: 0;
+  color: #9c2525;
+  font-size: 0.85rem;
+}
+
+.field [aria-invalid="true"] {
+  border-color: #9c2525;
 }
 
 .field--full {

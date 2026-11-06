@@ -123,6 +123,51 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const dateIso = (date) => date.toISOString().slice(0, 10);
+  const setPeriodError = (field, message) => {
+    field.setCustomValidity(message);
+    if (message) field.setAttribute("aria-invalid", "true");
+    else field.removeAttribute("aria-invalid");
+    const error = document.getElementById(`${field.id}_error`);
+    if (error) {
+      error.textContent = message;
+      error.hidden = !message;
+    }
+  };
+  const validatePeriod = (first, last) => {
+    [startsOn, endsOn, endTime].forEach((field) => setPeriodError(field, ""));
+    let message = "";
+    const fail = (field, text) => {
+      setPeriodError(field, text);
+      if (!message) message = text;
+    };
+    const dateFields = endsOn.readOnly ? [[startsOn, first]] : [[startsOn, first], [endsOn, last]];
+    dateFields.forEach(([field, date]) => {
+      if (!field.value) return;
+      if (!date) {
+        fail(field, "Укажите существующую дату в формате ДД.ММ.ГГГГ.");
+      } else if (dateIso(date) < minDate || dateIso(date) > maxDate) {
+        fail(field, `Выберите дату в допустимом периоде: ${minDate} — ${maxDate}.`);
+      } else if (!configuredYears.has(String(date.getUTCFullYear()))) {
+        fail(field, `Календарь ${date.getUTCFullYear()} года ещё не размечен. Обратитесь к администратору.`);
+      }
+    });
+    if (message || !first || !last) return message;
+    if (last < first) {
+      fail(endsOn, "Дата окончания раньше даты начала.");
+      return message;
+    }
+    const missingYears = [];
+    for (let year = first.getUTCFullYear(); year <= last.getUTCFullYear(); year += 1) {
+      if (!configuredYears.has(String(year))) missingYears.push(year);
+    }
+    if (missingYears.length) {
+      fail(endsOn.readOnly ? startsOn : endsOn,
+        `Календарь ${missingYears.join(", ")} года ещё не размечен. Обратитесь к администратору.`);
+    } else if (!fullDay.checked && first.getTime() === last.getTime() && endTime.value <= startTime.value) {
+      fail(endTime, "Время окончания должно быть позже времени начала.");
+    }
+    return message;
+  };
   const countLabel = (count, one, few, many) => {
     const ending = count % 100;
     if (ending >= 11 && ending <= 14) return many;
@@ -136,24 +181,16 @@ document.addEventListener("DOMContentLoaded", () => {
     daysList.replaceChildren();
     const first = parseDate(startsOn.value);
     const last = parseDate(endsOn.value);
+    note.textContent = fullDayTypeIds.has(leaveType.value) ?
+      "Все выбранные даты входят целиком. Итоговая длительность рассчитывается по правилам выбранного вида отпуска." :
+      "Промежуточные даты входят целиком. Итоговая длительность зависит от вида отсутствия и праздничных дат.";
+    const error = validatePeriod(first, last);
+    if (error) {
+      summary.textContent = error;
+      return;
+    }
     if (!first || !last) {
       summary.textContent = "Выберите даты начала и окончания.";
-      return;
-    }
-    if (last < first) {
-      summary.textContent = "Дата окончания раньше даты начала.";
-      return;
-    }
-    if (dateIso(first) < minDate || dateIso(last) > maxDate) {
-      summary.textContent = `Выберите даты в допустимом периоде: ${minDate} — ${maxDate}.`;
-      return;
-    }
-    const missingYears = [];
-    for (let year = first.getUTCFullYear(); year <= last.getUTCFullYear(); year += 1) {
-      if (!configuredYears.has(String(year))) missingYears.push(year);
-    }
-    if (missingYears.length) {
-      summary.textContent = `Календарь ${missingYears.join(", ")} года ещё не размечен. Обратитесь к администратору.`;
       return;
     }
 
@@ -201,11 +238,6 @@ document.addEventListener("DOMContentLoaded", () => {
       daysList.append(item);
     });
 
-    if (leaveType.value && leaveType.value === leaveType.dataset.annualTypeId) {
-      note.textContent = "Ежегодный отпуск: выходные входят, официальные праздники исключаются. Неполные крайние дни рассчитываются как доли календарного дня.";
-    } else {
-      note.textContent = "Промежуточные даты входят целиком. Итоговая длительность зависит от вида отсутствия и праздничных дат.";
-    }
   };
 
   fullDay.addEventListener("change", () => {
@@ -259,6 +291,13 @@ document.addEventListener("DOMContentLoaded", () => {
     field.addEventListener("change", renderPlanner);
   });
   [startsOn, endsOn].forEach((field) => field.addEventListener("input", renderPlanner));
+  form.addEventListener("submit", (event) => {
+    renderPlanner();
+    if (!form.checkValidity()) {
+      event.preventDefault();
+      form.reportValidity();
+    }
+  });
   [startTime, endTime].forEach((field) => {
     field.disabled = fullDay.checked;
     field.closest("[data-time-field]").hidden = fullDay.checked;
