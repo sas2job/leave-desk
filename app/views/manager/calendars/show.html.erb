@@ -1,12 +1,18 @@
+<% content_for :head do %>
+  <%= javascript_include_tag "team_calendar", defer: true %>
+<% end %>
+
 <main class="page calendar-page">
   <header class="page-header">
     <div>
       <p class="eyebrow">Команда</p>
       <h1>Календарь <%= @month ? I18n.l(Date.new(@year, @month, 1), format: "%B %Y") : @year %></h1>
+      <p class="calendar-view-label">Диаграмма отпусков · сотрудники по строкам, даты по горизонтали</p>
       <p class="calendar-summary">Сотрудников: <%= @rows.size %><% if Current.user.manager? %> · Дней с пересечениями: <%= @coverage.values.count { |count| count >= 2 } %><% end %></p>
     </div>
     <div class="calendar-year-nav">
-      <%= link_to "Отчёт о пересечениях", manager_calendar_overlaps_path(year: @year, month: @month || "all"), class: "button button--secondary" if Current.user.manager? %>
+      <%= link_to(@selected_range ? "Отчёт по всей команде" : "Отчёт о пересечениях",
+        manager_calendar_overlaps_path(year: @year, month: @month || "all"), class: "button button--secondary") if Current.user.manager? %>
       <% if @month %>
         <% previous_month = Date.new(@year, @month, 1).prev_month %>
         <% next_month = Date.new(@year, @month, 1).next_month %>
@@ -42,22 +48,38 @@
   </header>
   <div class="calendar-legend" aria-label="Обозначения календаря">
     <% if @has_family_leave %><span class="calendar-legend__item"><span class="calendar-key timeline-color--4"></span> Длительное отсутствие</span><% end %>
-    <% if @month && Current.user.manager? %>
-      <% @leave_types.each do |leave_type| %>
-        <span class="calendar-legend__item"><span class="calendar-key timeline-color--<%= @type_colors.fetch(leave_type.id) %>"></span> <%= leave_type.name %></span>
-      <% end %>
-    <% else %>
-      <span class="calendar-legend__item"><span class="calendar-key calendar-key--leave"></span> Согласованный отпуск</span>
+    <% @leave_types.each do |leave_type| %>
+      <span class="calendar-legend__item"><span class="calendar-key timeline-color--<%= @type_colors.fetch(leave_type.id) %>"></span> <%= leave_type.name %></span>
     <% end %>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--birthday"></span> День рождения</span>
-    <% if @month %>
+    <% if Current.user.manager? %>
       <span class="calendar-legend__item"><span class="calendar-key calendar-key--overlap"></span> Пересечения</span>
       <% if @focus_date %>
         <%= link_to(@coverage.fetch(@focus_date) >= 2 ? "К пересечению →" : "К первому отсутствию →",
-          "#team-date-#{@focus_date.iso8601}", class: "calendar-focus-link") %>
+          "##{timeline_date_anchor(@focus_date)}", class: "calendar-focus-link") %>
       <% end %>
     <% end %>
   </div>
+  <% if Current.user.manager? %>
+    <%= form_with url: manager_calendar_path, method: :get, class: "calendar-overlap-filter" do |form| %>
+      <%= form.hidden_field :year, value: @year %>
+      <%= form.hidden_field :month, value: @month || "all" %>
+      <div class="field">
+        <%= form.label :overlap_on, "Пересечение по датам" %>
+        <%= form.select :overlap_on, options_for_select(timeline_overlap_options, @selected_range&.dig(:starts_on)&.iso8601),
+          { include_blank: "Вся команда" } %>
+      </div>
+      <%= form.submit "Показать на шкале", class: "button button--secondary" %>
+    <% end %>
+    <p class="field-hint">Пересечения означают совпадение календарных дат. Точное время отсутствия указано на полосах.</p>
+    <% if @selected_range %>
+      <div class="calendar-selection" role="status">
+        <p><strong><%= format_date(@selected_range[:starts_on]) %>–<%= format_date(@selected_range[:ends_on]) %></strong> ·
+          <%= @selected_range[:employees].map(&:name).join(", ") %></p>
+        <%= link_to "Все сотрудники", manager_calendar_path(year: @year, month: @month || "all"), class: "calendar-focus-link" %>
+      </div>
+    <% end %>
+  <% end %>
   <% unless @month %>
     <nav class="calendar-month-jump" aria-label="Месяцы года">
       <% @dates.group_by(&:month).each_value do |dates| %>
@@ -65,89 +87,5 @@
       <% end %>
     </nav>
   <% end %>
-  <% if @month %>
-    <div class="team-timeline-wrap" aria-label="Календарь команды за <%= I18n.l(Date.new(@year, @month, 1), format: "%B %Y") %>">
-      <div class="team-timeline" style="--days: <%= @dates.size %>; --timeline-width: <%= @dates.size * Manager::CalendarsHelper::DAY_WIDTH %>px">
-        <div class="team-timeline__heading">Сотрудник</div>
-        <div class="team-timeline__dates">
-          <% @dates.each do |date| %>
-            <time id="team-date-<%= date.iso8601 %>" datetime="<%= date.iso8601 %>" class="team-timeline__date <%= "is-off" if @calendar_off_days.include?(date) %> <%= "is-today" if date == Date.current %>" title="<%= format_date(date) %>">
-              <strong><%= date.day %></strong><small><%= I18n.l(date, format: "%a") %></small>
-            </time>
-          <% end %>
-        </div>
-        <% if Current.user.manager? %>
-        <div class="team-timeline__heading team-timeline__heading--coverage">Отсутствуют</div>
-        <div class="team-timeline__coverage">
-          <% @dates.each do |date| %>
-            <% count = @coverage.fetch(date) %>
-            <span class="team-timeline__count <%= "is-overlap" if count >= 2 %>" title="<%= format_date(date) %>: отсутствуют <%= count %>" aria-label="<%= format_date(date) %>: отсутствуют <%= count %>"><%= count if count.positive? %></span>
-          <% end %>
-        </div>
-        <% end %>
-        <% @rows.each do |row| %>
-          <div class="team-timeline__name"><%= row[:employee].name %></div>
-          <div class="team-timeline__track" aria-label="Отсутствия: <%= row[:employee].name %>">
-            <% @dates.each do |date| %>
-              <span class="team-timeline__day <%= "is-off" if row[:off_days].include?(date) %> <%= "is-today" if date == Date.current %>" aria-hidden="true"></span>
-            <% end %>
-            <% row[:requests].each do |request| %>
-              <span class="team-timeline__bar timeline-color--<%= @type_colors.fetch(request.leave_type_id) %>" style="<%= timeline_bar_style(request, @dates) %>" title="<%= timeline_bar_label(request) %>" aria-label="<%= timeline_bar_label(request) %>" tabindex="0"><span class="team-timeline__bar-text"><%= team_leave_type_name(request) %></span></span>
-            <% end %>
-            <% if row[:birthday] && @dates.include?(row[:birthday]) %>
-              <span class="team-timeline__birthday" style="grid-column: <%= (row[:birthday] - @dates.first).to_i + 1 %>" title="<%= format_date(row[:birthday]) %>: день рождения" aria-label="<%= format_date(row[:birthday]) %>: день рождения">ДР</span>
-            <% end %>
-          </div>
-        <% end %>
-      </div>
-    </div>
-  <% else %>
-  <div class="team-calendar-wrap <%= "team-calendar-wrap--month" if @month %>">
-    <table class="team-calendar <%= "team-calendar--month" if @month %>">
-      <thead>
-        <tr>
-          <th rowspan="2" scope="col">Сотрудник</th>
-          <% @dates.group_by(&:month).each_value do |dates| %>
-            <th colspan="<%= dates.size %>" scope="colgroup"><%= I18n.l(dates.first, format: "%B") %></th>
-          <% end %>
-        </tr>
-        <tr>
-          <% @dates.each do |date| %>
-            <th id="team-year-date-<%= date.iso8601 %>" scope="col" class="<%= "weekend" if @calendar_off_days.include?(date) %>">
-              <%= date.day %><small><%= I18n.l(date, format: "%a") %></small>
-            </th>
-          <% end %>
-        </tr>
-      </thead>
-      <tbody>
-        <% @rows.each do |row| %>
-          <tr>
-            <th scope="row"><%= row[:employee].name %></th>
-            <% @dates.each do |date| %>
-              <% leave = row[:leave_days].include?(date) %>
-              <% birthday = row[:birthday] == date %>
-              <% classes = [] %>
-              <% classes << "weekend" if row[:off_days].include?(date) %>
-              <% classes << "leave" if leave %>
-              <% classes << "birthday" if birthday %>
-              <% labels = [format_date(date)] %>
-              <% labels << "Отпуск согласован" if leave %>
-              <% labels << "День рождения" if birthday %>
-              <td class="<%= classes.join(" ") %>" title="<%= labels.join(" — ") %>" aria-label="<%= labels.join(" — ") %>">
-                <% if leave && birthday %>
-                  <span class="calendar-half calendar-half--approved">О</span>
-                  <span class="calendar-birthday">ДР</span>
-                <% elsif leave %>
-                  О
-                <% elsif birthday %>
-                  ДР
-                <% end %>
-              </td>
-            <% end %>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
-  <% end %>
+  <%= render "timeline" %>
 </main>

@@ -269,6 +269,9 @@ body:has(.calendar-page) {
 }
 
 .team-timeline {
+  --timeline-month-height: 0px;
+  --timeline-date-height: 48px;
+  --timeline-coverage-height: 32px;
   display: grid;
   grid-template-columns: 180px var(--timeline-width);
   width: max-content;
@@ -290,30 +293,31 @@ body:has(.calendar-page) {
 }
 
 .team-timeline__heading {
-  top: 0;
+  top: var(--timeline-month-height);
   z-index: 6;
-  min-height: 48px;
+  min-height: var(--timeline-date-height);
   color: var(--calendar-muted);
   font-size: .75rem;
 }
 
 .team-timeline__heading--coverage {
-  top: 48px;
-  min-height: 32px;
+  top: calc(var(--timeline-month-height) + var(--timeline-date-height));
+  min-height: var(--timeline-coverage-height);
 }
 
+.team-timeline__months,
 .team-timeline__dates,
 .team-timeline__coverage,
 .team-timeline__track {
   display: grid;
-  grid-template-columns: repeat(var(--days), 40px);
+  grid-template-columns: repeat(var(--days), var(--day-width));
 }
 
 .team-timeline__dates {
   position: sticky;
-  top: 0;
+  top: var(--timeline-month-height);
   z-index: 5;
-  height: 48px;
+  height: var(--timeline-date-height);
   background: var(--surface);
 }
 
@@ -351,9 +355,9 @@ body:has(.calendar-page) {
 
 .team-timeline__coverage {
   position: sticky;
-  top: 48px;
+  top: calc(var(--timeline-month-height) + var(--timeline-date-height));
   z-index: 4;
-  height: 32px;
+  height: var(--timeline-coverage-height);
   background: var(--surface);
 }
 
@@ -364,6 +368,7 @@ body:has(.calendar-page) {
   border-bottom: 1px solid var(--calendar-line);
   font-size: .75rem;
   font-variant-numeric: tabular-nums;
+  text-decoration: none;
 }
 
 .team-timeline__count:not(.is-overlap) {
@@ -377,6 +382,10 @@ body:has(.calendar-page) {
 .team-timeline__name,
 .team-timeline__track {
   min-height: 44px;
+}
+
+.team-timeline__day.is-selected {
+  box-shadow: inset 0 -3px 0 var(--calendar-overlap-ink);
 }
 
 .team-timeline__track {
@@ -397,13 +406,110 @@ body:has(.calendar-page) {
   height: 22px;
   margin-top: 5px;
   padding: 3px 0;
+  border: 0;
   overflow: hidden;
   border-radius: 4px;
   white-space: nowrap;
   font-size: .73rem;
   font-weight: 600;
   line-height: 16px;
-  cursor: help;
+  text-align: left;
+  cursor: pointer;
+}
+
+.team-timeline__bar:hover {
+  transform: none;
+  filter: brightness(0.96);
+}
+
+.team-timeline--year {
+  --timeline-month-height: 32px;
+  --timeline-date-height: 32px;
+  --timeline-coverage-height: 32px;
+}
+
+.team-timeline__heading--months,
+.team-timeline__months {
+  position: sticky;
+  top: 0;
+  height: var(--timeline-month-height);
+  min-height: var(--timeline-month-height);
+  background: var(--surface);
+}
+
+.team-timeline__months {
+  z-index: 5;
+}
+
+.team-timeline__months a {
+  display: grid;
+  align-items: center;
+  padding: 0 .35rem;
+  border-right: 1px solid var(--calendar-line);
+  border-bottom: 1px solid var(--calendar-line);
+  color: var(--text);
+  font-size: .73rem;
+  font-weight: 600;
+}
+
+.team-timeline--year .team-timeline__count {
+  overflow: hidden;
+  font-size: 0;
+}
+
+.calendar-view-label {
+  margin: .25rem 0;
+  color: var(--calendar-muted);
+  font-size: .85rem;
+}
+
+.calendar-overlap-filter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: .75rem;
+  max-width: 680px;
+  margin: 1rem 0 .5rem;
+}
+
+.calendar-overlap-filter .field {
+  min-width: 0;
+}
+
+.calendar-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  background: var(--calendar-overlap);
+}
+
+.calendar-selection p {
+  margin: 0;
+}
+
+.calendar-event-dialog {
+  width: min(560px, calc(100% - 2rem));
+  padding: 1.5rem;
+  border: 1px solid var(--calendar-line);
+  border-radius: 10px;
+}
+
+.calendar-event-dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.calendar-event-dialog h2 {
+  margin-top: 0;
+}
+
+@media (max-width: 600px) {
+  .calendar-overlap-filter {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .team-timeline__bar-text {

@@ -7,10 +7,22 @@ module Manager
     before_action :load_calendar
 
     def show
+      return if params[:overlap_on].blank?
+      return head :forbidden unless Current.user.manager?
+
+      date = FederalCalendar.parse_iso_date(params[:overlap_on])
+      @selected_range = @report.months.flat_map { |month| month[:ranges] }.find do |range|
+        date && (range[:starts_on]..range[:ends_on]).cover?(date)
+      end
+      raise ActionController::BadRequest, "Неизвестный период пересечения" unless @selected_range
+
+      selected_ids = @selected_range[:employees].map(&:id).to_set
+      @rows.select! { |row| selected_ids.include?(row[:employee].id) }
+      @coverage = coverage_for(@rows)
+      @focus_date = date
     end
 
     def overlaps
-      @report = TeamCalendarOverlapReport.new(rows: @rows, coverage: @coverage, dates: @dates)
       respond_to do |format|
         format.html
         format.md do
@@ -27,7 +39,7 @@ module Manager
     end
 
     def load_calendar
-      require_string_fields!(params, :year, :month)
+      require_string_fields!(params, :year, :month, :overlap_on)
       @window = CalendarWindow.new(year: params[:year], month: params[:month])
       @year, @month, @dates = @window.year, @window.month, @window.dates
 
@@ -46,10 +58,16 @@ module Manager
       @type_colors = type_colors_for(@leave_types)
       @has_family_leave = @leave_types.any?(&:family_leave?)
       @leave_types.reject!(&:family_leave?)
-      @coverage = @dates.index_with { 0 }
-      @rows.each { |row| row[:leave_days].each { |date| @coverage[date] += 1 } }
+      @coverage = coverage_for(@rows)
+      @report = TeamCalendarOverlapReport.new(rows: @rows, coverage: @coverage, dates: @dates) if Current.user.manager?
       @focus_date = @coverage.find { |_, count| count >= 2 }&.first ||
         @coverage.find { |_, count| count.positive? }&.first
+    end
+
+    def coverage_for(rows)
+      coverage = @dates.index_with { 0 }
+      rows.each { |row| row[:leave_days].each { |date| coverage[date] += 1 } }
+      coverage
     end
 
     def require_calendar_access

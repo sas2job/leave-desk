@@ -13,7 +13,9 @@
       <p>Дней с пересечениями: <%= month[:overlap_days] %></p>
       <% month[:ranges].each do |range| %>
         <p><strong><%= format_date(range[:starts_on]) %>–<%= format_date(range[:ends_on]) %></strong> ·
-          Отсутствуют: <%= range[:employees].size %> · <%= range[:employees].map(&:name).join(", ") %></p>
+          Отсутствуют: <%= range[:employees].size %> · <%= range[:employees].map(&:name).join(", ") %>
+          <%= link_to "Показать на шкале", manager_calendar_path(year: @year, month: month[:month],
+            overlap_on: range[:starts_on].iso8601, anchor: "team-date-#{range[:starts_on].iso8601}") %></p>
       <% end %>
     </section>
   <% end %>

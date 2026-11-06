@@ -1,0 +1,58 @@
+<% day_width = @month ? Manager::CalendarsHelper::DAY_WIDTH : Manager::CalendarsHelper::YEAR_DAY_WIDTH %>
+<div class="team-timeline-wrap" role="region" tabindex="0" aria-label="Диаграмма отпусков команды за <%= @year %><%= ", месяц #{@month}" if @month %>">
+  <div class="team-timeline <%= 'team-timeline--year' unless @month %>" style="--days: <%= @dates.size %>; --day-width: <%= day_width %>px; --timeline-width: <%= @dates.size * day_width %>px">
+    <% unless @month %>
+      <div class="team-timeline__heading team-timeline__heading--months">Месяц</div>
+      <div class="team-timeline__months">
+        <% @dates.group_by(&:month).each do |month, dates| %>
+          <%= link_to I18n.l(dates.first, format: "%B"), manager_calendar_path(year: @year, month:),
+            style: "grid-column: span #{dates.size}", title: "Открыть #{I18n.l(dates.first, format: '%B %Y')}" %>
+        <% end %>
+      </div>
+    <% end %>
+    <div class="team-timeline__heading">Сотрудник</div>
+    <div class="team-timeline__dates">
+      <% @dates.each do |date| %>
+        <time id="<%= timeline_date_anchor(date) %>" datetime="<%= date.iso8601 %>" class="team-timeline__date <%= 'is-off' if @calendar_off_days.include?(date) %> <%= 'is-today' if date == Date.current %>" title="<%= format_date(date) %>" aria-label="<%= format_date(date) %>">
+          <% if @month %><strong><%= date.day %></strong><small><%= I18n.l(date, format: "%a") %></small><% end %>
+        </time>
+      <% end %>
+    </div>
+    <% if Current.user.manager? %>
+      <div class="team-timeline__heading team-timeline__heading--coverage">Отсутствуют</div>
+      <div class="team-timeline__coverage">
+        <% @dates.each do |date| %>
+          <% count = @coverage.fetch(date) %>
+          <% label = "#{format_date(date)}: отсутствуют #{count}" %>
+          <% if count >= 2 %>
+            <%= link_to(count, manager_calendar_path(year: @year, month: @month || "all", overlap_on: date.iso8601,
+              anchor: timeline_date_anchor(date)), class: "team-timeline__count is-overlap", title: label, aria: { label: }) %>
+          <% else %>
+            <span class="team-timeline__count" title="<%= label %>" aria-label="<%= label %>"><%= count if count.positive? %></span>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+    <% @rows.each do |row| %>
+      <div class="team-timeline__name"><%= row[:employee].name %></div>
+      <div class="team-timeline__track" aria-label="Отсутствия: <%= row[:employee].name %>">
+        <% @dates.each do |date| %>
+          <span class="team-timeline__day <%= 'is-off' if row[:off_days].include?(date) %> <%= 'is-today' if date == Date.current %> <%= 'is-selected' if @selected_range && (@selected_range[:starts_on]..@selected_range[:ends_on]).cover?(date) %>" aria-hidden="true"></span>
+        <% end %>
+        <% row[:requests].each do |request| %>
+          <button type="button" class="team-timeline__bar timeline-color--<%= @type_colors.fetch(request.leave_type_id) %>" style="<%= timeline_bar_style(request, @dates, day_width:) %>" title="<%= timeline_bar_label(request) %>" aria-label="<%= row[:employee].name %>. <%= timeline_bar_label(request) %>" aria-haspopup="dialog" data-calendar-event>
+            <span class="team-timeline__bar-text"><%= team_leave_type_name(request) %> · <%= request.starts_on.strftime('%d.%m') %>–<%= request.effective_ends_on.strftime('%d.%m') %></span>
+          </button>
+        <% end %>
+        <% if row[:birthday] && @dates.include?(row[:birthday]) %>
+          <span class="team-timeline__birthday" style="grid-column: <%= (row[:birthday] - @dates.first).to_i + 1 %>" title="<%= format_date(row[:birthday]) %>: день рождения" aria-label="<%= format_date(row[:birthday]) %>: день рождения">ДР</span>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+<dialog class="calendar-event-dialog" data-calendar-event-dialog aria-labelledby="calendar-event-title">
+  <h2 id="calendar-event-title">Период отсутствия</h2>
+  <p data-calendar-event-details></p>
+  <button type="button" class="button button--secondary" data-calendar-event-close>Закрыть</button>
+</dialog>

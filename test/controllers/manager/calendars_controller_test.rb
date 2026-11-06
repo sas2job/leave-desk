@@ -24,10 +24,63 @@ module Manager
 
       assert_response :success
       assert_select "body", text: /Example User/
-      assert_select "td.leave", minimum: 3
-      assert_select "td.birthday", text: "ДР"
+      assert_select ".team-timeline--year"
+      assert_select ".team-timeline__bar[style*='span 3']", count: 1
+      assert_select ".team-timeline__date", count: 365
+      assert_select ".team-timeline__birthday", text: "ДР"
+      assert_select ".team-timeline__months a", count: 12
       assert_select "nav.calendar-month-jump a[href='#team-year-date-2026-10-01']"
-      assert_select "th#team-year-date-2026-10-01"
+      assert_select "time#team-year-date-2026-10-01"
+    end
+
+    test "selecting an overlap derives only authorized participants and preserves report scope" do
+      teammate = create_user("selection-teammate@example.test", manager: @manager, name: "Selected Teammate")
+      unrelated = create_user("selection-unrelated@example.test", manager: @manager, name: "Unrelated Employee")
+      other_manager = create_user("selection-manager@example.test", role: :manager)
+      outsider = create_user("selection-outsider@example.test", manager: other_manager, name: "Outside Team")
+      [ [ @employee, @manager ], [ teammate, @manager ], [ outsider, other_manager ] ].each do |employee, reviewer|
+        request = LeaveRequest.create!(employee:, leave_type: @leave_type,
+          starts_on: Date.new(2026, 10, 14), ends_on: Date.new(2026, 10, 16))
+        request.approve!(by: reviewer)
+      end
+      sign_in_as(@manager)
+      get manager_calendar_path(year: 2026, month: 10, overlap_on: "2026-10-15")
+      assert_response :success
+      assert_select ".team-timeline__name", count: 2
+      assert_select ".team-timeline__name", text: teammate.name
+      assert_select ".team-timeline__name", text: unrelated.name, count: 0
+      assert_select ".team-timeline__name", text: outsider.name, count: 0
+      assert_select ".calendar-selection", text: /14\.10\.2026–16\.10\.2026/
+      assert_select ".team-timeline__day.is-selected", count: 6
+      assert_select "a", text: "Все сотрудники"
+
+      get manager_calendar_overlaps_path(year: 2026, month: "all")
+      assert_response :success
+      assert_select "a[href='#{manager_calendar_path(year: 2026, month: 10, overlap_on: '2026-10-14', anchor: 'team-date-2026-10-14')}']",
+        text: "Показать на шкале"
+
+      get manager_calendar_path(year: 2026, month: 10)
+      assert_select ".team-timeline__name", count: 3
+    end
+
+    test "overlap selection rejects invalid dates and cannot be used by administrators" do
+      sign_in_as(@manager)
+      [ "2026-02-30", "2026-10-15", "2025-10-15", "invalid" ].each do |overlap_on|
+        get manager_calendar_path(year: 2026, month: 10, overlap_on:)
+        assert_response :bad_request
+      end
+      get manager_calendar_path, params: { overlap_on: [ "2026-10-15" ] }
+      assert_response :bad_request
+
+      administrator = create_user("selection-admin@example.test", role: :administrator)
+      sign_in_as(administrator)
+      get manager_calendar_path(year: 2026, month: "all")
+      assert_response :success
+      assert_select ".calendar-overlap-filter", count: 0
+      assert_select ".team-timeline__coverage", count: 0
+      assert_select ".calendar-focus-link", count: 0
+      get manager_calendar_path(year: 2026, month: 10, overlap_on: "2026-10-15")
+      assert_response :forbidden
     end
 
     test "overlap document includes only relevant months and direct reports and denies other roles" do
