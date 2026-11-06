@@ -35,6 +35,7 @@
               statutory_type_ids: @leave_types.select(&:statutory_leave?).map(&:id).join(","),
               family_type_ids: @leave_types.select(&:family_leave?).map(&:id).join(","),
               childcare_type_id: @leave_types.find { |type| type.code == "CHILDCARE" }&.id,
+              birthday_type_id: @leave_types.find { |type| type.code == "BIRTHDAY" }&.id,
               excluded_holiday_type_ids: @leave_types.select(&:exclude_public_holidays?).map(&:id).join(",") } %>
         </div>
 
@@ -50,8 +51,8 @@
         <p class="field-hint field--full">Ежегодный отпуск и семейные отпуска оформляются на полные календарные дни и могут переходить в следующий год. Для беременности и родов укажите даты по заявлению и документу; 140/156/194 дня — обычные варианты, не единственные допустимые сроки. Семейный отпуск регистрирует администратор. Выходной в день рождения — один полный день один раз в календарном году.</p>
 
         <% %i[starts_on ends_on].each do |field| %>
-          <div class="field">
-            <%= form.label field, field == :starts_on ? "Дата начала" : "Дата окончания" %>
+          <div class="field" data-period-field="<%= field %>">
+            <%= form.label field, field == :starts_on ? "Дата начала" : "Дата окончания", data: { date_label: field } %>
             <div class="date-entry" data-date-entry>
               <%= form.text_field field, required: true, inputmode: "numeric",
                 autocomplete: "off", maxlength: 10, placeholder: "ДД.ММ.ГГГГ",

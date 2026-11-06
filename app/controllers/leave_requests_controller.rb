@@ -101,6 +101,10 @@ class LeaveRequestsController < ApplicationController
       :starts_on, :ends_on, :start_time, :end_time, :employee_comment, :child_born_on, :care_relationship
     )
     require_identifier_fields!(attributes, :leave_type_id, :resumes_request_id)
+    birthday_id = LeaveType.find_by(code: LeaveType::BIRTHDAY_CODE)&.id
+    if attributes[:leave_type_id].to_s == birthday_id.to_s && birthday_id && attributes[:ends_on].blank?
+      attributes[:ends_on] = attributes[:starts_on]
+    end
     if attributes[:resumes_request_id].present?
       Current.user.leave_requests.find(attributes[:resumes_request_id])
     end

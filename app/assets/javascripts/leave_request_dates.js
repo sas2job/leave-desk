@@ -128,6 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const renderPlanner = () => {
+    if (leaveType.value === leaveType.dataset.birthdayTypeId) endsOn.value = startsOn.value;
     daysList.replaceChildren();
     const first = parseDate(startsOn.value);
     const last = parseDate(endsOn.value);
@@ -212,6 +213,10 @@ document.addEventListener("DOMContentLoaded", () => {
     renderPlanner();
   });
   const applyTypePolicy = () => {
+    const birthday = leaveType.value === leaveType.dataset.birthdayTypeId;
+    endsOn.closest("[data-period-field]").hidden = birthday;
+    endsOn.readOnly = birthday;
+    form.querySelector("[data-date-label='starts_on']").textContent = birthday ? "Дата выходного" : "Дата начала";
     const locked = fullDayTypeIds.has(leaveType.value);
     if (locked) fullDay.checked = true;
     fullDay.disabled = locked;
