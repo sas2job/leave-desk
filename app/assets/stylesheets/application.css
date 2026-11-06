@@ -532,6 +532,7 @@ h2 {
 
 .field[hidden],
 [data-leave-type-hint][hidden],
+[data-partial-day-hint][hidden],
 .field-error[hidden] {
   display: none;
 }

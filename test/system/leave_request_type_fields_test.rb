@@ -22,6 +22,7 @@ class LeaveRequestTypeFieldsTest < ActionDispatch::SystemTestCase
 
     assert_no_selector "[data-childcare-field]"
     assert_no_selector "[data-leave-type-hint]"
+    assert_no_selector "[data-partial-day-hint]"
 
     select types.fetch("CHILDCARE").name, from: "Вид отпуска"
     assert_selector "[data-childcare-field]", count: 2
@@ -32,6 +33,8 @@ class LeaveRequestTypeFieldsTest < ActionDispatch::SystemTestCase
 
     %w[MATERNITY ANNUAL BIRTHDAY].each do |code|
       select types.fetch(code).name, from: "Вид отпуска"
+      assert_no_selector "[data-partial-day-hint]"
+      assert_selector "[data-period-guidance]", text: "Выберите полные календарные даты отпуска."
       assert_no_selector "[data-childcare-field]"
       assert_field "leave_request_child_born_on", disabled: true, visible: :all
       assert_field "leave_request_care_relationship", disabled: true, visible: :all
@@ -41,6 +44,7 @@ class LeaveRequestTypeFieldsTest < ActionDispatch::SystemTestCase
     end
 
     select custom.name, from: "Вид отпуска"
+    assert_selector "[data-partial-day-hint]", text: /Снимите отметку/
     assert_no_selector "[data-childcare-field]"
     assert_no_selector "[data-leave-type-hint]"
     assert_selector "[data-period-field='ends_on']"

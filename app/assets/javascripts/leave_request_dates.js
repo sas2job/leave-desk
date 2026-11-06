@@ -264,6 +264,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const locked = fullDayTypeIds.has(leaveType.value);
     if (locked) fullDay.checked = true;
     fullDay.disabled = locked;
+    form.querySelector("[data-partial-day-hint]").hidden = locked || !leaveType.value;
+    const guidance = document.querySelector("[data-period-guidance]");
+    guidance.textContent = locked ? "Выберите полные календарные даты отпуска." :
+      (leaveType.value ? "Выберите даты и при необходимости уточните время крайних дней." :
+        "Выберите вид отпуска и даты отсутствия.");
     minDate = familyTypeIds.has(leaveType.value) ? "2025-01-01" : today;
     form.querySelectorAll("[data-date-dialog]").forEach((dialog) => {
       maxDate = statutoryTypeIds.has(leaveType.value) ? dialog.dataset.statutoryMax : yearEnd;

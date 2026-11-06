@@ -7,7 +7,7 @@
     <div>
       <p class="eyebrow">Новая заявка</p>
       <h1>Запланировать отпуск</h1>
-      <p class="lede">Выберите даты и при необходимости уточните время крайних дней.</p>
+      <p class="lede" data-period-guidance><% if @leave_request.leave_type&.full_day_only? %>Выберите полные календарные даты отпуска.<% else %>Выберите вид отпуска и даты отсутствия.<% end %></p>
     </div>
   </header>
 
@@ -110,7 +110,10 @@
           aria: { describedby: "leave_request_end_time_error" } %>
         <p id="leave_request_end_time_error" class="field-error" aria-live="polite" hidden></p>
       </div>
-      <p class="field-hint field--full leave-time-hint">Снимите отметку «Весь день», чтобы указать время начала первого и окончания последнего дня с шагом 15 минут в пределах 09:00–18:00. Промежуточные даты входят целиком.</p>
+      <%= tag.p class: "field-hint field--full leave-time-hint", data: { partial_day_hint: true },
+        hidden: @leave_request.leave_type.nil? || @leave_request.leave_type.full_day_only? do %>
+        Снимите отметку «Весь день», чтобы указать время начала первого и окончания последнего дня с шагом 15 минут в пределах 09:00–18:00. Промежуточные даты входят целиком.
+      <% end %>
 
       <section class="leave-planner field--full" data-leave-planner
         data-calendar-available-years="<%= @available_years.join(',') %>"
