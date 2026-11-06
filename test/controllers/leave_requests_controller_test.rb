@@ -240,6 +240,7 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "lists only current user requests" do
+    FederalCalendar.find_by!(year: 2026).destroy!
     own_request = create_request(@employee)
     other_request = create_request(@other_employee,
       starts_on: Date.new(2026, 12, 1))
