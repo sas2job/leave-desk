@@ -543,6 +543,15 @@ h2 {
   font-size: 0.85rem;
 }
 
+.leave-type-guidance {
+  display: grid;
+  gap: .5rem;
+}
+
+.leave-type-guidance p {
+  margin: 0;
+}
+
 .field [aria-invalid="true"] {
   border-color: #9c2525;
 }

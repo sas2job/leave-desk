@@ -70,7 +70,8 @@ class LeaveRequestDatePickerTest < ActionDispatch::SystemTestCase
       assert_selector "[data-planner-summary]", text: "29 календарных дат · 28 дней отпуска"
       assert_selector ".leave-planner__day.is-excluded time[datetime='2026-11-04']"
       assert_no_selector "[data-time-field]", visible: true
-      assert_field "leave_request_full_day", checked: true, disabled: true
+      assert_field "leave_request_full_day", checked: true, disabled: true, visible: :all
+      assert_no_selector "[data-full-day-field]"
 
       select "Отсутствие на часть дня", from: "Вид отпуска"
       uncheck "leave_request_full_day"

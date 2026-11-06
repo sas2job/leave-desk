@@ -52,14 +52,25 @@
             disabled: !@leave_request.childcare_leave?, required: @leave_request.childcare_leave? %>
         <% end %>
         <% {
-          "ANNUAL" => "Ежегодный отпуск оформляется на полные календарные дни и может переходить в следующий год. Выходные входят в отпуск, официальные праздники исключаются.",
+          "ANNUAL" => "Ежегодный оплачиваемый отпуск исчисляется в календарных днях (ст. 120 ТК РФ). Выберите полные календарные даты: часы для этого вида не указываются. Выходные входят в отпуск, официальные праздники исключаются. Отпуск может переходить в следующий год.",
+          "UNPAID" => "Отпуск без сохранения заработной платы оформляется по письменному заявлению; продолжительность определяется соглашением сторон (ст. 128 ТК РФ). В предусмотренных законом случаях работодатель обязан предоставить такой отпуск.",
           "MATERNITY" => "Укажите даты отпуска по беременности и родам по заявлению и документу. Отпуск оформляется на полные календарные дни и может переходить в следующий год. 140/156/194 дня — обычные варианты, не единственные допустимые сроки. Отпуск регистрирует администратор.",
           "CHILDCARE" => "Укажите дату рождения ребёнка и кто осуществляет уход. Отпуск оформляется на полные календарные дни и может переходить в следующий год. Отпуск регистрирует администратор.",
           "BIRTHDAY" => "Выходной в день рождения — один полный день один раз в календарном году."
         }.each do |code, hint| %>
-          <%= tag.p hint, class: "field-hint field--full",
+          <%= tag.div class: "field-hint field--full leave-type-guidance",
             data: { leave_type_hint: @leave_types.find { |type| type.code == code }&.id },
-            hidden: @leave_request.leave_type&.code != code %>
+            hidden: @leave_request.leave_type&.code != code do %>
+            <p><%= hint %></p>
+            <% if code == "ANNUAL" %>
+              <p>По соглашению можно взять отдельный день. При разделении ежегодного отпуска хотя бы одна часть должна быть не менее 14 календарных дней (ст. 125 ТК РФ).</p>
+              <p>Если нужно отсутствовать несколько часов, можно согласовать отпуск без сохранения заработной платы.</p>
+              <p><%= link_to "Статьи 120 и 125 ТК РФ — пояснения Минтруда", "https://mintrud.gov.ru/ministry/programms/trudotn/otpusk", target: "_blank", rel: "noopener noreferrer" %></p>
+            <% elsif code == "UNPAID" %>
+              <p>По разъяснению Роструда отпуск за свой счёт можно согласовать на несколько часов. Для части дня снимите «Весь день» и укажите точное время начала и окончания.</p>
+              <p><%= link_to "Разъяснение Роструда об отпуске на несколько часов", "https://онлайнинспекция.рф/questions/viewFaq/289", target: "_blank", rel: "noopener noreferrer" %></p>
+            <% end %>
+          <% end %>
         <% end %>
 
         <% %i[starts_on ends_on].each do |field| %>
@@ -91,13 +102,15 @@
             <p id="leave_request_<%= field %>_error" class="field-error" aria-live="polite" hidden></p>
           </div>
         <% end %>
-      <div class="field field--full leave-full-day">
+      <%= tag.div class: "field field--full leave-full-day", data: { full_day_field: true },
+        hidden: @leave_request.leave_type&.full_day_only? do %>
         <label class="checkbox-field" for="leave_request_full_day">
           <%= check_box_tag "leave_request[full_day]", "1", @full_day,
-            id: "leave_request_full_day", data: { full_day: true } %>
+            id: "leave_request_full_day", data: { full_day: true },
+            disabled: @leave_request.leave_type&.full_day_only? %>
           <span>Весь день <small>Все выбранные календарные даты целиком (00:00–24:00)</small></span>
         </label>
-      </div>
+      <% end %>
       <div class="field" data-time-field>
         <%= form.label :start_time, "Время начала" %>
         <%= form.select :start_time, LeaveRequest::START_TIME_OPTIONS,

@@ -6,7 +6,7 @@ class LeaveRequestTypeFieldsTest < ActionDispatch::SystemTestCase
   test "childcare fields and guidance follow the selected leave type" do
     employee = User.create!(name: "Form Employee", email_address: "type-form@example.test",
       password: "test-password")
-    types = %w[ANNUAL MATERNITY CHILDCARE BIRTHDAY].index_with do |code|
+    types = %w[ANNUAL MATERNITY CHILDCARE BIRTHDAY UNPAID].index_with do |code|
       LeaveType.find_or_create_by!(code:) do |type|
         type.name = "Form #{code}"
         type.holiday_handling = :exclude_public_holidays if code == "ANNUAL"
@@ -26,6 +26,7 @@ class LeaveRequestTypeFieldsTest < ActionDispatch::SystemTestCase
     assert_no_selector "[data-partial-day-hint]"
 
     select types.fetch("CHILDCARE").name, from: "Вид отпуска"
+    assert_no_selector "[data-full-day-field]"
     assert_selector "[data-childcare-field]", count: 2
     assert_field "leave_request_child_born_on", disabled: false
     assert_field "leave_request_care_relationship", disabled: false
@@ -35,12 +36,17 @@ class LeaveRequestTypeFieldsTest < ActionDispatch::SystemTestCase
     %w[MATERNITY ANNUAL BIRTHDAY].each do |code|
       select types.fetch(code).name, from: "Вид отпуска"
       assert_no_selector "[data-partial-day-hint]"
+      assert_no_selector "[data-full-day-field]"
       assert_selector "[data-period-guidance]", text: "Выберите полные календарные даты отпуска."
       assert_no_selector "[data-childcare-field]"
       assert_field "leave_request_child_born_on", disabled: true, visible: :all
       assert_field "leave_request_care_relationship", disabled: true, visible: :all
       assert_selector "[data-leave-type-hint='#{types.fetch(code).id}']"
       assert_selector "[data-leave-type-hint]", count: 1
+      if code == "ANNUAL"
+        assert_selector "[data-leave-type-hint]", text: /ст\. 120 ТК РФ/
+        assert_selector "[data-leave-type-hint]", text: /ст\. 125 ТК РФ/
+      end
       assert_no_selector "[data-period-field='ends_on']" if code == "BIRTHDAY"
     end
 
@@ -49,6 +55,14 @@ class LeaveRequestTypeFieldsTest < ActionDispatch::SystemTestCase
     assert_no_selector "[data-childcare-field]"
     assert_no_selector "[data-leave-type-hint]"
     assert_selector "[data-period-field='ends_on']"
+
+    select types.fetch("UNPAID").name, from: "Вид отпуска"
+    assert_selector "[data-leave-type-hint]", text: /ст\. 128 ТК РФ/
+    assert_selector "[data-leave-type-hint]", text: /несколько часов/
+    assert_selector "[data-partial-day-hint]"
+    assert_field "leave_request_full_day", disabled: false
+    assert_selector "[data-full-day-field]"
+    assert_selector "[data-leave-type-hint] a[href='https://онлайнинспекция.рф/questions/viewFaq/289']"
 
     select types.fetch("CHILDCARE").name, from: "Вид отпуска"
     assert_selector "[data-childcare-field]", count: 2

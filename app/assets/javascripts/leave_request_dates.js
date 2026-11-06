@@ -264,6 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const locked = fullDayTypeIds.has(leaveType.value);
     if (locked) fullDay.checked = true;
     fullDay.disabled = locked;
+    form.querySelector("[data-full-day-field]").hidden = locked;
     form.querySelector("[data-partial-day-hint]").hidden = locked || !leaveType.value;
     const guidance = document.querySelector("[data-period-guidance]");
     guidance.textContent = locked ? "Выберите полные календарные даты отпуска." :
