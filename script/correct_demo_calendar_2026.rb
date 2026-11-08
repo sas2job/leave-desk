@@ -9,8 +9,9 @@ class DemoCalendarCorrection2026
   ACTIVE_STATUSES = %i[pending approved recalled interrupted].freeze
   class UnsafeData < StandardError; end
 
-  def initialize(expected_employees: 21)
+  def initialize(expected_employees: 21, employee_emails: nil)
     @expected_employees = expected_employees
+    @employee_emails = employee_emails
     @year_dates = Date.new(YEAR, 1, 1)..Date.new(YEAR, 12, 31)
   end
 
@@ -39,9 +40,17 @@ class DemoCalendarCorrection2026
   private
 
   def prepare(lock: false)
-    raise UnsafeData, "Обнаружены пользователи вне демонстрационного домена" if User.where.not("email_address LIKE ?", "%@leave-desk.test").exists?
-    employees = User.where(role: :employee, active: true).includes(:manager).order(:id).to_a
-    raise UnsafeData, "Неожиданное количество демонстрационных сотрудников" unless employees.size == @expected_employees
+    if @employee_emails
+      raise UnsafeData, "Выбран адрес вне демонстрационного домена" if @employee_emails.any? { |email| !email.end_with?("@leave-desk.test") }
+    elsif User.where.not("email_address LIKE ?", "%@leave-desk.test").exists?
+      raise UnsafeData, "Обнаружены пользователи вне демонстрационного домена"
+    end
+    scope = User.where(active: true)
+    scope = @employee_emails ? scope.where(email_address: @employee_emails) : scope.where(role: :employee)
+    employees = scope.includes(:manager).order(:id).to_a
+    unless employees.size == @expected_employees
+      raise UnsafeData, "Неожиданное количество выбранных демо-сотрудников: #{employees.size}, ожидалось #{@expected_employees}"
+    end
     @employee_count = employees.size
     unless employees.all? { |employee| employee.manager&.active? && employee.manager.manager? }
       raise UnsafeData, "Нужны активные руководители демонстрационной команды"
@@ -71,7 +80,7 @@ class DemoCalendarCorrection2026
     unless @sources.size.between?(@expected_employees - 1, @expected_employees) &&
         @sources.map(&:employee_id).uniq.size == @sources.size &&
         @sources.all? { |source| source.approved? && source.ends_on.year == YEAR && source.duration_in_days.positive? && source.leave_type.active? }
-      raise UnsafeData, "Нужны 20–21 согласованный ежегодный отпуск 2026 года, не более одного на сотрудника"
+      raise UnsafeData, "Нужны #{@expected_employees - 1}–#{@expected_employees} согласованных ежегодных отпусков 2026 года, не более одного на сотрудника"
     end
     @sources, @untouched = @sources.partition { |source| source.full_calendar_days? && source.duration_in_days.to_i == source.duration_in_days }
     raise UnsafeData, "Нет поддерживаемых полных ежегодных отпусков для корректировки" if @sources.empty?
@@ -151,7 +160,13 @@ end
 
 if ENV.key?("DEMO_CALENDAR_MODE")
   begin
-    correction = DemoCalendarCorrection2026.new
+    seeded_emails = (1..20).map { |index| "employee#{index}@leave-desk.test" }
+    puts({ preflight: { users_by_role: User.group(:role).count,
+      active_employees: User.where(role: :employee, active: true).count,
+      selected_seeded_employees: User.where(active: true, email_address: seeded_emails).count,
+      selected_seeded_by_role: User.where(active: true, email_address: seeded_emails).group(:role).count,
+      non_demo_users: User.where.not("email_address LIKE ?", "%@leave-desk.test").count } }.to_json)
+    correction = DemoCalendarCorrection2026.new(expected_employees: 20, employee_emails: seeded_emails)
     result = case ENV.fetch("DEMO_CALENDAR_MODE")
     when "plan" then correction.preview
     when "apply" then correction.apply!(expected_digest: ENV.fetch("DEMO_CALENDAR_PLAN_DIGEST"))

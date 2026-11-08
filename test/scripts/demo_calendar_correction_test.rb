@@ -112,6 +112,26 @@ class DemoCalendarCorrectionTest < ActiveSupport::TestCase
     assert @correction.preview[:already_applied]
   end
 
+  test "an explicitly selected demo roster leaves other employees unchanged" do
+    external = User.create!(name: "External Account", email_address: "outside@example.test", password: "test-password")
+    external_attributes = external.attributes
+    @employees[1].update!(role: :manager)
+    other = @sources.first
+    attributes = other.attributes
+    events = other.events.order(:id).pluck(:id)
+    correction = DemoCalendarCorrection2026.new(expected_employees: 20,
+      employee_emails: @employees.drop(1).map(&:email_address))
+    preview = correction.preview
+
+    assert_equal 20, preview[:employees]
+    assert_equal 20, preview[:correction_requests]
+    correction.apply!(expected_digest: preview.fetch(:plan_digest))
+    assert_equal attributes, other.reload.attributes
+    assert_equal events, other.events.order(:id).pluck(:id)
+    assert_equal external_attributes, external.reload.attributes
+    assert correction.preview[:already_applied]
+  end
+
   test "a failure after creating replacements rolls back the whole correction" do
     failing_class = Class.new(DemoCalendarCorrection2026) do
       private
