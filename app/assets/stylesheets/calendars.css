@@ -429,6 +429,7 @@ body:has(.calendar-page) {
   align-self: start;
   min-width: 0;
   height: 22px;
+  min-height: 22px;
   margin-top: 5px;
   padding: 3px 0;
   border: 0;
