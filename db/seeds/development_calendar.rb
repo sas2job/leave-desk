@@ -3,9 +3,10 @@ require "active_support/testing/time_helpers"
 class DevelopmentCalendarSeed
   include ActiveSupport::Testing::TimeHelpers
 
-  def initialize(year:, employees:)
+  def initialize(year:, employees:, staging: false)
     @year = year
     @employees = employees
+    @staging = staging
     @dates = Date.new(year, 1, 1)..Date.new(year, 12, 31)
     @annual_leave = LeaveType.find_by!(code: "ANNUAL")
     @birthday_leave = LeaveType.find_by!(code: "BIRTHDAY")
@@ -13,7 +14,11 @@ class DevelopmentCalendarSeed
   end
 
   def call
-    raise "Демонстрационные данные доступны только в development и test" unless Rails.env.development? || Rails.env.test?
+    staging_allowed = @staging && Rails.env.production? && @year == 2027 && @employees.any? &&
+      @employees.all? { |employee| employee.persisted? && employee.active? && employee.employee? && employee.email_address.end_with?("@leave-desk.test") }
+    unless Rails.env.development? || Rails.env.test? || staging_allowed
+      raise "Демонстрационные данные доступны только в development, test или явной операции стенда 2027"
+    end
 
     # Моделируем создание данных в начале целевого года, сохраняя проверки модели
     # для BIRTHDAY и штатные события создания и согласования.
@@ -33,7 +38,7 @@ class DevelopmentCalendarSeed
 
           first_month = index % 6 + 1
           [ first_month, first_month + 6 ].each_with_index do |month, part|
-            create_request(employee, @annual_leave, "Ежегодный отпуск #{part + 1}") do
+            create_request(employee, @annual_leave, "Ежегодный отпуск #{part + 1}", half: part) do
               available_period(employee, Date.new(@year, month, 10 + ((index / 6) % 4) * 2))
             end
           end
@@ -44,9 +49,17 @@ class DevelopmentCalendarSeed
 
   private
 
-  def create_request(employee, leave_type, label)
+  def create_request(employee, leave_type, label, half: nil)
     comment = "Демонстрационный календарь #{@year}: #{label}"
     return if employee.leave_requests.exists?(leave_type:, employee_comment: comment)
+    if leave_type.code == "BIRTHDAY"
+      return if employee.leave_requests.where(leave_type:, starts_on: @dates)
+        .where("status IN (0, 1) OR birthday_used = TRUE").exists?
+    elsif !half.nil?
+      period = half.zero? ? (@dates.first..Date.new(@year, 6, 30)) : (Date.new(@year, 7, 1)..@dates.last)
+      return if employee.leave_requests.where(leave_type:, status: %i[approved recalled interrupted])
+        .where("starts_on <= ? AND COALESCE(recalled_on - 1, returned_on - 1, ends_on) >= ?", period.last, period.first).exists?
+    end
 
     starts_on, ends_on = yield
     request = employee.leave_requests.create!(leave_type:, starts_on:, ends_on:,

@@ -27,7 +27,7 @@ module Manager
       assert_select ".team-timeline--year"
       assert_select ".team-timeline__bar[style*='span 3']", count: 1
       assert_select ".team-timeline__date", count: 365
-      assert_select ".team-timeline__birthday", text: "ДР"
+      assert_select "button.team-timeline__birthday[data-calendar-event-title='День рождения'][aria-label*='12.05.2026']", count: 1
       assert_select ".team-timeline__months a", count: 12
       assert_select "nav.calendar-month-jump a[href='#team-year-date-2026-10-01']"
       assert_select "time#team-year-date-2026-10-01"

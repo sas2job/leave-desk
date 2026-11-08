@@ -565,6 +565,52 @@ body:has(.calendar-page) {
   line-height: 14px;
 }
 
+.team-timeline--year .team-timeline__name,
+.team-timeline--year .team-timeline__track {
+  min-height: 56px;
+}
+
+.team-timeline--year .team-timeline__birthday {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.team-timeline--year .team-timeline__birthday:hover {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.calendar-key--birthday-point {
+  position: relative;
+}
+
+.team-timeline--year .team-timeline__birthday::before,
+.calendar-key--birthday-point::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--calendar-birthday-ink);
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.team-timeline--year .team-timeline__birthday:focus-visible {
+  outline: 2px solid var(--calendar-birthday-ink);
+  outline-offset: 1px;
+}
+
 .timeline-color--0 { background: #dcece2; color: #1d4d34; }
 .timeline-color--1 { background: #dfeaf0; color: #234e63; }
 .timeline-color--2 { background: #f1e8da; color: #654521; }

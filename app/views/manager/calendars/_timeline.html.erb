@@ -45,7 +45,11 @@
           </button>
         <% end %>
         <% if row[:birthday] && @dates.include?(row[:birthday]) %>
-          <span class="team-timeline__birthday" style="grid-column: <%= (row[:birthday] - @dates.first).to_i + 1 %>" title="<%= format_date(row[:birthday]) %>: день рождения" aria-label="<%= format_date(row[:birthday]) %>: день рождения">ДР</span>
+          <% if @month %>
+            <span class="team-timeline__birthday" style="grid-column: <%= (row[:birthday] - @dates.first).to_i + 1 %>" title="<%= format_date(row[:birthday]) %>: день рождения" aria-label="<%= format_date(row[:birthday]) %>: день рождения">ДР</span>
+          <% else %>
+            <button type="button" class="team-timeline__birthday" style="grid-column: <%= (row[:birthday] - @dates.first).to_i + 1 %>" title="<%= format_date(row[:birthday]) %>: день рождения" aria-label="<%= row[:employee].name %>. <%= format_date(row[:birthday]) %>: день рождения" aria-haspopup="dialog" data-calendar-event data-calendar-event-title="День рождения"></button>
+          <% end %>
         <% end %>
       </div>
     <% end %>

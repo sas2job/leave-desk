@@ -52,7 +52,7 @@
       <% @leave_types.each do |leave_type| %>
         <span class="calendar-legend__item"><span class="calendar-key timeline-color--<%= @type_colors.fetch(leave_type.id) %>"></span> <%= leave_type.name %></span>
       <% end %>
-      <span class="calendar-legend__item"><span class="calendar-key calendar-key--birthday"></span> День рождения</span>
+      <span class="calendar-legend__item"><span class="calendar-key <%= @month ? 'calendar-key--birthday' : 'calendar-key--birthday-point' %>" aria-hidden="true"></span> День рождения</span>
       <% if Current.user.manager? %>
         <span class="calendar-legend__item"><span class="calendar-key calendar-key--overlap"></span> Пересечения</span>
         <% if @focus_date %>

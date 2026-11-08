@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-calendar-event]").forEach((bar) => {
     bar.addEventListener("click", () => {
       trigger = bar;
+      dialog.querySelector("#calendar-event-title").textContent = bar.dataset.calendarEventTitle || "Период отсутствия";
       dialog.querySelector("[data-calendar-event-details]").textContent = bar.getAttribute("aria-label");
       dialog.showModal();
     });
