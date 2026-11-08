@@ -30,7 +30,7 @@ remaining_days = (today.end_of_year - today).to_i + 1
 demo_employees = demo_names.map.with_index do |name, index|
   demo_employee = User.find_or_initialize_by(email_address: "employee#{index + 1}@leave-desk.test")
   demo_employee.city = demo_cities[index % demo_cities.size] if demo_employee.city.blank?
-  demo_employee.birthday_on ||= Date.new(1990, (index % 12) + 1, ((index * 3) % 27) + 1)
+  demo_employee.birthday_on ||= DemoBirthdayDates.for_index(index)
   demo_employee.update!(name:, role: :employee, manager:, active: true, password:)
 
   next demo_employee if demo_employee.leave_requests.exists?

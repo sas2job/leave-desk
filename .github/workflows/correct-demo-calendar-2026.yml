@@ -3,6 +3,12 @@ name: Correct demo calendar 2026
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Correct annual leave or demo birthdays
+        type: choice
+        options: [vacations, birthdays]
+        default: vacations
+        required: true
       mode:
         description: Preview or apply the 2026 demo correction
         type: choice
@@ -26,6 +32,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment: production
     env:
+      OPERATION: ${{ inputs.operation }}
       MODE: ${{ inputs.mode }}
       PLAN_DIGEST: ${{ inputs.plan_digest }}
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -35,6 +42,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Validate operation
         run: |
+          case "$OPERATION" in vacations|birthdays) : ;; *) exit 64 ;; esac
           case "$MODE" in
             plan) test -z "$PLAN_DIGEST" ;;
             apply) [[ "$PLAN_DIGEST" =~ ^[a-f0-9]{64}$ ]] ;;
@@ -53,15 +61,22 @@ jobs:
       - name: Back up and verify before applying
         if: inputs.mode == 'apply'
         run: |
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
-            "$DEPLOY_USER@$DEPLOY_HOST" 'bash -se' < deploy/backup-before-demo-correction.sh
+          backup_output=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'bash -se' < deploy/backup-before-demo-correction.sh)
+          printf '%s\n' "$backup_output"
+          printf '%s\n' "$backup_output" | grep -Eq \
+            '^Correction backup verified: /var/backups/leave-desk/demo-2026-before-correction-[[:alnum:]]{8}$'
       - name: Preview or apply correction
         run: |
+          case "$OPERATION" in
+            vacations) correction_script=script/correct_demo_calendar_2026.rb ;;
+            birthdays) correction_script=script/correct_demo_birthdays.rb ;;
+          esac
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd /root/projects/leave-desk && ./current/compose.sh exec -T \
             -e DEMO_CALENDAR_MODE='$MODE' -e DEMO_CALENDAR_PLAN_DIGEST='$PLAN_DIGEST' \
-            web bin/rails runner -" < script/correct_demo_calendar_2026.rb
+            web bin/rails runner -" < "$correction_script"
       - name: Check leave history
         if: inputs.mode == 'apply'
         run: bash deploy/audit-leave-history.sh

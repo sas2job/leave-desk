@@ -25,9 +25,10 @@ class SeedsTest < ActiveSupport::TestCase
     birthday = employees.find_by!(email_address: "employee@leave-desk.test")
       .leave_requests.joins(:leave_type).find_by!(leave_types: { code: "BIRTHDAY" })
     assert_equal Date.new(2027, 1, 20), birthday.starts_on
-    weekday_birthday = employees.find_by!(email_address: "employee2@leave-desk.test")
-      .leave_requests.joins(:leave_type).find_by!(leave_types: { code: "BIRTHDAY" })
-    assert_equal Date.new(2027, 2, 4), weekday_birthday.starts_on
+    calendar = FederalCalendar.find_by!(year: 2027)
+    weekday_employee = employees.find { |person| !calendar.day_off?(person.birthday_in_year(2027)) }
+    weekday_birthday = weekday_employee.leave_requests.joins(:leave_type).find_by!(leave_types: { code: "BIRTHDAY" })
+    assert_equal weekday_employee.birthday_in_year(2027), weekday_birthday.starts_on
   end
 
   test "2027 demo calendar has overlaps throughout the year" do
