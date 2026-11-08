@@ -6,7 +6,7 @@ on:
       operation:
         description: Correct annual leave or demo birthdays
         type: choice
-        options: [vacations, birthdays]
+        options: [vacations, birthdays, calendar_2027]
         default: vacations
         required: true
       mode:
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Validate operation
         run: |
-          case "$OPERATION" in vacations|birthdays) : ;; *) exit 64 ;; esac
+          case "$OPERATION" in vacations|birthdays|calendar_2027) : ;; *) exit 64 ;; esac
           case "$MODE" in
             plan) test -z "$PLAN_DIGEST" ;;
             apply) [[ "$PLAN_DIGEST" =~ ^[a-f0-9]{64}$ ]] ;;
@@ -71,6 +71,7 @@ jobs:
           case "$OPERATION" in
             vacations) correction_script=script/correct_demo_calendar_2026.rb ;;
             birthdays) correction_script=script/correct_demo_birthdays.rb ;;
+            calendar_2027) correction_script=script/seed_staging_calendar_2027.rb ;;
           esac
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
             "$DEPLOY_USER@$DEPLOY_HOST" \
