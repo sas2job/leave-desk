@@ -27,13 +27,13 @@ annual_leave = LeaveType.find_by!(code: "ANNUAL")
 today = Date.current
 remaining_days = (today.end_of_year - today).to_i + 1
 
-demo_names.each_with_index do |name, index|
+demo_employees = demo_names.map.with_index do |name, index|
   demo_employee = User.find_or_initialize_by(email_address: "employee#{index + 1}@leave-desk.test")
   demo_employee.city = demo_cities[index % demo_cities.size] if demo_employee.city.blank?
-  demo_employee.update!(name:, role: :employee, manager:, active: true, password:,
-    birthday_on: Date.new(1990, (index % 12) + 1, ((index * 3) % 27) + 1))
+  demo_employee.birthday_on ||= Date.new(1990, (index % 12) + 1, ((index * 3) % 27) + 1)
+  demo_employee.update!(name:, role: :employee, manager:, active: true, password:)
 
-  next if demo_employee.leave_requests.exists?
+  next demo_employee if demo_employee.leave_requests.exists?
 
   starts_on = today + (index % remaining_days).days
   ends_on = [ starts_on + 6.days, today.end_of_year ].min
@@ -46,4 +46,8 @@ demo_names.each_with_index do |name, index|
     conditions_confirmed: true, working_year_starts_on: today.beginning_of_year,
     working_year_ends_on: today.end_of_year, entitlement_days: 28
   })
+  demo_employee
 end
+
+require_relative "development_calendar"
+DevelopmentCalendarSeed.new(year: 2027, employees: [ employee, *demo_employees ]).call

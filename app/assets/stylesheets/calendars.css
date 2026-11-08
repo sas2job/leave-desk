@@ -15,8 +15,28 @@ body:has(.calendar-page) {
   --calendar-birthday-ink: #234b60;
   --calendar-overlap: #f6e9cf;
   --calendar-overlap-ink: #684510;
-  width: min(calc(100% - 2.5rem), 1540px);
   padding: 2.25rem 0 4rem;
+}
+
+.page.personal-calendar-page {
+  --calendar-off: #f1c4ce;
+  --calendar-off-ink: #83233b;
+  --calendar-approved: #c8e8d3;
+}
+
+.page.team-calendar-page {
+  width: min(calc(100% - 2rem), 1540px);
+}
+
+.team-calendar-controls {
+  max-width: var(--content-width);
+  margin-inline: auto;
+}
+
+@media (max-width: 420px) {
+  .page.team-calendar-page {
+    width: calc(100% - 1.25rem);
+  }
 }
 
 .calendar-page .page-header {
@@ -97,6 +117,11 @@ body:has(.calendar-page) {
   width: 13px;
   height: 13px;
   border-radius: 3px;
+}
+
+.calendar-key--off {
+  background: var(--calendar-off);
+  box-shadow: inset 0 -2px 0 var(--calendar-off-ink);
 }
 
 .calendar-focus-link {
@@ -582,9 +607,21 @@ body:has(.calendar-page) {
   background: var(--surface);
 }
 
-.personal-month__day.is-off,
-.personal-month__day--outside {
+.personal-month__day.is-off {
   background: var(--calendar-off);
+}
+
+.personal-month__day--outside {
+  background: var(--surface-muted);
+}
+
+.personal-month__day.is-off .personal-month__date,
+.personal-year__day.is-off time {
+  color: var(--calendar-off-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 .personal-month__day.is-today {
@@ -740,7 +777,6 @@ body:has(.calendar-page) {
 }
 
 .page.personal-year-page {
-  width: min(calc(100% - 2rem), var(--content-width));
   padding-top: 1.25rem;
   padding-bottom: 1rem;
 }
@@ -875,7 +911,6 @@ body:has(.calendar-page) {
 
 @media (max-width: 600px) {
   .page.calendar-page {
-    width: calc(100% - 1.25rem);
     padding-top: 1.5rem;
   }
 

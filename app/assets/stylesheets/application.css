@@ -270,11 +270,6 @@ button.button--danger:hover {
   padding: 3rem 0 5rem;
 }
 
-.page.calendar-page {
-  width: calc(100% - 2rem);
-  max-width: none;
-}
-
 .page--narrow {
   max-width: 680px;
 }
@@ -887,10 +882,6 @@ textarea:focus {
   .page,
   .flash {
     width: min(calc(100% - 1.25rem), var(--content-width));
-  }
-
-  .page.calendar-page {
-    width: calc(100% - 1.25rem);
   }
 
   h1 {

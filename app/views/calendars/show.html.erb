@@ -1,4 +1,4 @@
-<main class="page calendar-page<%= " personal-year-page" unless @month %>">
+<main class="page calendar-page personal-calendar-page<%= " personal-year-page" unless @month %>">
   <header class="page-header">
     <div>
       <p class="eyebrow">Личный календарь</p>
@@ -41,6 +41,7 @@
   </header>
 
   <div class="calendar-legend" aria-label="Обозначения календаря">
+    <span class="calendar-legend__item"><span class="calendar-key calendar-key--off" aria-hidden="true"></span> Выходной или праздник</span>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--leave"></span> С — согласовано</span>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--pending"></span> Р — на рассмотрении</span>
     <span class="calendar-legend__item"><span class="calendar-key calendar-key--birthday"></span> День рождения</span>
@@ -63,6 +64,7 @@
               <% slots = { morning: day_slots.fetch(:morning, []), afternoon: day_slots.fetch(:afternoon, []) } %>
               <% requests = slots.values.flatten.uniq.sort_by(&:period_start_minute) %>
               <% labels = [format_date(date)] %>
+              <% labels << "Нерабочий день" if @calendar_off_days.include?(date) %>
               <% slots.each do |part, part_requests| %>
                 <% part_requests.each do |request| %>
                   <% time_label = "#{request.start_time_label}–#{request.end_time_label}, " if request.precise_time? %>
