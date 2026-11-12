@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
         dayButton.type = "button";
         dayButton.textContent = String(day);
         dayButton.className = "date-entry__day";
-        dayButton.disabled = date < min() || date > max() || !availableYears.has(String(year));
+        dayButton.disabled = date < min() || date > max() || (dialog.dataset.ignoreCalendar !== "true" && !availableYears.has(String(year)));
         dayButton.setAttribute("aria-label", new Intl.DateTimeFormat("ru-RU", {
           day: "numeric", month: "long", year: "numeric"
         }).format(new Date(year, month - 1, day)));
@@ -67,9 +67,9 @@ document.addEventListener("DOMContentLoaded", () => {
     button.hidden = false;
     button.addEventListener("click", () => {
       yearSelect.replaceChildren();
-      for (let year = firstYear; year <= Number(max().slice(0, 4)); year += 1) {
+      for (let year = dialog.dataset.ignoreCalendar === "true" ? Number(min().slice(0, 4)) : firstYear; year <= Number(max().slice(0, 4)); year += 1) {
         const option = new Option(String(year), String(year));
-        option.disabled = !availableYears.has(String(year));
+        option.disabled = dialog.dataset.ignoreCalendar !== "true" && !availableYears.has(String(year));
         yearSelect.add(option);
       }
       const selected = selectedIso();
@@ -105,6 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const fullDayTypeIds = new Set(leaveType.dataset.fullDayTypeIds.split(",").filter(Boolean));
   const statutoryTypeIds = new Set(leaveType.dataset.statutoryTypeIds.split(",").filter(Boolean));
   const familyTypeIds = new Set(leaveType.dataset.familyTypeIds.split(",").filter(Boolean));
+  const isSick = () => Boolean(leaveType.value) && leaveType.value === leaveType.dataset.sickTypeId;
   const holidays = new Set(planner.dataset.publicHolidays.split(",").filter(Boolean));
   const excludedTypeIds = new Set(leaveType.dataset.excludedHolidayTypeIds.split(",").filter(Boolean));
   const dayMillis = 24 * 60 * 60 * 1000;
@@ -147,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fail(field, "Укажите существующую дату в формате ДД.ММ.ГГГГ.");
       } else if (dateIso(date) < minDate || dateIso(date) > maxDate) {
         fail(field, `Выберите дату в допустимом периоде: ${minDate} — ${maxDate}.`);
-      } else if (!configuredYears.has(String(date.getUTCFullYear()))) {
+      } else if (!isSick() && !configuredYears.has(String(date.getUTCFullYear()))) {
         fail(field, `Календарь ${date.getUTCFullYear()} года ещё не размечен. Обратитесь к администратору.`);
       }
     });
@@ -158,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const missingYears = [];
     for (let year = first.getUTCFullYear(); year <= last.getUTCFullYear(); year += 1) {
-      if (!configuredYears.has(String(year))) missingYears.push(year);
+      if (!isSick() && !configuredYears.has(String(year))) missingYears.push(year);
     }
     if (missingYears.length) {
       fail(endsOn.readOnly ? startsOn : endsOn,
@@ -181,6 +182,8 @@ document.addEventListener("DOMContentLoaded", () => {
     daysList.replaceChildren();
     const first = parseDate(startsOn.value);
     const last = parseDate(endsOn.value);
+    const sickWarning = form.querySelector("[data-sick-long-warning]");
+    if (sickWarning) sickWarning.hidden = !isSick() || !first || !last || (last - first) / dayMillis + 1 <= 30;
     note.textContent = fullDayTypeIds.has(leaveType.value) ?
       "Все выбранные даты входят целиком. Итоговая длительность рассчитывается по правилам выбранного вида отпуска." :
       "Промежуточные даты входят целиком. Итоговая длительность зависит от вида отсутствия и праздничных дат.";
@@ -195,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const count = Math.round((last - first) / dayMillis) + 1;
-    const excludedHolidays = excludedTypeIds.has(leaveType.value);
+    const excludedHolidays = !isSick() && excludedTypeIds.has(leaveType.value);
     const holidayCount = Array.from(holidays).filter((date) => date >= dateIso(first) && date <= dateIso(last)).length;
     const countText = `${count} ${countLabel(count, "календарная дата", "календарные даты", "календарных дат")}`;
     if (fullDay.checked && leaveType.value) {
@@ -270,9 +273,10 @@ document.addEventListener("DOMContentLoaded", () => {
     guidance.textContent = locked ? "Выберите полные календарные даты отпуска." :
       (leaveType.value ? "Выберите даты и при необходимости уточните время крайних дней." :
         "Выберите вид отпуска и даты отсутствия.");
-    minDate = familyTypeIds.has(leaveType.value) ? "2025-01-01" : today;
+    minDate = isSick() ? "2000-01-01" : (familyTypeIds.has(leaveType.value) ? "2025-01-01" : today);
     form.querySelectorAll("[data-date-dialog]").forEach((dialog) => {
-      maxDate = statutoryTypeIds.has(leaveType.value) ? dialog.dataset.statutoryMax : yearEnd;
+      maxDate = isSick() ? "2100-12-31" : (statutoryTypeIds.has(leaveType.value) ? dialog.dataset.statutoryMax : yearEnd);
+      dialog.dataset.ignoreCalendar = String(isSick());
       dialog.dataset.calendarMin = minDate;
       dialog.dataset.calendarMax = maxDate;
     });

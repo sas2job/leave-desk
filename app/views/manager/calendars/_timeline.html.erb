@@ -13,7 +13,7 @@
     <div class="team-timeline__heading">Сотрудник</div>
     <div class="team-timeline__dates">
       <% @dates.each do |date| %>
-        <time id="<%= timeline_date_anchor(date) %>" datetime="<%= date.iso8601 %>" class="team-timeline__date <%= 'is-off' if @calendar_off_days.include?(date) %> <%= 'is-today' if date == Date.current %>" title="<%= format_date(date) %>" aria-label="<%= format_date(date) %>">
+        <time id="<%= timeline_date_anchor(date) %>" datetime="<%= date.iso8601 %>" class="team-timeline__date <%= 'is-week-start' if date.monday? %> <%= 'is-off' if @calendar_off_days.include?(date) %> <%= 'is-today' if date == Date.current %>" title="<%= format_date(date) %>" aria-label="<%= format_date(date) %>">
           <% if @month %><strong><%= date.day %></strong><small><%= I18n.l(date, format: "%a") %></small><% end %>
         </time>
       <% end %>
@@ -26,9 +26,9 @@
           <% label = "#{format_date(date)}: отсутствуют #{count}" %>
           <% if count >= 2 %>
             <%= link_to(count, manager_calendar_path(year: @year, month: @month || "all", overlap_on: date.iso8601,
-              anchor: timeline_date_anchor(date)), class: "team-timeline__count is-overlap", title: label, aria: { label: }) %>
+              anchor: timeline_date_anchor(date)), class: "team-timeline__count is-overlap #{'is-high-load' if count >= 3}", title: label, aria: { label: }) %>
           <% else %>
-            <span class="team-timeline__count" title="<%= label %>" aria-label="<%= label %>"><%= count if count.positive? %></span>
+            <span class="team-timeline__count <%= 'is-occupied' if count.positive? %>" title="<%= label %>" aria-label="<%= label %>"><%= count if count.positive? %></span>
           <% end %>
         <% end %>
       </div>
@@ -37,7 +37,7 @@
       <div class="team-timeline__name"><%= row[:employee].name %></div>
       <div class="team-timeline__track" aria-label="Отсутствия: <%= row[:employee].name %>">
         <% @dates.each do |date| %>
-          <span style="grid-column: <%= (date - @dates.first).to_i + 1 %>" class="team-timeline__day <%= 'is-off' if row[:off_days].include?(date) %> <%= 'is-today' if date == Date.current %> <%= 'is-selected' if @selected_range && (@selected_range[:starts_on]..@selected_range[:ends_on]).cover?(date) %>" aria-hidden="true"></span>
+          <span style="grid-column: <%= (date - @dates.first).to_i + 1 %>" class="team-timeline__day <%= 'is-week-start' if date.monday? %> <%= 'is-off' if row[:off_days].include?(date) %> <%= 'is-today' if date == Date.current %> <%= 'is-selected' if @selected_range && (@selected_range[:starts_on]..@selected_range[:ends_on]).cover?(date) %>" aria-hidden="true"></span>
         <% end %>
         <% row[:requests].each do |request| %>
           <button type="button" class="team-timeline__bar timeline-color--<%= @type_colors.fetch(request.leave_type_id) %>" style="<%= timeline_bar_style(request, @dates, day_width:) %>" title="<%= timeline_bar_label(request) %>" aria-label="<%= row[:employee].name %>. <%= timeline_bar_label(request) %>" aria-haspopup="dialog" data-calendar-event>

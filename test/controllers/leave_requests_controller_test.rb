@@ -200,18 +200,17 @@ class LeaveRequestsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='leave_request[starts_on]'][value='31.02.2026']"
   end
 
-  test "rejects a sick leave notification for a past date" do
+  test "accepts a sick leave notification for a past date" do
     sick = LeaveType.find_or_create_by!(code: "SICK") { |type| type.name = "Sick leave" }
 
     travel_to Date.new(2026, 10, 28) do
-      assert_no_difference("LeaveRequest.count") do
+      assert_difference("LeaveRequest.count", 1) do
         post leave_requests_path, params: { leave_request: {
           leave_type_id: sick.id, starts_on: "03.01.2026", ends_on: "04.01.2026"
         } }
       end
 
-      assert_response :unprocessable_entity
-      assert_select ".error-summary", /раньше сегодняшнего дня/
+      assert_response :redirect
     end
   end
 

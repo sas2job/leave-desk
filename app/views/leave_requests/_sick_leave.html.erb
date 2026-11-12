@@ -1,0 +1,52 @@
+<% if leave_request.sick_leave? %>
+  <section class="sick-leave-details" aria-label="Учёт больничного">
+    <% if leave_request.pending? %>
+      <p class="field-hint">Сроки предполагаемые. Руководитель подтверждает период отсутствия для внутреннего учёта.</p>
+    <% end %>
+    <% if leave_request.long_sick_period? %>
+      <p role="status">Длительный период — более 30 календарных дней. Проверьте даты и согласуйте их с руководителем.</p>
+    <% end %>
+    <% if leave_request.sick_closed_on %>
+      <p>Фактическое окончание: <strong><%= format_date(leave_request.sick_closed_on) %></strong>. Больничный закрыт.</p>
+    <% elsif leave_request.sick_needs_clarification? %>
+      <p role="status"><strong>Требует уточнения.</strong> Подтверждённая дата окончания прошла. Укажите продление или закройте больничный.</p>
+    <% end %>
+    <% extension = leave_request.sick_leave_extensions.find { |item| item.pending? } %>
+    <% if extension %>
+      <% if !leave_request.long_sick_period? && (extension.proposed_ends_on - leave_request.starts_on).to_i + 1 > InternalSickLeave::LONG_PERIOD_DAYS %>
+        <p role="status">После продления период превысит 30 календарных дней. Проверьте предполагаемое окончание.</p>
+      <% end %>
+      <p>Продление до <strong><%= format_date(extension.proposed_ends_on) %></strong> ожидает подтверждения. До решения руководителя календарь показывает прежний период; новые даты не резервируются.</p>
+      <% if Current.user.manager? && Current.user.id == leave_request.employee.manager_id && Current.user.id != leave_request.employee_id %>
+        <div class="form-actions">
+          <%= button_to "Подтвердить продление", approve_manager_leave_request_sick_leave_extension_path(leave_request, extension), method: :patch, class: "button" %>
+          <%= button_to "Отклонить продление", reject_manager_leave_request_sick_leave_extension_path(leave_request, extension), method: :patch, class: "button button--danger" %>
+        </div>
+      <% end %>
+    <% end %>
+    <% if Current.user.id == leave_request.employee_id && leave_request.sick_open? && leave_request.full_calendar_days? %>
+      <% unless extension %>
+        <%= form_with url: leave_request_extend_sick_leave_path(leave_request), scope: :sick_leave, class: "form-grid" do |form| %>
+          <div class="field">
+            <%= form.label :proposed_ends_on, "Предполагаемое окончание продления", for: "sick_extension_end_#{leave_request.id}" %>
+            <%= form.date_field :proposed_ends_on, id: "sick_extension_end_#{leave_request.id}", required: true,
+              min: (leave_request.ends_on + 1).iso8601, max: SupportedCalendarPeriod::LAST_DATE.iso8601 %>
+          </div>
+          <div class="form-actions"><%= form.submit "Запросить продление", class: "button button--secondary" %></div>
+        <% end %>
+      <% end %>
+      <% if leave_request.starts_on <= leave_request.employee_today %>
+        <%= form_with url: leave_request_close_sick_leave_path(leave_request), scope: :sick_leave, class: "form-grid" do |form| %>
+          <div class="field">
+            <%= form.label :closed_on, "Фактическая дата окончания", for: "sick_close_on_#{leave_request.id}" %>
+            <%= form.date_field :closed_on, id: "sick_close_on_#{leave_request.id}", required: true,
+              value: [ leave_request.ends_on, leave_request.employee_today ].min.iso8601,
+              min: leave_request.starts_on.iso8601, max: [ leave_request.ends_on, leave_request.employee_today ].min.iso8601 %>
+          </div>
+          <p class="field-hint field--full">Закрывайте после последнего дня отсутствия. Незавершённое предложение продления будет снято; история сохранится.</p>
+          <div class="form-actions"><%= form.submit "Закрыть больничный", class: "button button--secondary" %></div>
+        <% end %>
+      <% end %>
+    <% end %>
+  </section>
+<% end %>

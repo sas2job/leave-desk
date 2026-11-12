@@ -2,6 +2,8 @@ Rails.application.routes.draw do
   resource :session, only: %i[new create destroy]
   get "calendar", to: "calendars#show", as: :calendar
   resources :leave_requests, only: %i[index new create destroy] do
+    post "sick_leave/extend", to: "sick_leaves#extend_period", as: :extend_sick_leave
+    post "sick_leave/close", to: "sick_leaves#close", as: :close_sick_leave
     member { post :return_from_childcare }
     resources :recalls, controller: :leave_recalls, only: %i[new create show] do
       member do
@@ -20,6 +22,12 @@ Rails.application.routes.draw do
     get "calendar/overlaps", to: "calendars#overlaps", as: :calendar_overlaps
     resource :calendar, only: :show
     resources :leave_requests, only: :index do
+      resources :sick_leave_extensions, only: [] do
+        member do
+          patch :approve
+          patch :reject
+        end
+      end
       member do
         patch :approve
         patch :reject

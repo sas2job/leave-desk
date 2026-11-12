@@ -1,6 +1,7 @@
 class LeaveRequest < ApplicationRecord
   include StatutoryLeaveRules
   include ConfiguredCalendarSubmission
+  include InternalSickLeave
   COMMENT_MAX_LENGTH = 2_000
   MINUTES_PER_DAY = 1_440
   HALF_DAY_MINUTES = 720
@@ -78,6 +79,7 @@ class LeaveRequest < ApplicationRecord
   def cancel!(by: employee)
     with_lock do
       raise InvalidTransition, "Отменить можно только заявку на рассмотрении или одобренную заявку" unless pending? || approved?
+      raise InvalidTransition, "Закрытый больничный сохраняется в истории" if sick_closed_on.present?
       if family_leave? && approved? && starts_on <= employee_today
         raise InvalidTransition, "Начавшийся семейный отпуск сохраняется; для ухода оформите заявление о выходе"
       end
@@ -85,6 +87,7 @@ class LeaveRequest < ApplicationRecord
       previous_status = status
       used_birthday = leave_type.code == "BIRTHDAY" && approved? && starts_on <= employee_today
       update!(status: :cancelled, birthday_used: birthday_used || used_birthday)
+      withdraw_sick_extensions!(by:) if sick_leave?
       record_event!(:cancelled, by:, from_status: previous_status)
     end
   end
@@ -236,6 +239,7 @@ class LeaveRequest < ApplicationRecord
 
   def flag_calendar_for_review!
     with_lock do
+      return if sick_leave?
       return unless pending? || approved?
       return if calendar_unverified?
 
@@ -310,7 +314,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def dates_are_in_current_year
-    return if statutory_leave?
+    return if statutory_leave? || sick_leave?
     return unless dates_supported?
     return if starts_on.year == Date.current.year && ends_on.year == Date.current.year
 
@@ -318,7 +322,7 @@ class LeaveRequest < ApplicationRecord
   end
 
   def starts_on_is_not_in_the_past
-    return if family_leave?
+    return if family_leave? || sick_leave?
     return unless supported_date?(starts_on)
     return if starts_on >= Date.current
 
@@ -327,6 +331,7 @@ class LeaveRequest < ApplicationRecord
 
   def calculation_inputs_are_unchanged
     fields = %i[leave_type_id region_id starts_on ends_on start_part end_part start_minute end_minute]
+    fields -= %i[ends_on start_minute end_minute] if @changing_sick_period && sick_leave? && approved?
     return unless fields.any? { |field| will_save_change_to_attribute?(field) }
 
     errors.add(:base, "Даты и способ расчёта сохранённой заявки нельзя изменить; отмените её и создайте новую")
@@ -360,8 +365,8 @@ class LeaveRequest < ApplicationRecord
         self.duration_half_days = (calculated_duration * 2).to_i if calculated_duration
       end
       years = calendar_years
-      self.calendar_unverified = false if family_leave?
-      return if family_leave?
+      self.calendar_unverified = false if family_leave? || sick_leave?
+      return if family_leave? || sick_leave?
       if years.any?
         federal_missing = FederalCalendar.where(year: years).count != years.size
         regional_missing = region_id.present? &&
@@ -399,6 +404,9 @@ class LeaveRequest < ApplicationRecord
       end
       raise ReviewNotAuthorized unless authorized
       raise InvalidTransition, "Рассмотреть можно только заявку на рассмотрении" unless pending?
+      if new_status == :approved && sick_leave? && !full_calendar_days?
+        raise InvalidTransition, "Больничный учитывается только полными календарными днями"
+      end
 
       previous_status = status
       if new_status == :approved && (annual_leave? || family_registration)

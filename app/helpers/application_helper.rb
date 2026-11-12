@@ -1,4 +1,9 @@
 module ApplicationHelper
+  def workspace_navigation_link(label, path)
+    active = request.path == path || request.path.start_with?("#{path}/")
+    link_to label, path, aria: { current: active ? "page" : nil }
+  end
+
   LEAVE_REQUEST_STATUS_LABELS = {
     "pending" => "На рассмотрении",
     "approved" => "Одобрена",
@@ -21,10 +26,21 @@ module ApplicationHelper
     "recalled" => "Заявка: отзыв из отпуска оформлен",
     "statutory_registered" => "Заявка: семейный отпуск зарегистрирован",
     "childcare_returned" => "Заявка: работник заявил о выходе из отпуска по уходу",
-    "statutory_clarification" => "Заявка: требуется уточнение кадровых документов"
+    "statutory_clarification" => "Заявка: требуется уточнение кадровых документов",
+    "sick_extension_proposed" => "Больничный: предложено продление",
+    "sick_extension_approved" => "Больничный: продление подтверждено",
+    "sick_extension_rejected" => "Больничный: продление отклонено",
+    "sick_extension_withdrawn" => "Больничный: предложение продления снято",
+    "sick_closed" => "Больничный закрыт"
   }.freeze
 
   def leave_request_status_label(leave_request)
+    if leave_request.sick_leave?
+      return "Больничный закрыт" if leave_request.sick_closed_on
+      return "Подтверждён · Требует уточнения" if leave_request.sick_needs_clarification?
+      return "Период подтверждён" if leave_request.approved?
+      return "Ожидает подтверждения" if leave_request.pending?
+    end
     if leave_request.family_leave? && Current.user&.manager? && Current.user.id != leave_request.employee_id && leave_request.interrupted?
       return "Отсутствие завершено"
     end

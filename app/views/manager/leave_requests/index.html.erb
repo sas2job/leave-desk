@@ -78,6 +78,7 @@
           <% end %>
           <%= render "leave_requests/legal_basis", leave_request: leave_request unless leave_request.family_leave? %>
           <%= render "leave_requests/recalls", leave_request: %>
+          <%= render "leave_requests/sick_leave", leave_request: %>
           <%= render "leave_requests/history", leave_request: leave_request unless leave_request.family_leave? %>
         </article>
       <% end %>

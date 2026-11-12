@@ -110,18 +110,18 @@ class SeedsTest < ActiveSupport::TestCase
     load Rails.root.join("db/seeds.rb")
     annual = LeaveType.find_by!(code: "ANNUAL")
     annual.update!(name: "Переименованный отпуск", active: false)
-    sick = LeaveType.find_by!(code: "SICK")
-    sick.update!(holiday_handling: :exclude_public_holidays)
+    unpaid = LeaveType.find_by!(code: "UNPAID")
+    unpaid.update!(holiday_handling: :exclude_public_holidays)
     employee = User.create!(name: "Example Employee", email_address: "seed-employee@example.test",
       password: "test-password")
-    LeaveRequest.create!(employee:, leave_type: sick, starts_on: Date.current,
+    LeaveRequest.create!(employee:, leave_type: unpaid, starts_on: Date.current,
       ends_on: Date.current)
 
     2.times { load Rails.root.join("db/seeds.rb") }
 
     assert_equal "Переименованный отпуск", annual.reload.name
     assert_not annual.active?
-    assert_predicate sick.reload, :exclude_public_holidays?
+    assert_predicate unpaid.reload, :exclude_public_holidays?
   end
 
   test "rerun preserves an administrator-disabled reference type" do

@@ -17,6 +17,7 @@ module ConfiguredCalendarSubmission
   end
 
   def submission_calendar_years_are_ready
+    return if sick_leave?
     years = calendar_years
     return if years.empty?
 

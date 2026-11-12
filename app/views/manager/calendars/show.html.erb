@@ -8,75 +8,79 @@
       <div>
         <p class="eyebrow">Команда</p>
         <h1>Календарь <%= @month ? I18n.l(Date.new(@year, @month, 1), format: "%B %Y") : @year %></h1>
-        <p class="calendar-view-label">Диаграмма отпусков · сотрудники по строкам, даты по горизонтали</p>
-        <p class="calendar-summary">Сотрудников: <%= @rows.size %><% if Current.user.manager? %> · Дней с пересечениями: <%= @coverage.values.count { |count| count >= 2 } %><% end %></p>
+        <p class="calendar-view-label">Отпуска и отсутствие сотрудников в одном месте</p>
       </div>
-      <div class="calendar-year-nav">
+      <% if Current.user.manager? %>
         <%= link_to(@selected_range ? "Отчёт по всей команде" : "Отчёт о пересечениях",
-          manager_calendar_overlaps_path(year: @year, month: @month || "all"), class: "button button--secondary") if Current.user.manager? %>
+          manager_calendar_overlaps_path(year: @year, month: @month || "all"), class: "button button--secondary") %>
+      <% end %>
+    </header>
+
+    <div class="calendar-metrics" aria-label="Обзор команды">
+      <div class="calendar-metric"><strong><%= @rows.size %></strong><span>Сотрудников</span></div>
+      <% if Current.user.manager? %>
+        <div class="calendar-metric"><strong><%= @coverage.values.count { |count| count >= 2 } %></strong><span>Дней с пересечениями</span></div>
+      <% end %>
+      <div class="calendar-metric calendar-metric--note"><span class="calendar-today-dot" aria-hidden="true"></span><span>Сегодня · <%= format_date(Date.current) %></span></div>
+    </div>
+
+    <section class="calendar-toolbar" aria-label="Управление календарём">
+      <nav class="calendar-year-nav" aria-label="Навигация по периоду">
         <% if @month %>
           <% previous_month = Date.new(@year, @month, 1).prev_month %>
           <% next_month = Date.new(@year, @month, 1).next_month %>
           <% if previous_month.year >= CalendarWindow::FIRST_YEAR %>
-            <%= link_to "← #{I18n.l(previous_month, format: "%B")}",
-              manager_calendar_path(year: previous_month.year, month: previous_month.month),
-              class: "button button--secondary" %>
+            <%= link_to "← #{I18n.l(previous_month, format: '%B')}", manager_calendar_path(year: previous_month.year, month: previous_month.month), class: "button button--secondary" %>
           <% end %>
           <% if next_month.year <= CalendarWindow::LAST_YEAR %>
-            <%= link_to "#{I18n.l(next_month, format: "%B")} →",
-              manager_calendar_path(year: next_month.year, month: next_month.month),
-              class: "button button--secondary" %>
+            <%= link_to "#{I18n.l(next_month, format: '%B')} →", manager_calendar_path(year: next_month.year, month: next_month.month), class: "button button--secondary" %>
           <% end %>
-          <%= link_to "Весь год", manager_calendar_path(year: @year, month: "all"),
-            class: "button button--secondary" %>
+          <%= link_to "Весь год", manager_calendar_path(year: @year, month: "all"), class: "button button--secondary" %>
           <% if CalendarWindow::YEARS.cover?(Date.current.year) %>
-            <%= link_to "Сегодня", manager_calendar_path(year: Date.current.year, month: Date.current.month),
-              class: "button button--secondary" %>
+            <%= link_to "Сегодня", manager_calendar_path(year: Date.current.year, month: Date.current.month), class: "button button--secondary calendar-today-link" %>
           <% end %>
         <% else %>
           <% if @year > CalendarWindow::FIRST_YEAR %>
-            <%= link_to "← #{@year - 1}", manager_calendar_path(year: @year - 1, month: "all"),
-              class: "button button--secondary" %>
+            <%= link_to "← #{@year - 1}", manager_calendar_path(year: @year - 1, month: "all"), class: "button button--secondary" %>
           <% end %>
           <% if @year < CalendarWindow::LAST_YEAR %>
-            <%= link_to "#{@year + 1} →", manager_calendar_path(year: @year + 1, month: "all"),
-              class: "button button--secondary" %>
+            <%= link_to "#{@year + 1} →", manager_calendar_path(year: @year + 1, month: "all"), class: "button button--secondary" %>
           <% end %>
-          <%= link_to "По месяцам", manager_calendar_path(year: @year),
-            class: "button button--secondary" %>
+          <%= link_to "По месяцам", manager_calendar_path(year: @year), class: "button button--secondary" %>
         <% end %>
-      </div>
-    </header>
+      </nav>
+      <% if Current.user.manager? %>
+        <%= form_with url: manager_calendar_path, method: :get, class: "calendar-overlap-filter" do |form| %>
+          <%= form.hidden_field :year, value: @year %>
+          <%= form.hidden_field :month, value: @month || "all" %>
+          <div class="field">
+            <%= form.label :overlap_on, "Пересечение по датам" %>
+            <%= form.select :overlap_on, options_for_select(timeline_overlap_options, @selected_range&.dig(:starts_on)&.iso8601), { include_blank: "Вся команда" } %>
+          </div>
+          <%= form.submit "Показать на шкале", class: "button button--secondary" %>
+        <% end %>
+      <% end %>
+    </section>
+
     <div class="calendar-legend" aria-label="Обозначения календаря">
-      <% if @has_family_leave %><span class="calendar-legend__item"><span class="calendar-key timeline-color--4"></span> Длительное отсутствие</span><% end %>
+      <% if @has_family_absences %><span class="calendar-legend__item"><span class="calendar-key timeline-color--4"></span> Длительное отсутствие</span><% end %>
       <% @leave_types.each do |leave_type| %>
         <span class="calendar-legend__item"><span class="calendar-key timeline-color--<%= @type_colors.fetch(leave_type.id) %>"></span> <%= leave_type.name %></span>
       <% end %>
       <span class="calendar-legend__item"><span class="calendar-key <%= @month ? 'calendar-key--birthday' : 'calendar-key--birthday-point' %>" aria-hidden="true"></span> День рождения</span>
+      <span class="calendar-legend__item"><span class="calendar-key calendar-key--off" aria-hidden="true"></span> Нерабочий день</span>
       <% if Current.user.manager? %>
         <span class="calendar-legend__item"><span class="calendar-key calendar-key--overlap"></span> Пересечения</span>
         <% if @focus_date %>
-          <%= link_to(@coverage.fetch(@focus_date) >= 2 ? "К пересечению →" : "К первому отсутствию →",
-            "##{timeline_date_anchor(@focus_date)}", class: "calendar-focus-link") %>
+          <%= link_to(@coverage.fetch(@focus_date) >= 2 ? "К пересечению →" : "К первому отсутствию →", "##{timeline_date_anchor(@focus_date)}", class: "calendar-focus-link") %>
         <% end %>
       <% end %>
     </div>
     <% if Current.user.manager? %>
-      <%= form_with url: manager_calendar_path, method: :get, class: "calendar-overlap-filter" do |form| %>
-        <%= form.hidden_field :year, value: @year %>
-        <%= form.hidden_field :month, value: @month || "all" %>
-        <div class="field">
-          <%= form.label :overlap_on, "Пересечение по датам" %>
-          <%= form.select :overlap_on, options_for_select(timeline_overlap_options, @selected_range&.dig(:starts_on)&.iso8601),
-            { include_blank: "Вся команда" } %>
-        </div>
-        <%= form.submit "Показать на шкале", class: "button button--secondary" %>
-      <% end %>
-      <p class="field-hint">Пересечения означают совпадение календарных дат. Точное время отсутствия указано на полосах.</p>
+      <p class="calendar-explanation">Пересечения — совпадения календарных дат. Нажмите на отпуск, чтобы увидеть подробности.</p>
       <% if @selected_range %>
         <div class="calendar-selection" role="status">
-          <p><strong><%= format_date(@selected_range[:starts_on]) %>–<%= format_date(@selected_range[:ends_on]) %></strong> ·
-            <%= @selected_range[:employees].map(&:name).join(", ") %></p>
+          <p><strong><%= format_date(@selected_range[:starts_on]) %>–<%= format_date(@selected_range[:ends_on]) %></strong> · <%= @selected_range[:employees].map(&:name).join(", ") %></p>
           <%= link_to "Все сотрудники", manager_calendar_path(year: @year, month: @month || "all"), class: "calendar-focus-link" %>
         </div>
       <% end %>

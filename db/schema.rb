@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_12_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
@@ -91,7 +91,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
     t.index ["actor_id"], name: "index_leave_request_events_on_actor_id"
     t.index ["leave_request_id"], name: "index_leave_request_events_on_leave_request_id"
     t.check_constraint "event_type = 4 OR actor_id IS NOT NULL", name: "leave_request_events_actor_required_except_calendar_alert"
-    t.check_constraint "event_type >= 0 AND event_type <= 13", name: "leave_request_events_valid_type"
+    t.check_constraint "event_type >= 0 AND event_type <= 18", name: "leave_request_events_valid_type"
     t.check_constraint "to_status = ANY (ARRAY[0, 1, 2, 3, 4, 5])", name: "leave_request_events_valid_to_status"
   end
 
@@ -123,6 +123,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
     t.integer "birthday_claim_year"
     t.boolean "birthday_used", default: false, null: false
     t.bigint "resumes_request_id"
+    t.date "sick_closed_on"
+    t.datetime "sick_closed_at"
     t.index ["employee_id", "birthday_claim_year"], name: "leave_requests_one_birthday_per_year", unique: true, where: "((birthday_claim_year IS NOT NULL) AND ((status = ANY (ARRAY[0, 1])) OR birthday_used))"
     t.index ["employee_id", "id"], name: "index_leave_requests_on_employee_id_and_id"
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
@@ -140,9 +142,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
     t.check_constraint "legal_kind <> 3 OR child_born_on IS NOT NULL AND isfinite(child_born_on) AND child_born_on >= '2000-01-01'::date AND child_born_on <= '2100-12-31'::date AND starts_on >= child_born_on AND ends_on <= (child_born_on + 'P3Y'::interval +\nCASE\n    WHEN to_char(child_born_on::timestamp with time zone, 'MM-DD'::text) = '02-29'::text THEN 'P1D'::interval\n    ELSE 'PT0S'::interval\nEND)::date AND care_relationship IS NOT NULL AND (care_relationship = ANY (ARRAY[0, 1, 2, 3, 4]))", name: "leave_requests_childcare_period"
     t.check_constraint "legal_kind <> 4 OR starts_on = ends_on AND birthday_claim_year IS NOT NULL", name: "leave_requests_birthday_one_day"
     t.check_constraint "legal_kind = 0 OR start_minute IS NOT NULL AND end_minute IS NOT NULL AND start_minute = 0 AND end_minute = 1440", name: "leave_requests_statutory_full_days"
-    t.check_constraint "legal_kind = ANY (ARRAY[0, 1, 2, 3, 4])", name: "leave_requests_valid_legal_kind"
+    t.check_constraint "legal_kind = ANY (ARRAY[0, 1, 2, 3, 4, 5])", name: "leave_requests_valid_legal_kind"
     t.check_constraint "resumes_request_id IS NULL OR resumes_request_id <> id", name: "leave_requests_resume_not_self"
     t.check_constraint "reviewer_id IS NULL OR reviewer_id <> employee_id", name: "leave_requests_reviewer_is_not_employee"
+    t.check_constraint "sick_closed_on IS NULL AND sick_closed_at IS NULL OR sick_closed_on IS NOT NULL AND sick_closed_at IS NOT NULL AND status = 1 AND isfinite(sick_closed_on) AND sick_closed_on = ends_on", name: "leave_requests_sick_closure"
     t.check_constraint "start_minute >= 0 AND start_minute <= 1439", name: "leave_requests_valid_start_minute"
     t.check_constraint "start_minute IS NULL AND end_minute IS NULL AND duration_minutes IS NULL AND duration_half_days IS NOT NULL OR start_minute IS NOT NULL AND end_minute IS NOT NULL AND duration_minutes IS NOT NULL AND duration_half_days IS NULL", name: "leave_requests_consistent_time_precision"
     t.check_constraint "start_part = ANY (ARRAY[0, 1])", name: "leave_requests_valid_start_part"
@@ -212,6 +215,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "sick_leave_extensions", force: :cascade do |t|
+    t.bigint "leave_request_id", null: false
+    t.bigint "requested_by_id", null: false
+    t.bigint "reviewer_id"
+    t.date "previous_ends_on", null: false
+    t.date "proposed_ends_on", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "reviewed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["leave_request_id"], name: "index_sick_leave_extensions_on_leave_request_id"
+    t.index ["leave_request_id"], name: "one_pending_sick_extension", unique: true, where: "(status = 0)"
+    t.index ["requested_by_id"], name: "index_sick_leave_extensions_on_requested_by_id"
+    t.index ["reviewer_id"], name: "index_sick_leave_extensions_on_reviewer_id"
+    t.check_constraint "(status = ANY (ARRAY[0, 3])) AND reviewer_id IS NULL AND reviewed_at IS NULL OR (status = ANY (ARRAY[1, 2])) AND reviewer_id IS NOT NULL AND reviewer_id <> requested_by_id AND reviewed_at IS NOT NULL", name: "sick_extensions_review_details"
+    t.check_constraint "isfinite(previous_ends_on) AND isfinite(proposed_ends_on) AND proposed_ends_on > previous_ends_on AND previous_ends_on >= '2000-01-01'::date AND proposed_ends_on <= '2100-12-31'::date", name: "sick_extensions_supported_period"
+    t.check_constraint "status = ANY (ARRAY[0, 1, 2, 3])", name: "sick_extensions_valid_status"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email_address", null: false
     t.string "name", null: false
@@ -250,6 +272,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_000002) do
   add_foreign_key "notifications", "users", column: "recipient_id"
   add_foreign_key "regional_calendars", "regions"
   add_foreign_key "sessions", "users"
+  add_foreign_key "sick_leave_extensions", "leave_requests"
+  add_foreign_key "sick_leave_extensions", "users", column: "requested_by_id"
+  add_foreign_key "sick_leave_extensions", "users", column: "reviewer_id"
   add_foreign_key "users", "regions"
   add_foreign_key "users", "users", column: "manager_id"
 end

@@ -2,7 +2,9 @@ class LeaveRequestEvent < ApplicationRecord
   enum :event_type, { created: 0, approved: 1, rejected: 2, cancelled: 3,
     calendar_unverified: 4, calendar_reconciled: 5,
     recall_proposed: 6, recall_consented: 7, recall_declined: 8, recall_withdrawn: 9, recalled: 10,
-    statutory_registered: 11, childcare_returned: 12, statutory_clarification: 13 }
+                      statutory_registered: 11, childcare_returned: 12, statutory_clarification: 13,
+                      sick_extension_proposed: 14, sick_extension_approved: 15, sick_extension_rejected: 16,
+                      sick_extension_withdrawn: 17, sick_closed: 18 }
   belongs_to :leave_request
   belongs_to :actor, class_name: "User", optional: true
   has_many :notifications, dependent: :restrict_with_exception
@@ -35,8 +37,8 @@ class LeaveRequestEvent < ApplicationRecord
     end
 
     recipient = case event_type
-    when "created", "cancelled", "recall_consented", "recall_declined" then leave_request.employee.manager
-    when "approved", "rejected", "calendar_reconciled", "recall_proposed", "recalled", "statutory_registered", "statutory_clarification" then leave_request.employee
+    when "created", "cancelled", "recall_consented", "recall_declined", "sick_extension_proposed", "sick_closed", "sick_extension_withdrawn" then leave_request.employee.manager
+    when "approved", "rejected", "calendar_reconciled", "recall_proposed", "recalled", "statutory_registered", "statutory_clarification", "sick_extension_approved", "sick_extension_rejected" then leave_request.employee
     when "recall_withdrawn"
       actor_id == leave_request.employee_id ? leave_request.employee.manager : leave_request.employee
     end

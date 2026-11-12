@@ -34,6 +34,7 @@
               full_day_type_ids: @leave_types.select(&:full_day_only?).map(&:id).join(","),
               statutory_type_ids: @leave_types.select(&:statutory_leave?).map(&:id).join(","),
               family_type_ids: @leave_types.select(&:family_leave?).map(&:id).join(","),
+                sick_type_id: @leave_types.find { |type| type.code == "SICK" }&.id,
               childcare_type_id: @leave_types.find { |type| type.code == "CHILDCARE" }&.id,
               birthday_type_id: @leave_types.find { |type| type.code == "BIRTHDAY" }&.id,
               excluded_holiday_type_ids: @leave_types.select(&:exclude_public_holidays?).map(&:id).join(",") } %>
@@ -56,7 +57,8 @@
           "UNPAID" => "Отпуск без сохранения заработной платы оформляется по письменному заявлению; продолжительность определяется соглашением сторон (ст. 128 ТК РФ). В предусмотренных законом случаях работодатель обязан предоставить такой отпуск.",
           "MATERNITY" => "Укажите даты отпуска по беременности и родам по заявлению и документу. Отпуск оформляется на полные календарные дни и может переходить в следующий год. 140/156/194 дня — обычные варианты, не единственные допустимые сроки. Отпуск регистрирует администратор.",
           "CHILDCARE" => "Укажите дату рождения ребёнка и кто осуществляет уход. Отпуск оформляется на полные календарные дни и может переходить в следующий год. Отпуск регистрирует администратор.",
-          "BIRTHDAY" => "Выходной в день рождения — один полный день один раз в календарном году."
+            "BIRTHDAY" => "Выходной в день рождения — один полный день один раз в календарном году.",
+            "SICK" => "Укажите начало и предполагаемое окончание болезни. Только полные календарные дни; можно указать прошедшие даты и переход года. Руководитель подтверждает отсутствие для внутреннего учёта. Продление и закрытие доступны в этой же заявке. Медицинские документы и диагноз не требуются."
         }.each do |code, hint| %>
           <%= tag.div class: "field-hint field--full leave-type-guidance",
             data: { leave_type_hint: @leave_types.find { |type| type.code == code }&.id },
@@ -138,6 +140,7 @@
         </div>
         <ol class="leave-planner__days" data-planner-days></ol>
         <p class="leave-planner__note" data-planner-note>Промежуточные даты входят целиком. Итоговая длительность рассчитывается по правилам выбранного вида отпуска.</p>
+          <p class="field-hint" data-sick-long-warning role="status" hidden>Длительный период — более 30 календарных дней. Проверьте даты; руководитель должен подтвердить период отсутствия.</p>
       </section>
 
         <div class="field field--full">

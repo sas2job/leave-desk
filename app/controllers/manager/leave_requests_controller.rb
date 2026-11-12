@@ -9,7 +9,7 @@ module Manager
 
     def index
       @leave_requests = paginate_history(
-        managed_leave_requests.includes(:employee, :leave_type, :leave_recalls, :legal_review, events: :actor)
+        managed_leave_requests.includes(:employee, :leave_type, :leave_recalls, :legal_review, :sick_leave_extensions, events: :actor)
       )
     end
 

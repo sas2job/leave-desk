@@ -4,7 +4,7 @@ class LeaveRequestsController < ApplicationController
   before_action :set_leave_request, only: %i[destroy return_from_childcare]
 
   def index
-    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, :leave_recalls, :legal_review, events: :actor))
+    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, :leave_recalls, :legal_review, :sick_leave_extensions, events: :actor))
   end
 
   def new

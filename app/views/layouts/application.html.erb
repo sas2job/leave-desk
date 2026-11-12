@@ -27,29 +27,29 @@
           <% end %>
 
           <nav class="site-nav" aria-label="Основная навигация">
-            <%= link_to "Мои заявки", leave_requests_path %>
+            <%= workspace_navigation_link "Мои заявки", leave_requests_path %>
             <% if Current.user.manager? || Current.user.administrator? %>
               <details class="site-nav__dropdown">
                 <summary>Календари</summary>
                 <div class="site-nav__menu">
-                  <%= link_to "Общий календарь", manager_calendar_path %>
-                  <%= link_to "Мой календарь", calendar_path %>
+                  <%= workspace_navigation_link "Общий календарь", manager_calendar_path %>
+                  <%= workspace_navigation_link "Мой календарь", calendar_path %>
                 </div>
               </details>
             <% else %>
-              <%= link_to "Мой календарь", calendar_path %>
+              <%= workspace_navigation_link "Мой календарь", calendar_path %>
             <% end %>
-            <%= link_to "Уведомления (#{unread_notifications_count})", notifications_path %>
+            <%= workspace_navigation_link "Уведомления (#{unread_notifications_count})", notifications_path %>
             <% if Current.user.manager? %>
-              <%= link_to "Заявки сотрудников", manager_leave_requests_path %>
+              <%= workspace_navigation_link "Заявки сотрудников", manager_leave_requests_path %>
             <% end %>
             <% if Current.user.administrator? %>
-              <%= link_to "Семейные отпуска", admin_family_leaves_path %>
-              <%= link_to "Виды отпусков", admin_leave_types_path %>
-              <%= link_to "Федеральные календари", admin_federal_calendars_path %>
-              <%= link_to "Регионы работы", admin_regions_path %>
-              <%= link_to "Региональные календари", admin_regional_calendars_path %>
-              <%= link_to "Проверка календаря", admin_calendar_reviews_path %>
+              <%= workspace_navigation_link "Семейные отпуска", admin_family_leaves_path %>
+              <%= workspace_navigation_link "Виды отпусков", admin_leave_types_path %>
+              <%= workspace_navigation_link "Федеральные календари", admin_federal_calendars_path %>
+              <%= workspace_navigation_link "Регионы работы", admin_regions_path %>
+              <%= workspace_navigation_link "Региональные календари", admin_regional_calendars_path %>
+              <%= workspace_navigation_link "Проверка календаря", admin_calendar_reviews_path %>
             <% end %>
           </nav>
 

@@ -34,6 +34,7 @@ module StatutoryLeaveRules
   end
 
   def statutory_excludes_holidays?
+    return false if sick_leave?
     annual_leave? || (!family_leave? && leave_type.exclude_public_holidays?)
   end
 
@@ -76,7 +77,7 @@ module StatutoryLeaveRules
   private
 
   def set_legal_kind
-    self.legal_kind = { "ANNUAL" => 1, "MATERNITY" => 2, "CHILDCARE" => 3, "BIRTHDAY" => 4 }.fetch(leave_type&.code, 0)
+    self.legal_kind = { "ANNUAL" => 1, "MATERNITY" => 2, "CHILDCARE" => 3, "BIRTHDAY" => 4, "SICK" => 5 }.fetch(leave_type&.code, 0)
     self.birthday_claim_year = starts_on.year if legal_kind == 4 && supported_date?(starts_on)
     if leave_type&.full_day_only? && start_time.nil? && end_time.nil? && starts_morning? && ends_afternoon?
       self.start_time = "00:00"

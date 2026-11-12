@@ -1,6 +1,6 @@
 class LeaveType < ApplicationRecord
   BIRTHDAY_CODE = "BIRTHDAY"
-  SYSTEM_CODES = %w[ANNUAL BIRTHDAY MATERNITY CHILDCARE].freeze
+  SYSTEM_CODES = %w[ANNUAL BIRTHDAY MATERNITY CHILDCARE SICK].freeze
 
   enum :holiday_handling, {
     include_public_holidays: 0,
@@ -37,7 +37,7 @@ class LeaveType < ApplicationRecord
   end
 
   def full_day_only?
-    statutory_leave? || code == "BIRTHDAY"
+    statutory_leave? || %w[BIRTHDAY SICK].include?(code)
   end
 
   private
@@ -70,8 +70,8 @@ class LeaveType < ApplicationRecord
     return unless new_record? || will_save_change_to_holiday_handling? || will_save_change_to_code?
     if code == "ANNUAL" && !exclude_public_holidays?
       errors.add(:holiday_handling, "для ежегодного отпуска праздники обязательно исключаются")
-    elsif family_leave? && !include_public_holidays?
-      errors.add(:holiday_handling, "семейный отпуск включает все календарные даты")
+    elsif (family_leave? || code == "SICK") && !include_public_holidays?
+      errors.add(:holiday_handling, "семейный отпуск и больничный включают все календарные даты")
     end
   end
 
