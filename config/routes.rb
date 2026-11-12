@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   resource :session, only: %i[new create destroy]
+  resource :annual_leave_balance, only: :show
   get "calendar", to: "calendars#show", as: :calendar
   resources :leave_requests, only: %i[index new create destroy] do
     post "sick_leave/extend", to: "sick_leaves#extend_period", as: :extend_sick_leave
@@ -19,6 +20,11 @@ Rails.application.routes.draw do
   end
 
   namespace :manager do
+    resources :annual_leave_balances, only: :index
+    resources :users, only: [] do
+      patch :annual_leave_policy, to: "annual_leave_years#policy"
+      resources :annual_leave_years, only: %i[index create update]
+    end
     get "calendar/overlaps", to: "calendars#overlaps", as: :calendar_overlaps
     resource :calendar, only: :show
     resources :leave_requests, only: :index do
@@ -36,6 +42,9 @@ Rails.application.routes.draw do
   end
 
   namespace :admin do
+    resources :users, only: [] do
+      resources :annual_leave_years, only: %i[index create update]
+    end
     resources :family_leaves, only: %i[index show] do
       member do
         post :register

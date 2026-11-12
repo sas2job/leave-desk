@@ -6,5 +6,6 @@
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
   :name, :city, :birthday_on, :employee_comment, :review_comment, :recall,
-  :legal_review, :child_born_on, :care_relationship, :resumes_request_id
+  :legal_review, :child_born_on, :care_relationship, :resumes_request_id,
+  :annual_policy, :annual_leave_year, :annual_leave_adjustment, :annual_leave_basis
 ]

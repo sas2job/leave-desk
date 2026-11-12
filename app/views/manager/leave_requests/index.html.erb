@@ -5,6 +5,7 @@
       <h1>Заявки сотрудников</h1>
       <p class="lede">Рассмотрите планы команды и зафиксируйте решение.</p>
     </div>
+    <%= link_to "Остатки отпусков команды", manager_annual_leave_balances_path, class: "button button--secondary" %>
   </header>
 
   <% if @leave_requests.any? %>
@@ -79,6 +80,7 @@
           <%= render "leave_requests/legal_basis", leave_request: leave_request unless leave_request.family_leave? %>
           <%= render "leave_requests/recalls", leave_request: %>
           <%= render "leave_requests/sick_leave", leave_request: %>
+          <%= render "leave_requests/annual_balance", leave_request: %>
           <%= render "leave_requests/history", leave_request: leave_request unless leave_request.family_leave? %>
         </article>
       <% end %>

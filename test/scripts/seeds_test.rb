@@ -1,6 +1,16 @@
 require "test_helper"
 
 class SeedsTest < ActiveSupport::TestCase
+  test "rerunning development seeds preserves existing passwords and sessions" do
+    load_development_seeds
+    users = User.order(:id).to_a
+    passwords = users.map { |user| [ user.id, user.password_digest ] }
+    session = users.first.sessions.create!(ip_address: "127.0.0.1", user_agent: "Seed test")
+    load_development_seeds
+    assert passwords == User.order(:id).pluck(:id, :password_digest), "Existing passwords must not change"
+    assert Session.exists?(session.id)
+  end
+
   test "2027 demo calendar gives every employee approved annual and birthday leave" do
     original_time = Time.current
     load_development_seeds

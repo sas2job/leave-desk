@@ -153,6 +153,7 @@ class DemoCalendarCorrectionTest < ActiveSupport::TestCase
   private
 
   def create_approved(employee, starts_on, ends_on)
+    configure_annual_year(employee, year: starts_on.year)
     request = LeaveRequest.create!(employee:, leave_type: @annual, starts_on:, ends_on:)
     request.approve!(by: @manager, legal_review: { conditions_confirmed: true,
       working_year_starts_on: starts_on.beginning_of_year, working_year_ends_on: starts_on.end_of_year,

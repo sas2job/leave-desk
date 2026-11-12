@@ -1,3 +1,4 @@
+<% content_for :head do %><%= javascript_include_tag "user_annual_entitlement", defer: true %><% end %>
 <% if user.errors.any? %>
   <div class="error-summary" role="alert">
     <strong>Проверьте заполнение формы</strong>
@@ -50,6 +51,25 @@
       <div class="field">
         <%= form.label :password_confirmation, "Подтверждение пароля" %>
         <%= form.password_field :password_confirmation, required: !user.persisted?, autocomplete: "new-password" %>
+      </div>
+      <div class="field field--full checkbox-field">
+        <%= form.check_box :extended_annual_leave %>
+        <%= form.label :extended_annual_leave, "Увеличенная продолжительность основного отпуска (от 30 дней)" %>
+      </div>
+      <div class="field">
+        <%= form.label :annual_base_days, "Основной отпуск за рабочий год, дней" %>
+        <%= form.number_field :annual_base_days, min: 28, required: true %>
+        <small>Обычно 28; для работников с инвалидностью — не менее 30. Для работников младше 18 лет при настройке рабочего года учитывается минимум 31 день. При увеличении укажите основание без медицинских сведений.</small>
+      </div>
+      <div class="field">
+        <%= form.label :annual_additional_days, "Дополнительные дни за ненормированный рабочий день" %>
+        <%= form.number_field :annual_additional_days, min: 0, required: true %>
+        <small>0, если не предусмотрен; иначе не менее 3 дней по установленным правилам организации.</small>
+      </div>
+      <div class="field field--full">
+        <%= form.label :annual_leave_basis, "Основание увеличения отпуска" %>
+        <%= form.text_field :annual_leave_basis, maxlength: 200 %>
+        <small>Укажите норму или документ организации без медицинских сведений. Изменение профиля действует для новых рабочих лет; существующие остатки корректируются отдельно.</small>
       </div>
       <div class="field field--full checkbox-field">
         <%= form.check_box :active %>

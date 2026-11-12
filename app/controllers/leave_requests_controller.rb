@@ -4,7 +4,7 @@ class LeaveRequestsController < ApplicationController
   before_action :set_leave_request, only: %i[destroy return_from_childcare]
 
   def index
-    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, :leave_recalls, :legal_review, :sick_leave_extensions, events: :actor))
+    @leave_requests = paginate_history(Current.user.leave_requests.includes(:leave_type, :leave_recalls, :legal_review, :sick_leave_extensions, annual_leave_bookings: :annual_leave_year, events: :actor))
   end
 
   def new
@@ -44,7 +44,12 @@ class LeaveRequestsController < ApplicationController
 
   def destroy
     @leave_request.cancel!(by: Current.user)
-    redirect_to leave_requests_path, notice: "Заявка отменена.", status: :see_other
+    notice = if @leave_request.annual_leave? && !@leave_request.annual_leave_bookings.exists?
+      "Заявка отменена. Если её дни включены в начальный расход, руководитель должен скорректировать остаток."
+    else
+      "Заявка отменена."
+    end
+    redirect_to leave_requests_path, notice:, status: :see_other
   rescue LeaveRequest::InvalidTransition => error
     redirect_to leave_requests_path, alert: error.message, status: :see_other
   end
@@ -129,6 +134,7 @@ class LeaveRequestsController < ApplicationController
   end
 
   def load_form_options
+    @annual_available_minutes = Current.user.annual_leave_years.where("starts_on <= ?", Date.current).sum("entitlement_days::bigint * 1440 - opening_used_minutes - reserved_minutes - committed_minutes")
     @leave_types = LeaveType.where(active: true).order(:name)
     @available_years = FederalCalendar.where(year: CalendarWindow::YEARS).order(:year).pluck(:year)
     if Current.user.region_id

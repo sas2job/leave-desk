@@ -1,3 +1,4 @@
+require Rails.root.join("db/seeds/demo_annual_balances")
 require "securerandom"
 require "nokogiri"
 require "rack/mock"
@@ -29,6 +30,7 @@ class StagingCalendarBenchmark2027
           birthday_on: Date.ordinal(1990, Random.new(2027 + index).rand(1..365)))
         user_ids << employee.id
         first = index < 3 ? Date.new(2027, 7, 10 + index * 2) : Date.new(2027, 9, 10 + index % 10)
+        DemoAnnualBalances.ensure!(employee, 2027)
         request = LeaveRequest.create!(employee:, leave_type: annual, starts_on: first, ends_on: first + 6)
         request.approve!(by: manager, legal_review: { conditions_confirmed: true,
           working_year_starts_on: Date.new(2027, 1, 1), working_year_ends_on: Date.new(2027, 12, 31), entitlement_days: 28 })

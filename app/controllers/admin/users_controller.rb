@@ -56,7 +56,8 @@ module Admin
     end
 
     def user_params
-      fields = %i[name email_address city region_id birthday_on password password_confirmation role manager_id active]
+      fields = %i[name email_address city region_id birthday_on password password_confirmation role manager_id active
+        extended_annual_leave annual_base_days annual_additional_days annual_leave_basis]
       raw = params[:user]
       require_known_fields!(raw, *fields, container: "user",
         example: '{"user":{"name":"Сотрудник","email_address":"user@example.test",' \
@@ -68,6 +69,17 @@ module Admin
         require_identifier_fields!(raw, :manager_id, :region_id)
       end
       attributes = params.expect(user: fields)
+      require_string_fields!(attributes, :annual_leave_basis)
+      %i[annual_base_days annual_additional_days].each do |field|
+        value = attributes[field]
+        next unless attributes.key?(field)
+        unless value.is_a?(Integer) || value.is_a?(String) && value.match?(/\A\d+\z/)
+          raise ActionController::BadRequest, "Expected a whole number for #{field}"
+        end
+      end
+      if attributes.key?(:extended_annual_leave) && ![ true, false, 0, 1, "0", "1" ].include?(attributes[:extended_annual_leave])
+        raise ActionController::BadRequest, "Invalid annual entitlement flag"
+      end
       require_string_fields!(
         attributes,
         :name, :email_address, :city, :birthday_on, :password, :password_confirmation, :role

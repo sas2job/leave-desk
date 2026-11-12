@@ -65,6 +65,7 @@
             hidden: @leave_request.leave_type&.code != code do %>
             <p><%= hint %></p>
             <% if code == "ANNUAL" %>
+              <p><strong>Доступно на сегодня: <%= format_balance_days(@annual_available_minutes) %> дн.</strong> Ожидающие заявки резервируют дни. Для будущих рабочих лет доступность проверяется по дате начала отпуска. <%= link_to "Посмотреть остаток по рабочим годам", annual_leave_balance_path %></p>
               <p>По соглашению можно взять отдельный день. При разделении ежегодного отпуска хотя бы одна часть должна быть не менее 14 календарных дней (ст. 125 ТК РФ).</p>
               <p>Если нужно отсутствовать несколько часов, можно согласовать отпуск без сохранения заработной платы.</p>
               <p><%= link_to "Статьи 120 и 125 ТК РФ — пояснения Минтруда", "https://mintrud.gov.ru/ministry/programms/trudotn/otpusk", target: "_blank", rel: "noopener noreferrer" %></p>

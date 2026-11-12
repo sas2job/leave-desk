@@ -4,6 +4,7 @@ module LeaveRecallTestHelper
       password: "test-password", role: :manager)
     @employee = User.create!(name: "Recall Employee", email_address: "recall-employee@example.test",
       password: "test-password", manager: @manager, birthday_on: Date.new(1990, 1, 1))
+    configure_annual_year(@employee)
     @annual = LeaveType.find_or_create_by!(code: "ANNUAL") do |type|
       type.name = "Ежегодный отпуск"
       type.holiday_handling = :exclude_public_holidays

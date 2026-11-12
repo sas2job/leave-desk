@@ -2,6 +2,7 @@ class LeaveRequest < ApplicationRecord
   include StatutoryLeaveRules
   include ConfiguredCalendarSubmission
   include InternalSickLeave
+  include AnnualLeaveAccounting
   COMMENT_MAX_LENGTH = 2_000
   MINUTES_PER_DAY = 1_440
   HALF_DAY_MINUTES = 720
@@ -259,13 +260,15 @@ class LeaveRequest < ApplicationRecord
         LeaveType.where(id: leave_type_id).lock("FOR UPDATE").first
       end
       association(:leave_type).target = locked_type
-      if new_record?
+      result = if new_record?
         with_calendar_locks do
           yield
         end
       else
         yield
       end
+      raise ActiveRecord::Rollback if result == false
+      result
     end
   end
 
@@ -404,6 +407,7 @@ class LeaveRequest < ApplicationRecord
       end
       raise ReviewNotAuthorized unless authorized
       raise InvalidTransition, "Рассмотреть можно только заявку на рассмотрении" unless pending?
+      reserve_annual_leave! if new_status == :approved && annual_leave? && !annual_leave_bookings.exists?
       if new_status == :approved && sick_leave? && !full_calendar_days?
         raise InvalidTransition, "Больничный учитывается только полными календарными днями"
       end

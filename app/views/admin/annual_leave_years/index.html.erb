@@ -1,0 +1,55 @@
+<main class="page">
+  <header class="page-header"><div><p class="eyebrow"><%= @balance_namespace == :manager ? "Команда" : "Администрирование" %></p><h1>Ежегодный отпуск</h1><p class="lede"><%= @employee.name %> · базовая продолжительность <%= @employee.annual_default_days %> дн.</p></div><%= link_to "К сотрудникам", @balance_namespace == :manager ? manager_annual_leave_balances_path : admin_users_path, class: "button button--secondary" %></header>
+  <% if @balance_namespace == :manager %>
+    <% content_for :head do %><%= javascript_include_tag "user_annual_entitlement", defer: true %><% end %>
+    <section class="card form-card" style="margin-bottom: 1.25rem">
+      <h2>Продолжительность за рабочий год</h2>
+      <%= form_with url: manager_user_annual_leave_policy_path(@employee), method: :patch, scope: :annual_policy do |form| %>
+        <div class="form-grid">
+          <label class="checkbox-field field--full"><%= form.check_box :extended_annual_leave, { checked: @employee.extended_annual_leave?, id: "user_extended_annual_leave" }, "1", "0" %>Увеличенная продолжительность основного отпуска (от 30 дней)</label>
+          <div class="field"><%= form.label :annual_base_days, "Основной отпуск, дней", for: "user_annual_base_days" %><%= form.number_field :annual_base_days, id: "user_annual_base_days", value: @employee.annual_base_days, min: 28, required: true %></div>
+          <div class="field"><%= form.label :annual_additional_days, "За ненормированный день, дополнительно" %><%= form.number_field :annual_additional_days, value: @employee.annual_additional_days, min: 0, required: true %></div>
+          <div class="field field--full"><%= form.label :annual_leave_basis, "Основание увеличения" %><%= form.text_field :annual_leave_basis, value: @employee.annual_leave_basis, maxlength: 200 %></div>
+        </div>
+        <p class="field-hint">Обычно 28 дней; работникам с инвалидностью — от 30; младше 18 лет — не менее 31. Дополнительный отпуск за ненормированный день — 0 или от 3 дней. Без диагнозов и медицинских сведений. Изменение не пересчитывает существующие рабочие годы: их остатки корректируются отдельно с основанием.</p>
+        <div class="form-actions"><%= form.submit "Сохранить продолжительность" %></div>
+      <% end %>
+    </section>
+  <% end %>
+  <section class="card form-card">
+    <h2>Добавить рабочий год</h2>
+    <p class="field-hint">Границы рабочего года подтверждаются кадрово и могут отличаться от календарного года. Остаток не сгорает при смене года. До ввода проверьте все прежние согласованные отпуска: автоматически распределить их по рабочим годам невозможно.</p>
+    <% if @year.errors.any? %><div class="error-summary" role="alert"><%= @year.errors.full_messages.to_sentence %></div><% end %>
+    <%= form_with model: @year, url: public_send("#{@balance_namespace}_user_annual_leave_years_path", @employee) do |form| %>
+      <div class="form-grid">
+        <div class="field"><%= form.label :starts_on, "Начало рабочего года" %><%= form.date_field :starts_on, required: true, min: SupportedCalendarPeriod::FIRST_DATE, max: SupportedCalendarPeriod::LAST_DATE %></div>
+        <div class="field"><%= form.label :ends_on, "Окончание рабочего года" %><%= form.date_field :ends_on, required: true, min: SupportedCalendarPeriod::FIRST_DATE, max: SupportedCalendarPeriod::LAST_DATE %></div>
+        <div class="field"><%= form.label :entitlement_days, "Положено за рабочий год, дней" %><%= form.number_field :entitlement_days, min: 28, max: 1_000_000, required: true %></div>
+        <div class="field"><%= form.label :opening_used_days, "Учтено до настройки остатка, дней" %><%= form.number_field :opening_used_days, min: 0, step: 0.5, required: true %></div>
+        <div class="field field--full"><%= form.label :basis, "Основание и дата сверки" %><%= form.text_field :basis, required: true, maxlength: 200 %><small>Без диагнозов и медицинских сведений. Укажите кадровый документ или основание организации.</small></div>
+        <label class="checkbox-field field--full"><%= form.check_box :history_confirmed, {}, "1", "0" %>Подтверждаю сверку прежних использованных и запланированных отпусков. Они включены в начальный расход и не будут списаны повторно.</label>
+      </div>
+      <div class="form-actions"><%= form.submit "Сохранить рабочий год" %></div>
+    <% end %>
+  </section>
+  <div class="request-list" style="margin-top: 1.25rem">
+    <% @years.each do |year| %>
+      <section class="card form-card">
+        <h2><%= format_date(year.starts_on) %>–<%= format_date(year.ends_on) %></h2>
+        <p>Положено: <strong><%= year.entitlement_days %></strong> · учтено ранее: <%= format_balance_days(year.opening_used_minutes) %> · одобрено: <%= format_balance_days(year.committed_minutes) %> · резерв: <%= format_balance_days(year.reserved_minutes) %> · доступно: <strong><%= format_balance_days(year.available_minutes) %> дн.</strong></p>
+        <p class="field-hint"><%= year.basis %></p>
+        <details class="request-history"><summary>Корректировка и история</summary>
+          <%= form_with url: public_send("#{@balance_namespace}_user_annual_leave_year_path", @employee, year), method: :patch, scope: :annual_leave_adjustment do |form| %>
+            <div class="form-grid">
+              <div class="field"><%= form.label :entitlement_days, "Положено, дней", for: "entitlement_#{year.id}" %><%= form.number_field :entitlement_days, value: year.entitlement_days, id: "entitlement_#{year.id}", min: 28, required: true %></div>
+              <div class="field"><%= form.label :opening_used_days, "Начальный расход, дней", for: "opening_#{year.id}" %><%= form.number_field :opening_used_days, value: year.opening_used_days, id: "opening_#{year.id}", min: 0, step: 0.5, required: true %></div>
+              <div class="field field--full"><%= form.label :reason, "Основание корректировки", for: "reason_#{year.id}" %><%= form.text_field :reason, id: "reason_#{year.id}", maxlength: 200, required: true %></div>
+            </div><div class="form-actions"><%= form.submit "Сохранить корректировку" %></div>
+          <% end %>
+          <ol><li>Начальный учёт: <%= year.recorded_by.name %>, <%= l(year.created_at, format: :short) %>.</li>
+          <% year.annual_leave_adjustments.each do |adjustment| %><li><%= l(adjustment.created_at, format: :short) %> · <%= adjustment.actor.name %>: положено <%= adjustment.previous_entitlement_days %> → <%= adjustment.entitlement_days %>; начальный расход <%= format_balance_days(adjustment.previous_opening_used_minutes) %> → <%= format_balance_days(adjustment.opening_used_minutes) %>. <%= adjustment.reason %></li><% end %></ol>
+        </details>
+      </section>
+    <% end %>
+  </div>
+</main>

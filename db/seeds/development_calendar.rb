@@ -1,3 +1,4 @@
+require_relative "demo_annual_balances"
 require "active_support/testing/time_helpers"
 
 class DevelopmentCalendarSeed
@@ -25,6 +26,7 @@ class DevelopmentCalendarSeed
     travel_to Time.zone.local(@year, 1, 1, 12) do
       LeaveRequest.transaction do
         @employees.each_with_index do |employee, index|
+          DemoAnnualBalances.ensure!(employee, @year)
           if employee.birthday_on.blank?
             employee.update!(birthday_on: Date.new(1990, (index % 12) + 1, ((index * 3 + 15) % 27) + 1))
           end
@@ -66,7 +68,7 @@ class DevelopmentCalendarSeed
       employee_comment: comment)
     request.approve!(by: employee.manager, comment: "Демонстрационные данные", legal_review: {
       conditions_confirmed: true, working_year_starts_on: @dates.first,
-      working_year_ends_on: @dates.last, entitlement_days: 28
+      working_year_ends_on: @dates.last, entitlement_days: employee.annual_default_days(on: @dates.first)
     })
   end
 
@@ -74,11 +76,11 @@ class DevelopmentCalendarSeed
     occupied = employee.leave_requests.where(status: %i[pending approved recalled interrupted])
       .where("starts_on <= ? AND ends_on >= ?", @dates.last, @dates.first)
       .map { |request| request.starts_on..request.effective_ends_on }
-    starts_on = (@dates.first..(@dates.last - 13)).sort_by { |date| (date - preferred_start).abs }.find do |date|
-      occupied.none? { |period| date <= period.last && date + 13 >= period.first }
+    starts_on = (@dates.first..(@dates.last - 6)).sort_by { |date| (date - preferred_start).abs }.find do |date|
+      occupied.none? { |period| date <= period.last && date + 6 >= period.first }
     end
-    raise "В демонстрационном году нет свободного двухнедельного периода" unless starts_on
+    raise "В демонстрационном году нет свободного недельного периода" unless starts_on
 
-    [ starts_on, starts_on + 13 ]
+    [ starts_on, starts_on + 6 ]
   end
 end

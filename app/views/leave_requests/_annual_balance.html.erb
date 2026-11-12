@@ -1,0 +1,11 @@
+<% if leave_request.annual_leave? %>
+  <section class="annual-leave-details" aria-label="Дни ежегодного отпуска">
+    <% bookings = leave_request.annual_leave_bookings.select { |booking| booking.minutes.positive? } %>
+    <% if bookings.any? %>
+      <p class="field-hint"><%= leave_request.pending? ? "Зарезервировано по рабочим годам:" : "Учтено по рабочим годам:" %></p>
+      <ul><% bookings.each do |booking| %><li><%= format_date(booking.annual_leave_year.starts_on) %>–<%= format_date(booking.annual_leave_year.ends_on) %>: <strong><%= format_balance_days(booking.minutes) %> дн.</strong></li><% end %></ul>
+    <% elsif leave_request.pending? %>
+      <p class="field-hint">Заявка создана без резервирования остатка. При одобрении проверяется доступный остаток; при нехватке дней одобрение невозможно. Новые заявки резервируют дни при отправке.</p>
+    <% end %>
+  </section>
+<% end %>

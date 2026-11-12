@@ -1,0 +1,8 @@
+<main class="page">
+  <header class="page-header"><div><p class="eyebrow">Ежегодный отпуск</p><h1>Остаток отпуска</h1><p class="lede">Рабочие годы, подтверждённые дни и резерв по заявкам.</p></div><%= link_to "Создать заявку", new_leave_request_path, class: "button" %></header>
+  <% if @years.any? %>
+    <p class="lede" style="margin-bottom: 1.25rem">Доступно на сегодня: <strong><%= format_balance_days(@years.select { |year| year.starts_on <= Date.current }.sum(&:available_minutes)) %> дн.</strong></p>
+  <% end %>
+  <%= render "annual_leave_balances/summary", years: @years %>
+  <p class="field-hint">Дни прошлых рабочих лет остаются доступными. Сначала используются более ранние остатки. Одобренные будущие отпуска и заявки на рассмотрении уже уменьшают доступные дни. Исправление начальных данных выполняет руководитель или администратор.</p>
+</main>

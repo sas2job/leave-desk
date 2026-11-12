@@ -30,6 +30,7 @@ class DemoBirthdayCorrectionTest < ActiveSupport::TestCase
   end
 
   test "apply preserves birth years other profile fields leave and repeat runs" do
+    configure_annual_year(@users.first)
     request = LeaveRequest.create!(employee: @users.first, leave_type: LeaveType.find_by!(code: "ANNUAL"),
       starts_on: Date.new(2026, 12, 1), ends_on: Date.new(2026, 12, 7))
     request.approve!(by: @manager, legal_review: { conditions_confirmed: true,

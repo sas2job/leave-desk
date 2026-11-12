@@ -16,7 +16,7 @@ class StatutoryLeaveTest < ActiveSupport::TestCase
     assert_equal Date.new(2026, 2, 1), request.legal_review.working_year_starts_on
   end
 
-  test "annual leave supports short parts and more than 28 days without invented hard limits" do
+  test "annual leave supports short parts and uses carried balance for more than 28 days" do
     short = LeaveRequest.create!(employee: @employee, leave_type: @annual,
       starts_on: Date.new(2026, 10, 15), ends_on: Date.new(2026, 10, 17))
     short.approve!(by: @manager, legal_review: annual_review_attributes)

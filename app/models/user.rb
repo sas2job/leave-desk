@@ -1,4 +1,32 @@
 class User < ApplicationRecord
+  has_many :annual_leave_years, foreign_key: :employee_id, dependent: :restrict_with_exception
+  before_validation :normalize_annual_entitlement
+  validates :annual_base_days, numericality: { only_integer: true, greater_than_or_equal_to: 28, less_than_or_equal_to: 1_000_000 }
+  validates :annual_additional_days, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: 1_000_000 }
+  validates :annual_leave_basis, length: { maximum: 200 }
+  validates :annual_leave_basis, presence: true, if: -> { extended_annual_leave? || annual_additional_days.to_i.positive? }
+  validate :irregular_leave_minimum
+
+  def irregular_leave_minimum
+    if annual_additional_days.to_i.between?(1, 2)
+      errors.add(:annual_additional_days, "за ненормированный рабочий день должно быть не менее 3 дней")
+    end
+  end
+
+  def annual_default_days(on: Date.current)
+    minimum = birthday_on.is_a?(Date) && birthday_on > on.prev_year(18) ? 31 : 28
+    [ annual_base_days.to_i, minimum ].max + annual_additional_days.to_i
+  end
+
+  def normalize_annual_entitlement
+    if persisted? && will_save_change_to_extended_annual_leave? && !extended_annual_leave? && annual_base_days == annual_base_days_in_database
+      self.annual_base_days = 28
+    end
+    self.annual_base_days = 30 if extended_annual_leave? && annual_base_days == 28
+    if !extended_annual_leave? && annual_base_days != 28
+      errors.add(:annual_base_days, "для иной продолжительности отметьте увеличение основного отпуска")
+    end
+  end
   MINIMUM_PASSWORD_LENGTH = 12
   CITY_TIME_ZONES = {
     "Калининград" => "Europe/Kaliningrad",

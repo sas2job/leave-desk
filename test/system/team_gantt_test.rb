@@ -90,6 +90,7 @@ class TeamGanttTest < ActionDispatch::SystemTestCase
     100.times do |index|
       employee = User.create!(name: format("Large %03d", index), email_address: "large-#{index}@example.test",
         password: "test-password", manager:, birthday_on: index.zero? ? Date.new(1990, 7, 18) : DemoBirthdayDates.for_index(index % 20))
+      configure_annual_year(employee, year: 2027)
       first = index < 3 ? Date.new(2027, 7, 10 + index * 2) : Date.new(2027, 9, 10 + index % 10)
       request = LeaveRequest.create!(employee:, leave_type: type, starts_on: first, ends_on: first + 6)
       request.approve!(by: manager, legal_review: { conditions_confirmed: true,

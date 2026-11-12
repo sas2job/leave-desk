@@ -1,0 +1,12 @@
+<main class="page">
+  <header class="page-header"><div><p class="eyebrow">Команда</p><h1>Остатки отпусков команды</h1><p class="lede">Продолжительность отпуска, рабочие годы и доступные дни сотрудников.</p></div></header>
+  <div class="request-list">
+    <% @employees.each do |employee| %>
+      <section class="card form-card">
+        <h2><%= employee.name %></h2>
+        <p>Установлено за рабочий год: <%= employee.annual_default_days %> дн. · <%= employee.annual_leave_years.empty? ? "Остаток не настроен" : "Доступно на сегодня: #{format_balance_days(employee.annual_leave_years.select { |year| year.starts_on <= Date.current }.sum(&:available_minutes))} дн." %></p>
+        <%= link_to "Настроить остаток", manager_user_annual_leave_years_path(employee), class: "button button--secondary" %>
+      </section>
+    <% end %>
+  </div>
+</main>

@@ -1,0 +1,20 @@
+<% if years.empty? %>
+  <section class="card form-card"><h2>Остаток ещё не настроен</h2><p>Для ежегодного отпуска руководитель или администратор должен внести рабочие годы, положенные дни и начальный расход. Другие виды отсутствия доступны по обычным правилам.</p></section>
+<% else %>
+  <div class="request-list">
+    <% years.each do |year| %>
+      <section class="card form-card">
+        <h2><%= format_date(year.starts_on) %>–<%= format_date(year.ends_on) %></h2>
+        <% if year.starts_on > Date.current %><p class="field-hint">Будущий рабочий год: дни доступны для отпуска, который начнётся не раньше этой даты.</p><% end %>
+        <% used = year.newly_used_minutes %>
+        <div class="review-card__details">
+          <% { "Положено" => year.entitlement_days * 1440, "Учтено ранее" => year.opening_used_minutes,
+            "Использовано по новым заявкам" => used, "Одобрено на будущие дни" => year.committed_minutes - used, "Зарезервировано" => year.reserved_minutes,
+            "Доступно" => year.available_minutes }.each do |label, minutes| %>
+            <div><div class="meta-label"><%= label %></div><div class="meta-value"><%= format_balance_days(minutes) %> дн.</div></div>
+          <% end %>
+        </div>
+      </section>
+    <% end %>
+  </div>
+<% end %>

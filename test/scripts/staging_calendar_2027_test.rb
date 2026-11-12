@@ -36,6 +36,7 @@ class StagingCalendar2027Test < ActiveSupport::TestCase
     employee = @employees.last
     employee.update!(birthday_on: Date.new(1990, 8, 10))
     annual = LeaveType.find_by!(code: "ANNUAL")
+    configure_annual_year(employee, year: 2027)
     existing = LeaveRequest.create!(employee:, leave_type: annual, starts_on: Date.new(2027, 2, 10), ends_on: Date.new(2027, 2, 16))
     existing.approve!(by: @manager, legal_review: { conditions_confirmed: true,
       working_year_starts_on: Date.new(2027, 1, 1), working_year_ends_on: Date.new(2027, 12, 31), entitlement_days: 28 })

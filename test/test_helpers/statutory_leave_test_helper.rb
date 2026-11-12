@@ -3,6 +3,8 @@ module StatutoryLeaveTestHelper
     @manager = User.create!(name: "Law Manager", email_address: "law-manager@example.test", password: "test-password", role: :manager)
     @administrator = User.create!(name: "Law Administrator", email_address: "law-admin@example.test", password: "test-password", role: :administrator)
     @employee = User.create!(name: "Law Employee", email_address: "law-employee@example.test", password: "test-password", manager: @manager)
+    configure_annual_year(@employee, year: 2025)
+    configure_annual_year(@employee, year: 2026)
     @annual = LeaveType.find_or_create_by!(code: "ANNUAL") do |type|
       type.name = "Ежегодный отпуск"
       type.holiday_handling = :exclude_public_holidays

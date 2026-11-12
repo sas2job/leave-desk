@@ -4,19 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Correct annual leave or demo birthdays
+        description: Demo operation (reseed_demo preserves users and passwords)
         type: choice
-        options: [vacations, birthdays, calendar_2027, benchmark_2027]
+        options: [vacations, birthdays, calendar_2027, benchmark_2027, reseed_demo]
         default: vacations
         required: true
       mode:
-        description: Preview or apply the 2026 demo correction
+        description: Preview or apply the reviewed demo plan
         type: choice
         options: [plan, apply]
         default: plan
         required: true
       plan_digest:
-        description: SHA-256 returned by the plan (required for apply)
+        description: SHA-256 returned by plan (required for apply)
         type: string
         required: false
 
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Validate operation
         run: |
-          case "$OPERATION" in vacations|birthdays|calendar_2027|benchmark_2027) : ;; *) exit 64 ;; esac
+          case "$OPERATION" in vacations|birthdays|calendar_2027|benchmark_2027|reseed_demo) : ;; *) exit 64 ;; esac
           if [[ "$OPERATION" == benchmark_2027 ]]; then test "$MODE" = plan; fi
           case "$MODE" in
             plan) test -z "$PLAN_DIGEST" ;;
@@ -60,26 +60,36 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
       - name: Back up and verify before applying
+        id: backup
         if: inputs.mode == 'apply'
         run: |
           backup_output=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
             "$DEPLOY_USER@$DEPLOY_HOST" 'bash -se' < deploy/backup-before-demo-correction.sh)
           printf '%s\n' "$backup_output"
-          printf '%s\n' "$backup_output" | grep -Eq \
-            '^Correction backup verified: /var/backups/leave-desk/demo-2026-before-correction-[[:alnum:]]{8}$'
+          archive=$(printf '%s\n' "$backup_output" | sed -n 's/^Correction backup verified: //p')
+          [[ "$archive" =~ ^/var/backups/leave-desk/demo-2026-before-correction-[[:alnum:]]{8}$ ]]
+          printf 'archive=%s\n' "$archive" >> "$GITHUB_OUTPUT"
+      - name: Verify backup restore on isolated runner
+        if: inputs.mode == 'apply' && inputs.operation == 'reseed_demo'
+        env:
+          DEMO_BACKUP_ARCHIVE: ${{ steps.backup.outputs.archive }}
+        run: bash deploy/verify-demo-backup.sh
       - name: Preview or apply correction
         run: |
+          mode_env=DEMO_CALENDAR_MODE
+          digest_env=DEMO_CALENDAR_PLAN_DIGEST
           case "$OPERATION" in
             vacations) correction_script=script/correct_demo_calendar_2026.rb ;;
             birthdays) correction_script=script/correct_demo_birthdays.rb ;;
             calendar_2027) correction_script=script/seed_staging_calendar_2027.rb ;;
             benchmark_2027) correction_script=script/benchmark_staging_calendar_2027.rb ;;
+            reseed_demo) correction_script=script/reseed_staging_demo.rb; mode_env=DEMO_RESEED_MODE; digest_env=DEMO_RESEED_PLAN_DIGEST ;;
           esac
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd /root/projects/leave-desk && ./current/compose.sh exec -T \
-            -e DEMO_CALENDAR_MODE='$MODE' -e DEMO_CALENDAR_PLAN_DIGEST='$PLAN_DIGEST' \
-            web bin/rails runner -" < "$correction_script"
+              -e '$mode_env=$MODE' -e '$digest_env=$PLAN_DIGEST' \
+              web bin/rails runner -" < "$correction_script"
       - name: Check leave history
         if: inputs.mode == 'apply'
         run: bash deploy/audit-leave-history.sh

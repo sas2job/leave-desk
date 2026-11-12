@@ -10,10 +10,65 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_12_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_12_000003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gist"
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "annual_leave_adjustments", force: :cascade do |t|
+    t.bigint "annual_leave_year_id", null: false
+    t.bigint "actor_id", null: false
+    t.integer "previous_entitlement_days", null: false
+    t.integer "entitlement_days", null: false
+    t.bigint "previous_opening_used_minutes", null: false
+    t.bigint "opening_used_minutes", null: false
+    t.string "reason", limit: 200, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_annual_leave_adjustments_on_actor_id"
+    t.index ["annual_leave_year_id"], name: "index_annual_leave_adjustments_on_annual_leave_year_id"
+  end
+
+  create_table "annual_leave_bookings", force: :cascade do |t|
+    t.bigint "leave_request_id", null: false
+    t.bigint "annual_leave_year_id", null: false
+    t.bigint "minutes", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["annual_leave_year_id"], name: "index_annual_leave_bookings_on_annual_leave_year_id"
+    t.index ["leave_request_id", "annual_leave_year_id"], name: "annual_leave_booking_per_year", unique: true
+    t.index ["leave_request_id"], name: "index_annual_leave_bookings_on_leave_request_id"
+    t.check_constraint "minutes >= 0 AND (status = ANY (ARRAY[0, 1, 2]))", name: "annual_leave_bookings_amount"
+  end
+
+  create_table "annual_leave_years", force: :cascade do |t|
+    t.bigint "employee_id", null: false
+    t.bigint "recorded_by_id", null: false
+    t.date "starts_on", null: false
+    t.date "ends_on", null: false
+    t.integer "entitlement_days", null: false
+    t.bigint "opening_used_minutes", default: 0, null: false
+    t.bigint "reserved_minutes", default: 0, null: false
+    t.bigint "committed_minutes", default: 0, null: false
+    t.string "basis", limit: 200, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_id"], name: "index_annual_leave_years_on_employee_id"
+    t.index ["recorded_by_id"], name: "index_annual_leave_years_on_recorded_by_id"
+    t.check_constraint "entitlement_days >= 28 AND opening_used_minutes >= 0 AND reserved_minutes >= 0 AND committed_minutes >= 0 AND (opening_used_minutes + reserved_minutes + committed_minutes) <= (entitlement_days::bigint * 1440)", name: "annual_leave_years_capacity"
+    t.check_constraint "isfinite(starts_on) AND isfinite(ends_on) AND starts_on >= '2000-01-01'::date AND ends_on <= '2100-12-31'::date AND ends_on > starts_on", name: "annual_leave_years_dates"
+    t.exclusion_constraint "employee_id WITH =, daterange(starts_on, ends_on, '[]'::text) WITH &&", using: :gist, name: "annual_leave_years_no_overlap"
+  end
+
+  create_table "demo_seed_archives", force: :cascade do |t|
+    t.string "plan_digest", limit: 64, null: false
+    t.jsonb "archived_data", null: false
+    t.jsonb "summary", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["plan_digest"], name: "index_demo_seed_archives_on_plan_digest", unique: true
+  end
 
   create_table "federal_calendars", force: :cascade do |t|
     t.integer "year", null: false
@@ -125,6 +180,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_000001) do
     t.bigint "resumes_request_id"
     t.date "sick_closed_on"
     t.datetime "sick_closed_at"
+    t.bigint "annual_cancelled_used_minutes", default: 0, null: false
     t.index ["employee_id", "birthday_claim_year"], name: "leave_requests_one_birthday_per_year", unique: true, where: "((birthday_claim_year IS NOT NULL) AND ((status = ANY (ARRAY[0, 1])) OR birthday_used))"
     t.index ["employee_id", "id"], name: "index_leave_requests_on_employee_id_and_id"
     t.index ["employee_id"], name: "index_leave_requests_on_employee_id"
@@ -132,6 +188,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_000001) do
     t.index ["region_id"], name: "index_leave_requests_on_region_id"
     t.index ["resumes_request_id"], name: "index_leave_requests_on_resumes_request_id"
     t.index ["reviewer_id"], name: "index_leave_requests_on_reviewer_id"
+    t.check_constraint "annual_cancelled_used_minutes >= 0", name: "leave_requests_annual_cancelled_usage"
     t.check_constraint "birthday_claim_year IS NULL OR birthday_claim_year = EXTRACT(year FROM starts_on)::integer", name: "leave_requests_birthday_claim_year"
     t.check_constraint "duration_half_days > 0 AND duration_minutes IS NULL OR duration_minutes > 0 AND duration_half_days IS NULL", name: "leave_requests_positive_duration"
     t.check_constraint "end_minute >= 1 AND end_minute <= 1440", name: "leave_requests_valid_end_minute"
@@ -247,14 +304,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_12_000001) do
     t.string "city"
     t.string "time_zone", default: "Europe/Moscow", null: false
     t.bigint "region_id"
+    t.boolean "extended_annual_leave", default: false, null: false
+    t.integer "annual_base_days", default: 28, null: false
+    t.integer "annual_additional_days", default: 0, null: false
+    t.string "annual_leave_basis", limit: 200
     t.index "lower((email_address)::text)", name: "index_users_on_lower_email_address", unique: true
     t.index ["manager_id"], name: "index_users_on_manager_id"
     t.index ["region_id"], name: "index_users_on_region_id"
+    t.check_constraint "annual_base_days >= 28 AND annual_additional_days >= 0", name: "users_annual_entitlement"
     t.check_constraint "birthday_on IS NULL OR isfinite(birthday_on)", name: "users_finite_birthday"
     t.check_constraint "manager_id IS NULL OR manager_id <> id", name: "users_manager_is_not_self"
     t.check_constraint "role = ANY (ARRAY[0, 1, 2])", name: "users_valid_role"
   end
 
+  add_foreign_key "annual_leave_adjustments", "annual_leave_years"
+  add_foreign_key "annual_leave_adjustments", "users", column: "actor_id"
+  add_foreign_key "annual_leave_bookings", "annual_leave_years"
+  add_foreign_key "annual_leave_bookings", "leave_requests"
+  add_foreign_key "annual_leave_years", "users", column: "employee_id"
+  add_foreign_key "annual_leave_years", "users", column: "recorded_by_id"
   add_foreign_key "leave_legal_reviews", "leave_requests"
   add_foreign_key "leave_legal_reviews", "users", column: "reviewer_id"
   add_foreign_key "leave_recalls", "leave_requests"

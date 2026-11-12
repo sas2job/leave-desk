@@ -420,14 +420,16 @@ h2 {
   font-weight: 750;
 }
 
-.sick-leave-details {
+.sick-leave-details,
+.annual-leave-details {
   grid-column: 1 / -1;
   min-width: 0;
   border-top: 1px solid var(--border);
   padding-top: 1rem;
 }
 
-.sick-leave-details .form-grid {
+.sick-leave-details .form-grid,
+.annual-leave-details .form-grid {
   margin-top: 1rem;
 }
 
@@ -1155,4 +1157,10 @@ textarea:focus {
 .action-card:hover {
   border-color: #abc6b8;
   box-shadow: var(--shadow);
+}
+
+.page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
 }

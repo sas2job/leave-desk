@@ -1,4 +1,8 @@
 module ApplicationHelper
+  def format_balance_days(minutes)
+    format_duration(minutes.to_i % 1440 == 0 ? minutes.to_i / 1440 : minutes.to_i / 1440.0)
+  end
+
   def workspace_navigation_link(label, path)
     active = request.path == path || request.path.start_with?("#{path}/")
     link_to label, path, aria: { current: active ? "page" : nil }

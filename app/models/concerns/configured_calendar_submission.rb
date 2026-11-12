@@ -8,6 +8,9 @@ module ConfiguredCalendarSubmission
   def submit
     @employee_submission = true
     save
+  rescue ActiveRecord::RecordInvalid => error
+    raise unless error.record == self
+    false
   end
 
   private

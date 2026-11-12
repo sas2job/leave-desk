@@ -5,7 +5,10 @@
       <h1>Мои заявки</h1>
       <p class="lede">История отпусков и текущие решения.</p>
     </div>
-    <%= link_to "Создать заявку", new_leave_request_path, class: "button" %>
+    <div class="page-header__actions">
+      <%= link_to "Остаток отпуска", annual_leave_balance_path, class: "button button--secondary" %>
+      <%= link_to "Создать заявку", new_leave_request_path, class: "button" %>
+    </div>
   </header>
 
   <% if @leave_requests.any? %>
@@ -46,6 +49,7 @@
           <%= render "leave_requests/legal_basis", leave_request: %>
           <%= render "leave_requests/family", leave_request: %>
           <%= render "leave_requests/sick_leave", leave_request: %>
+          <%= render "leave_requests/annual_balance", leave_request: %>
           <%= render "leave_requests/recalls", leave_request: %>
           <%= render "leave_requests/history", leave_request: %>
         </article>
