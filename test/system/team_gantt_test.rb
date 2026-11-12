@@ -3,6 +3,38 @@ require "test_helper"
 class TeamGanttTest < ActionDispatch::SystemTestCase
   driven_by :selenium, using: :headless_chrome, screen_size: [ 1366, 900 ]
 
+  test "birthday and leave overlays keep December day backgrounds aligned" do
+    manager = User.create!(name: "Calendar Manager", email_address: "alignment-manager@example.test",
+      password: "test-password", role: :manager)
+    employee = User.create!(name: "Calendar Employee", email_address: "alignment-employee@example.test",
+      password: "test-password", manager:, birthday_on: Date.new(1990, 12, 3))
+    type = LeaveType.create!(name: "Calendar leave", code: "TEST_ALIGNMENT")
+    request = LeaveRequest.create!(employee:, leave_type: type,
+      starts_on: Date.new(2026, 12, 10), ends_on: Date.new(2026, 12, 18))
+    request.approve!(by: manager)
+
+    visit new_session_path
+    fill_in "Электронная почта", with: manager.email_address
+    fill_in "Пароль", with: "test-password"
+    click_button "Войти"
+    assert_button "Выйти"
+
+    [ 12, "all" ].each do |month|
+      visit manager_calendar_path(year: 2026, month:)
+      assert_selector ".team-timeline__birthday"
+      assert_selector ".team-timeline__bar"
+      differences = page.evaluate_script(<<~JAVASCRIPT)
+        (() => {
+          const dates = [...document.querySelectorAll('.team-timeline__date')];
+          const days = [...document.querySelector('.team-timeline__track').querySelectorAll('.team-timeline__day')];
+          return days.map((day, index) =>
+            Math.abs(day.getBoundingClientRect().left - dates[index].getBoundingClientRect().left));
+        })()
+      JAVASCRIPT
+      assert differences.all? { |difference| difference <= 1 }, "Day backgrounds shifted by up to #{differences.max}px (month: #{month})"
+    end
+  end
+
   test "annual gantt opens details and isolates overlap participants" do
     manager = User.create!(name: "Gantt Manager", email_address: "gantt-manager@example.test",
       password: "test-password", role: :manager)
