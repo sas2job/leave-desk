@@ -1,3 +1,12 @@
+.overlap-report__month {
+  margin-bottom: 1rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.overlap-report__month > :last-child {
+  margin-bottom: 0;
+}
+
 body:has(.calendar-page) {
   background: var(--background);
 }

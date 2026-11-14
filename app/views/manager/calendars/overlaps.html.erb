@@ -8,7 +8,7 @@
     Два отсутствующих в течение дня могут отсутствовать в разные часы; отчёт показывает дневные совпадения.</p>
   <% if @report.months.empty? %><p>В выбранном периоде пересечений нет.</p><% end %>
   <% @report.months.each do |month| %>
-    <section class="card">
+    <section class="card overlap-report__month">
       <h2><%= @report.month_label(month) %></h2>
       <p>Дней с пересечениями: <%= month[:overlap_days] %></p>
       <% month[:ranges].each do |range| %>
